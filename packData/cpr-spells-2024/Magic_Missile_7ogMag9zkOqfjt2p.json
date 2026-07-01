@@ -98,9 +98,12 @@
             "units": "ft"
           },
           "affects": {
-            "choice": false
+            "choice": false,
+            "type": "creature",
+            "count": "2 + @item.level",
+            "special": ""
           },
-          "override": false
+          "override": true
         },
         "uses": {
           "spent": 0,

@@ -1,6 +1,6 @@
 import {dialogUtils, genericUtils, rollUtils} from '../../../utils.js';
 async function attack(workflow) {
-    if (!workflow.attackRoll || !workflow.actor.system.attributes.inspiration) return;
+    if (workflow.workflowOptions?.skipHeroicInspiration || !workflow.attackRoll || !workflow.actor.system.attributes.inspiration) return;
     let selection = await dialogUtils.selectDie([workflow.attackRoll], 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name')}), {buttons: 'yesNo'});
     if (!selection) return;
     let positions = selection[0].split('-').map(i => Number(i));
@@ -11,7 +11,7 @@ async function attack(workflow) {
     await genericUtils.update(workflow.actor, {'system.attributes.inspiration': false});
 }
 async function damage(workflow) {
-    if (!workflow.damageRolls || !workflow.actor.system.attributes.inspiration) return;
+    if (workflow.workflowOptions?.skipHeroicInspiration || !workflow.damageRolls || !workflow.actor.system.attributes.inspiration) return;
     let selection = await dialogUtils.selectDie(workflow.damageRolls, 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name')}), {buttons: 'yesNo'});
     if (!selection) return;
     let positions = selection[0].split('-').map(i => Number(i));

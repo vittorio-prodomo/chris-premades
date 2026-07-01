@@ -2,13 +2,28 @@ import {activityUtils, actorUtils, animationUtils, dialogUtils, effectUtils, err
 async function use({workflow}) {
     if (!workflow.targets.size) return;
     let maxMissiles = 2 + workflowUtils.getCastLevel(workflow);
-    let selection = await dialogUtils.selectTargetDialog(workflow.item.name, genericUtils.format('CHRISPREMADES.Macros.MagicMissile.Select', {maxMissiles}), workflow.targets, {
-        type: 'selectAmount',
-        maxAmount: maxMissiles
-    });
-    if (!selection) return;
-    selection = selection[0];
-    if (!selection || !selection.length) return;
+    let selection;
+    if (workflow.targets.size === maxMissiles) {
+        // As many targets as missiles: fire one bolt at each and skip the distribution dialog.
+        selection = [...workflow.targets].map(token => ({document: token, value: 1}));
+    } else {
+        let result = await dialogUtils.selectTargetDialog(workflow.item.name, genericUtils.format('CHRISPREMADES.Macros.MagicMissile.Select', {maxMissiles}), workflow.targets, {
+            type: 'selectAmount',
+            maxAmount: maxMissiles
+        });
+        selection = result ? result[0] : undefined;
+        if (!selection || !selection.length) {
+            // Distribution dialog was cancelled or nothing was allotted. The spell slot is
+            // already spent (this macro runs on rollFinished), so refund it and post a short
+            // "cancelled" card (the usage card was already posted at cast time).
+            let refunded = await refundSpellSlot(workflow);
+            await ChatMessage.create({
+                speaker: ChatMessage.implementation.getSpeaker({token: workflow.token}),
+                content: `<em>${workflow.item.name} cancelled${refunded ? ' — spell slot refunded' : ''}.</em>`
+            });
+            return;
+        }
+    }
     let feature = activityUtils.getActivityByIdentifier(workflow.item, 'magicMissileBolt');
     let featureFlat = activityUtils.getActivityByIdentifier(workflow.item, 'magicMissileFlat');
     if (!feature && rollEach) {
@@ -79,14 +94,24 @@ async function use({workflow}) {
                     .play();
             }
             if (isShielded) {
-                await workflowUtils.syntheticActivityDataRoll(shieldedFeatureData, workflow.item, workflow.actor, [targetToken], {options: {workflowOptions: {targetConfirmation: 'none'}}});
+                await workflowUtils.syntheticActivityDataRoll(shieldedFeatureData, workflow.item, workflow.actor, [targetToken], {options: {workflowOptions: {targetConfirmation: 'none', skipHeroicInspiration: true}}});
             } else if (rollEach) {
-                await workflowUtils.syntheticActivityRoll(feature, [targetToken], {options: {workflowOptions: {targetConfirmation: 'none'}}});
+                await workflowUtils.syntheticActivityRoll(feature, [targetToken], {options: {workflowOptions: {targetConfirmation: 'none', skipHeroicInspiration: true}}});
             } else {
-                await workflowUtils.syntheticActivityDataRoll(activityData, workflow.item, workflow.actor, [targetToken], {options: {workflowOptions: {targetConfirmation: 'none'}}});
+                await workflowUtils.syntheticActivityDataRoll(activityData, workflow.item, workflow.actor, [targetToken], {options: {workflowOptions: {targetConfirmation: 'none', skipHeroicInspiration: true}}});
             }
         }
     }
+}
+async function refundSpellSlot(workflow) {
+    // Only leveled ('spell') and pact casting actually consume a slot; at-will/innate/ritual do not.
+    let method = workflow.item?.system?.method;
+    if (method !== 'spell' && method !== 'pact') return false;
+    let slotKey = method === 'pact' ? 'pact' : actorUtils.getEquivalentSpellSlotName(workflow.actor, workflowUtils.getCastLevel(workflow));
+    let slot = slotKey ? workflow.actor.system.spells[slotKey] : undefined;
+    if (!slot) return false;
+    await genericUtils.update(workflow.actor, {['system.spells.' + slotKey + '.value']: Math.min(slot.value + 1, slot.max)});
+    return true;
 }
 export let magicMissile = {
     name: 'Magic Missile',
