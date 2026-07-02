@@ -1,9 +1,14 @@
-import {activityUtils, actorUtils, animationUtils, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, workflowUtils} from '../../../utils.js';
+import {activityUtils, actorUtils, animationUtils, consumeArgonDistribution, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, workflowUtils} from '../../../utils.js';
 async function use({workflow}) {
     if (!workflow.targets.size) return;
     let maxMissiles = 2 + workflowUtils.getCastLevel(workflow);
     let selection;
-    if (workflow.targets.size === maxMissiles) {
+    let argonSel = consumeArgonDistribution(workflow);
+    if (argonSel) {
+        // Darts were distributed on-canvas via Argon's stacking picker. The bridge resolves the cast
+        // level before the picker, so the count is always exact — no top-up needed.
+        selection = argonSel;
+    } else if (workflow.targets.size === maxMissiles) {
         // As many targets as missiles: fire one bolt at each and skip the distribution dialog.
         selection = [...workflow.targets].map(token => ({document: token, value: 1}));
     } else {

@@ -424,6 +424,9 @@
   },
   "name": "Magic Missile",
   "flags": {
+    "enhancedcombathud": {
+      "stackTargets": true
+    },
     "core": {},
     "midi-qol": {
       "effectActivation": false,

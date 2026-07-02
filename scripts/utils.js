@@ -20,3 +20,4 @@ export {spellUtils} from './lib/utilities/spellUtils.js';
 export {regionUtils} from './lib/utilities/regionUtils.js';
 export {macroUtils} from './lib/utilities/macroUtils.js';
 export {thirdPartyUtils} from './lib/utilities/thirdPartyUtils.js';
+export {parseDistributionStash, consumeArgonDistribution} from './lib/utilities/argonDistribution.mjs';
