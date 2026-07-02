@@ -7,7 +7,8 @@
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack",
+    "build": "node dev-manifest.mjs && webpack",
+    "devManifest": "node dev-manifest.mjs",
     "buildCompendiums": "node packData/packData.mjs",
     "extractCompendiums": "node packData/unpackData.mjs"
   },
