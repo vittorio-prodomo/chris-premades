@@ -39,7 +39,7 @@
     }
   ],
   "esmodules": [
-    "dist/main.js"
+    "dev-loader.mjs"
   ],
   "styles": [
     "styles/module.css"
