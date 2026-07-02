@@ -130,6 +130,15 @@ async function init(mode) {
             });
         }));
     }
+    // Fork addition: GPS automations that exist only in the legacy packs but are
+    // mechanically rules-agnostic — surface them for modern-rules lookups too.
+    // Remove an entry here if GPS ports it to a *-2024 pack.
+    let legacyAsModern = ['Portent'];
+    for (let name of legacyAsModern) {
+        let hasModern = gambitItems.some(i => i.name === name && i.rules === 'modern');
+        let legacyEntry = gambitItems.find(i => i.name === name && i.rules === 'legacy');
+        if (!hasModern && legacyEntry) gambitItems.push({...legacyEntry, rules: 'modern'});
+    }
 }
 export let gambitPremades = {
     init,
