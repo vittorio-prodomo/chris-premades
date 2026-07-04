@@ -168,7 +168,7 @@ export let huntersMark = {
                 activities: ['huntersMarkMove']
             },
             {
-                pass: 'preambleComplete',
+                pass: 'preItemRoll',
                 macro: moveEarly,
                 priority: 50,
                 activities: ['huntersMarkMove']
