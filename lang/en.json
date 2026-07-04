@@ -1816,6 +1816,7 @@
             "HuntersMark": {
                 "Marked": "Hunter's Mark: Marked",
                 "Move": "Hunter's Mark: Move",
+                "MoveRequiresDropped": "Hunter's Mark can only be moved once the marked creature has dropped to 0 hit points.",
                 "Select": "Which target would you like to unmark?"
             },
             "HybridTransformation": {
