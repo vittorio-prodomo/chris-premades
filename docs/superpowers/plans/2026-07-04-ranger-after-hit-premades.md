@@ -408,10 +408,10 @@ const hot = baseSpell({
   img: 'icons/magic/nature/thorns-spike-curled-green.webp',
   identifier: 'hailOfThorns',
   properties: ['vocal', 'mgc'],
-  trigger: 'Immediately after hitting a creature with a Ranged weapon',
+  trigger: 'immediately after hitting a creature with a Ranged weapon',
   rangeSpecial: 'The creature you just hit with a ranged weapon attack',
   duration: {value: null, units: 'inst', concentration: false},
-  desc: '<p>As you hit the target, the piece of ammunition or weapon you used explodes into a rain of thorns. The target and each creature within 5 feet of it make a Dexterity saving throw, taking 1d10 Piercing damage on a failed save or half as much damage on a successful one.</p><p><em><strong>Using a Higher-Level Spell Slot.</strong></em> The damage increases by 1d10 for each spell slot level above 1.</p>',
+  desc: '<p>As you hit the creature, this spell creates a rain of thorns that sprouts from your Ranged weapon or ammunition. The target of the attack and each creature within 5 feet of it make a Dexterity saving throw, taking 1d10 Piercing damage on a failed save or half as much damage on a successful one.</p><p><em><strong>Using a Higher-Level Spell Slot.</strong></em> The damage increases by 1d10 for each spell slot level above 1.</p>',
   activities: {
     dnd5eactivity000: {
       _id: 'dnd5eactivity000', type: 'save', name: '',
