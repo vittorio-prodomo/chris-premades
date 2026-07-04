@@ -83,16 +83,26 @@ async function move({workflow}) {
     let targetUuids = effect.flags['chris-premades'].huntersMark.targets;
     let newTarget = workflow.targets.first();
     if (!newTarget) {
-        // No target selected: offer a picker of valid creatures in range instead of silently doing nothing
-        let candidates = tokenUtils.findNearby(workflow.token, workflow.item.system.range?.value ?? 90, null, {includeIncapacitated: false}).filter(i => !targetUuids.includes(i.document.uuid));
-        if (!candidates.length) {
-            genericUtils.notify('CHRISPREMADES.Macros.HuntersMark.MoveNoTargets', 'info');
-            return;
+        // No target selected: run the native Argon canvas picker (the "0/1 targets" flow used by
+        // HUD attacks and Magic Missile) when available; fall back to a list dialog without Argon.
+        let range = workflow.item.system.range?.value ?? 90;
+        let argonApi = game.modules.get('enhancedcombathud')?.active ? game.modules.get('enhancedcombathud').api : undefined;
+        if (typeof argonApi?.runTargetPicker === 'function') {
+            let picked = await argonApi.runTargetPicker({token: workflow.token, targets: 1, ranges: {normal: range, long: null}, item: workflow.item});
+            if (!picked) return;
+            newTarget = game.user.targets.first();
+            if (!newTarget) return;
+        } else {
+            let candidates = tokenUtils.findNearby(workflow.token, range, null, {includeIncapacitated: false}).filter(i => !targetUuids.includes(i.document.uuid));
+            if (!candidates.length) {
+                genericUtils.notify('CHRISPREMADES.Macros.HuntersMark.MoveNoTargets', 'info');
+                return;
+            }
+            let newTargetSelection = await dialogUtils.selectTargetDialog(workflow.item.name, 'CHRISPREMADES.Macros.HuntersMark.MoveSelect', candidates);
+            if (!newTargetSelection) return;
+            newTarget = newTargetSelection[0];
+            if (!newTarget) return;
         }
-        let newTargetSelection = await dialogUtils.selectTargetDialog(workflow.item.name, 'CHRISPREMADES.Macros.HuntersMark.MoveSelect', candidates);
-        if (!newTargetSelection) return;
-        newTarget = newTargetSelection[0];
-        if (!newTarget) return;
     }
     let targets = targetUuids.map(i => fromUuidSync(i)?.object).filter(i => i);
     let selection;
