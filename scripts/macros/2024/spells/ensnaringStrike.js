@@ -34,7 +34,7 @@ async function early({trigger, workflow}) {
                 img: workflow.item.img,
                 origin: workflow.item.uuid,
                 duration: {seconds: 60},
-                changes: [{key: 'flags.midi-qol.advantage.ability.save.str', mode: 0, value: '1', priority: 20}],
+                changes: [{key: 'flags.midi-qol.advantage.save.str', mode: 0, value: '1', priority: 20}],
                 flags: {dae: {specialDuration: ['isSave.str']}}
             };
             await effectUtils.createEffect(token.actor, effectData, {});
