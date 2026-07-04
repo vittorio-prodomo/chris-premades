@@ -136,6 +136,7 @@ export {dragonsBreath} from './macros/2024/spells/dragonsBreath.js';
 export {eldritchBlast} from './macros/2024/spells/eldritchBlast.js';
 export {elementalWeapon} from './macros/2024/spells/elementalWeapon.js';
 export {enlargeReduce} from './macros/2024/spells/enlargeReduce.js';
+export {ensnaringStrike} from './macros/2024/spells/ensnaringStrike.js';
 export {faerieFire} from './macros/2024/spells/faerieFire.js';
 export {findFamiliar} from './macros/2024/spells/findFamiliar.js';
 export {fireShield} from './macros/2024/spells/fireShield.js';
