@@ -62,7 +62,7 @@ A numeric range is explicitly rejected: midi range-checking is on in this world 
 
 ## Config (medkit homebrew section, smite parity)
 
-Per spell: damage type (default piercing), die size (d6 / d10), base dice count. The two suppression gates are **hard-coded, not configurable** (per design discussion).
+Ensnaring Strike only: damage type (default piercing), die size (d6), base dice count — these drive the OverTime formula the macro builds. Hail of Thorns gets no config knobs: its damage is plain item data on the save activity (edit the item to homebrew it), so medkit options would drive nothing. The two suppression gates are **hard-coded, not configurable** (per design discussion).
 
 ## Migration & deployment
 
