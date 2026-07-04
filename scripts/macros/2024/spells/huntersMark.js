@@ -132,8 +132,15 @@ async function damage({workflow}) {
 async function early({dialog}) {
     dialog.configure = false;
 }
-async function moveEarly({workflow}) {
-    let effect = effectUtils.getEffectByIdentifier(workflow.actor, 'huntersMark');
+// RAW 2024: the mark can only be moved once the marked creature has dropped to 0 HP.
+// Gated on dnd5e's preUseActivity so a blocked attempt cancels BEFORE the usage card,
+// consumption, and MidiQOL's action-economy bookkeeping (setBonusActionUsed runs inside
+// MidiActivityMixin.use() even for workflows a preItemRoll/state macro later aborts).
+Hooks.on('dnd5e.preUseActivity', activity => {
+    if (activityUtils.getIdentifier(activity) !== 'huntersMarkMove') return;
+    let actor = activity.item?.actor;
+    if (!actor) return;
+    let effect = effectUtils.getEffectByIdentifier(actor, 'huntersMark');
     if (!effect) return;
     let targetUuids = effect.flags['chris-premades']?.huntersMark?.targets ?? [];
     if (!targetUuids.length) return;
@@ -142,8 +149,8 @@ async function moveEarly({workflow}) {
     if (marked.length < targetUuids.length) return;
     if (marked.some(i => (i.actor ?? i)?.system?.attributes?.hp?.value <= 0)) return;
     genericUtils.notify('CHRISPREMADES.Macros.HuntersMark.MoveRequiresDropped', 'info');
-    workflow.aborted = true;
-}
+    return false;
+});
 export let huntersMark = {
     name: 'Hunter\'s Mark',
     version: '1.2.28',
@@ -164,12 +171,6 @@ export let huntersMark = {
             {
                 pass: 'preTargeting',
                 macro: early,
-                priority: 50,
-                activities: ['huntersMarkMove']
-            },
-            {
-                pass: 'preItemRoll',
-                macro: moveEarly,
                 priority: 50,
                 activities: ['huntersMarkMove']
             }
