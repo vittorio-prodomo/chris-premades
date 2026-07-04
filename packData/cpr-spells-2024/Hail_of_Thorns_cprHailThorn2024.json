@@ -15,6 +15,9 @@
         "midi": {
           "item": [
             "hailOfThorns"
+          ],
+          "actor": [
+            "hailOfThorns"
           ]
         }
       }

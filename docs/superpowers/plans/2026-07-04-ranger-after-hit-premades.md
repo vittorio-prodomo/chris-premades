@@ -364,8 +364,11 @@ function baseSpell(o) {
   d.system.source = {book: 'PHB 2024', rules: '2024', revision: 1};
   d.system.uses = {spent: null, max: '', recovery: []};
   d.system.activities = o.activities;
+  // BOTH lists are required: `item` feeds item-pass macros on the spell's own
+  // workflows; `actor` is what CPR's actor scan (getActorMacroData) reads to
+  // collect the after-hit hook on OTHER workflows (the smites do the same).
   d.flags = {'chris-premades': {info: {identifier: o.identifier, version: '1.0.0', source: 'chris-premades', rules: 'modern'},
-                                macros: {midi: {item: [o.identifier]}}}};
+                                macros: {midi: {item: [o.identifier], actor: [o.identifier]}}}};
   return d;
 }
 
