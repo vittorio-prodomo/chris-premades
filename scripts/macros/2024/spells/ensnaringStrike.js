@@ -10,7 +10,7 @@ async function afterHit({trigger, workflow}) {
     if (!['mwak', 'rwak'].includes(actionType)) return;
     if (workflow.actor.concentration?.effects?.size) return; // table rule: never offer while concentrating
     if (actorUtils.hasUsedBonusAction(workflow.actor)) return;
-    if (combatUtils.inCombat()) if (combatUtils.getCurrentCombatantToken() != workflow.token) return;
+    if (!combatUtils.isOwnTurn(workflow.token)) return; // true outside combat; id-based, no sceneId dependency
     let identifiers = ['ensnaringStrike'];
     if (actionType === 'rwak') identifiers.push('hailOfThorns');
     let spells = actorUtils.getCastableSpells(workflow.actor)
