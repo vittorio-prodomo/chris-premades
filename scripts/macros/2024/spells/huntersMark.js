@@ -132,6 +132,18 @@ async function damage({workflow}) {
 async function early({dialog}) {
     dialog.configure = false;
 }
+async function moveEarly({workflow}) {
+    let effect = effectUtils.getEffectByIdentifier(workflow.actor, 'huntersMark');
+    if (!effect) return;
+    let targetUuids = effect.flags['chris-premades']?.huntersMark?.targets ?? [];
+    if (!targetUuids.length) return;
+    let marked = targetUuids.map(i => fromUuidSync(i)).filter(i => i);
+    // Marked targets that no longer resolve (deleted tokens) count as dropped
+    if (marked.length < targetUuids.length) return;
+    if (marked.some(i => (i.actor ?? i)?.system?.attributes?.hp?.value <= 0)) return;
+    genericUtils.notify('CHRISPREMADES.Macros.HuntersMark.MoveRequiresDropped', 'info');
+    workflow.aborted = true;
+}
 export let huntersMark = {
     name: 'Hunter\'s Mark',
     version: '1.2.28',
@@ -152,6 +164,12 @@ export let huntersMark = {
             {
                 pass: 'preTargeting',
                 macro: early,
+                priority: 50,
+                activities: ['huntersMarkMove']
+            },
+            {
+                pass: 'preambleComplete',
+                macro: moveEarly,
                 priority: 50,
                 activities: ['huntersMarkMove']
             }
