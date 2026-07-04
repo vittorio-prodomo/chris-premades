@@ -148,6 +148,7 @@ export {fogCloud} from './macros/2024/spells/fogCloud.js';
 export {gaseousForm} from './macros/2024/spells/gaseousForm.js';
 export {globeOfInvulnerability, globeOfInvulnerabilityInvulnerable} from './macros/2024/spells/globeOfInvulnerability.js';
 export {grease} from './macros/2024/spells/grease.js';
+export {hailOfThorns} from './macros/2024/spells/hailOfThorns.js';
 export {guardianOfFaith, guardianOfFaithDamage} from './macros/2024/spells/guardianOfFaith.js';
 export {guidingBolt} from './macros/2024/spells/guidingBolt.js';
 export {gustOfWind, gustOfWindGust} from './macros/2024/spells/gustOfWind.js';
