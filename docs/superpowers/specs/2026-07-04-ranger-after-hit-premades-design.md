@@ -86,6 +86,15 @@ Silent and free, throughout: any gate fails → no offer; picker declined or usa
 8. Manual-cast path: ES cast from the sheet with 1 target → works (concentration-switch flow); with 0 or 2 targets → blocked with the guard message, slot refunded.
 9. Regression: Toll the Dead, MM (BG3 picker), and a smite-free PC's attacks unaffected; console clean.
 
+## As-built deviations (2026-07-04, all live-verified)
+
+1. **Pack items must declare `flags.chris-premades.macros.midi.actor` in addition to `.item`** — CPR's actor scan (`getActorMacroData`) reads a separate flag list; without it the after-hit hook never registers (smite items do the same; the spec's generator was corrected).
+2. **Turn gate uses `combatUtils.isOwnTurn(workflow.token)`** instead of divineSmite's `getCurrentCombatantToken()` identity compare — id-based, true outside combat, and robust to combatants lacking `sceneId`.
+3. **The Large-advantage flag key is `flags.midi-qol.advantage.save.str`** (no `ability.` infix) in this MidiQoL line; the card attributes it as "ADV — Ensnaring Strike: Large Creature".
+4. **Hail of Thorns durability was FULLY proven** (not partially as anticipated): the spell is on Warpey's real DDB sheet (known-but-unprepared), so the fresh-import swap delivered our premade end-to-end, `correctedItems` range header included.
+5. **`ddbi.correctedItems` works as designed** — the "Special" range header survives re-imports; the ddb-importer-enricher fallback was not needed.
+6. HoT icon corrected to a real core path (`icons/consumables/plants/thorned-curled-vine-green.webp`); old chat cards may 404 on the original invented path (cosmetic, historical messages only).
+
 ## Out of scope
 
 Clickable escape action for Ensnared; other after-hit spells (smites are upstream CPR's); enforcement of "one slot spell per turn"; upstream PRs; the paused v14 line.
