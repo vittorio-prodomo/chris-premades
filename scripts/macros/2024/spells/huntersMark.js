@@ -1,4 +1,4 @@
-import {activityUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, workflowUtils} from '../../../utils.js';
+import {activityUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, tokenUtils, workflowUtils} from '../../../utils.js';
 async function use({workflow}) {
     let concentrationEffect = effectUtils.getConcentrationEffect(workflow.actor, workflow.item);
     if (!workflow.targets.size) {
@@ -77,10 +77,23 @@ async function use({workflow}) {
     if (concentrationEffect) await genericUtils.update(concentrationEffect, {'duration.seconds': seconds});
 }
 async function move({workflow}) {
-    if (workflow.targets.size !== 1) return;
+    if (workflow.targets.size > 1) return;
     let effect = effectUtils.getEffectByIdentifier(workflow.actor, 'huntersMark');
     if (!effect) return;
     let targetUuids = effect.flags['chris-premades'].huntersMark.targets;
+    let newTarget = workflow.targets.first();
+    if (!newTarget) {
+        // No target selected: offer a picker of valid creatures in range instead of silently doing nothing
+        let candidates = tokenUtils.findNearby(workflow.token, workflow.item.system.range?.value ?? 90, null, {includeIncapacitated: false}).filter(i => !targetUuids.includes(i.document.uuid));
+        if (!candidates.length) {
+            genericUtils.notify('CHRISPREMADES.Macros.HuntersMark.MoveNoTargets', 'info');
+            return;
+        }
+        let newTargetSelection = await dialogUtils.selectTargetDialog(workflow.item.name, 'CHRISPREMADES.Macros.HuntersMark.MoveSelect', candidates);
+        if (!newTargetSelection) return;
+        newTarget = newTargetSelection[0];
+        if (!newTarget) return;
+    }
     let targets = targetUuids.map(i => fromUuidSync(i)?.object).filter(i => i);
     let selection;
     if (targets.length) {
@@ -97,7 +110,7 @@ async function move({workflow}) {
         if (effect) await genericUtils.remove(effect);
     }
     targetUuids = targetUuids.filter(i => i !== selection?.document.uuid);
-    targetUuids.push(workflow.targets.first().document.uuid);
+    targetUuids.push(newTarget.document.uuid);
     await genericUtils.setFlag(effect, 'chris-premades', 'huntersMark.targets', targetUuids);
     let seconds = effect.duration.remaining;
     let effectData = {
@@ -108,7 +121,7 @@ async function move({workflow}) {
             seconds
         }
     };
-    await effectUtils.createEffect(workflow.targets.first().actor, effectData, {parentEntity: effect, identifier: 'huntersMarkMarked'});
+    await effectUtils.createEffect(newTarget.actor, effectData, {parentEntity: effect, identifier: 'huntersMarkMarked'});
 }
 async function attack({workflow}) {
     if (workflow.targets.size !== 1) return;

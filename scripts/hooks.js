@@ -106,7 +106,10 @@ export function registerHooks() {
     if (genericUtils.getCPRSetting('colorizeAutomatedAnimations')) Hooks.on('renderItemSheetV2', automatedAnimations.renderItemSheet);
     
     // Auto-populate effect descriptions
-    if (genericUtils.getCPRSetting('effectDescriptions') !== 'disabled') Hooks.on('preCreateActiveEffect', effects.preCreateActiveEffect);
+    if (genericUtils.getCPRSetting('effectDescriptions') !== 'disabled') {
+        Hooks.on('preCreateActiveEffect', effects.preCreateActiveEffect);
+        Hooks.on('preCreateItem', effects.preCreateItemDescriptions);
+    }
     
     // Apply midi flags to conditions, display nested statuses
     if (genericUtils.getCPRSetting('applyConditionChanges') || genericUtils.getCPRSetting('displayNestedConditions')) Hooks.on('preCreateActiveEffect', conditions.preCreateActiveEffect);

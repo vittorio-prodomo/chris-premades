@@ -70,6 +70,20 @@ function preCreateActiveEffect(effect, updates, options, id) {
     } else return;
     effect.updateSource({description: description});
 }
+// Companion to preCreateActiveEffect: effects embedded in a created item (DDB imports, premade
+// swaps, compendium drops) never fire preCreateActiveEffect individually, so fill them here.
+function preCreateItemDescriptions(item, updates, options, id) {
+    if (game.user.id != id) return;
+    let type = genericUtils.getCPRSetting('effectDescriptions');
+    if (type === 'disabled') return;
+    if (genericUtils.getCPRSetting('effectDescriptionNPC') && item.actor?.type === 'npc') return;
+    if (item.flags?.['chris-premades']?.effectInterface) return;
+    let effectsData = item._source.effects ?? [];
+    if (!effectsData.some(i => !i.description)) return;
+    let description = (item.system?.identified ?? true) ? item.system?.description?.[type] : item.system?.unidentified?.description;
+    if (!description) return;
+    item.updateSource({effects: effectsData.map(i => i.description ? i : {...i, description})});
+}
 const gmQueue = new foundry.utils.Semaphore();
 function unhideActivities(effect) {
     if (!game.user.isActiveGM) return;
@@ -337,6 +351,7 @@ export let effects = {
     noAnimation,
     checkInterdependentDeps,
     preCreateActiveEffect,
+    preCreateItemDescriptions,
     unhideActivities,
     rehideActivities,
     specialDuration,

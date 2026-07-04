@@ -1816,7 +1816,9 @@
             "HuntersMark": {
                 "Marked": "Hunter's Mark: Marked",
                 "Move": "Hunter's Mark: Move",
+                "MoveNoTargets": "There are no valid creatures within range to move the mark to.",
                 "MoveRequiresDropped": "Hunter's Mark can only be moved once the marked creature has dropped to 0 hit points.",
+                "MoveSelect": "Which creature should Hunter's Mark move to?",
                 "Select": "Which target would you like to unmark?"
             },
             "HybridTransformation": {

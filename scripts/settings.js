@@ -392,8 +392,10 @@ export function registerSettings() {
         onChange: value => {
             if (value !== 'disabled' && oldEffectDescriptions === 'disabled') {
                 Hooks.on('preCreateActiveEffect', effects.preCreateActiveEffect);
+                Hooks.on('preCreateItem', effects.preCreateItemDescriptions);
             } else if (value === 'disabled' && oldEffectDescriptions !== 'disabled') {
                 Hooks.off('preCreateActiveEffect', effects.preCreateActiveEffect);
+                Hooks.off('preCreateItem', effects.preCreateItemDescriptions);
             }
             oldEffectDescriptions = value;
         }
