@@ -1,7 +1,7 @@
 {
   "name": "Hail of Thorns",
   "type": "spell",
-  "img": "icons/magic/nature/thorns-spike-curled-green.webp",
+  "img": "icons/consumables/plants/thorned-curled-vine-green.webp",
   "effects": [],
   "flags": {
     "chris-premades": {

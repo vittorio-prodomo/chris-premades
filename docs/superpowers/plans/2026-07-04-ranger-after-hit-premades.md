@@ -408,7 +408,7 @@ const es = baseSpell({
 
 const hot = baseSpell({
   id: 'cprHailThorn2024', name: 'Hail of Thorns',
-  img: 'icons/magic/nature/thorns-spike-curled-green.webp',
+  img: 'icons/consumables/plants/thorned-curled-vine-green.webp',
   identifier: 'hailOfThorns',
   properties: ['vocal', 'mgc'],
   trigger: 'immediately after hitting a creature with a Ranged weapon',
