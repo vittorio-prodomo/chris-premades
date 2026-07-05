@@ -170,7 +170,7 @@
         "_id": "CtwTg5RbWUSlWeM2",
         "sort": 0,
         "activation": {
-          "type": "action",
+          "type": "bonus",
           "value": null,
           "override": false
         },
