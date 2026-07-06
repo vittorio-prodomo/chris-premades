@@ -182,6 +182,12 @@ async function getACCAutomation(item, {identifier, rules = 'legacy', type = 'cha
     return await fromUuid(found.uuid);
 }
 async function getAllAutomations(item, options = {}) {
+    // Respect the DDB-Importer per-item opt-out: an item flagged to be ignored by
+    // Chris's Premades (e.g. our tuned innate free-cast copies, whose identity is their
+    // own itemUses consumption) must not be offered Medkit automations — applying a
+    // slot-shaped compendium version would clobber that wiring. The import path already
+    // honors this flag; the interactive Medkit did not. See DDB-Importer quirk #6.
+    if (item?.flags?.ddbimporter?.ignoreItemForChrisPremades) return [];
     let setting = genericUtils.getCPRSetting('additionalCompendiums');
     let items = [];
     let type = item.actor?.type ?? 'character';
