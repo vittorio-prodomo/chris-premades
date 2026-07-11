@@ -183,6 +183,7 @@
             "HitPoints": "Punti Ferita:",
             "IgnoredCreatureTypes": "Tipi di creature ignorate:",
             "ImmuneCreatures": "Tipi di Creature Immuni:",
+            "LightIntensity": "Intensità della luce (alpha 0–1):",
             "MaxLevel": "Livello Massimo:",
             "Name": "Nome:",
             "Number": "Numero:",

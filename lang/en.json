@@ -231,6 +231,7 @@
             "MaxLevel": "Max Level:",
             "MaxSize": "Max Size:",
             "MonsterName": "Monster Name:",
+            "LightIntensity": "Light intensity (alpha 0–1):",
             "Multiplier": "Multiplier:",
             "Name": "Name:",
             "NoDCPrompt": "Prompt on no DC:",
