@@ -1821,6 +1821,9 @@
                 "MoveSelect": "Which creature should Hunter's Mark move to?",
                 "Select": "Which target would you like to unmark?"
             },
+            "PotionOfHealing": {
+                "Select": "Who receives the potion? (within 5 feet)"
+            },
             "HybridTransformation": {
                 "Bloodlust": "Bloodlust",
                 "LycanRegeneration": "Lycan Regeneration",

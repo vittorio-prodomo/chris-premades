@@ -233,6 +233,10 @@ async function preTargeting({activity, token, config, dialog, message}) {
     }
 }
 async function preItemRoll(workflow) {
+    // A NoAction teardown can arrive after the item was legitimately deleted (e.g. an
+    // autoDestroy consumable whose real use ran after a gate-cancelled first attempt —
+    // see macros/2024/items/consumable/potionOfHealing.js); don't update a ghost item.
+    if (workflow.item?.parent && !workflow.item.parent.items?.get?.(workflow.item.id)) return;
     let stop = await requirements.ruleCheck(workflow);
     if (stop) return false;
     stop = await requirements.versionCheck(workflow);
