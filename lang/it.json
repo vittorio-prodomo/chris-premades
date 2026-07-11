@@ -2071,6 +2071,9 @@
             "ThunderousSmite": {
                 "Push": "Colpo Tonante: Spingere"
             },
+            "Thunderwave": {
+                "UpcastDistance": "Distanza di Spinta Extra per Livello Superiore:"
+            },
             "TouchDamage": {
                 "Name": "Danno da Tocco"
             },
