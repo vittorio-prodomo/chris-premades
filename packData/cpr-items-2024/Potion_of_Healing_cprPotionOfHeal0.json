@@ -1,0 +1,169 @@
+{
+  "name": "Potion of Healing",
+  "type": "consumable",
+  "_id": "cprPotionOfHeal0",
+  "img": "icons/consumables/potions/potion-tube-corked-red.webp",
+  "system": {
+    "description": {
+      "value": "<p><em>Potion, Common</em></p><p>As a Bonus Action, you can drink this potion or administer it to another creature within 5 feet of yourself. The creature that drinks it regains 2d4 + 2 Hit Points.</p><p>Whatever its potency, the potion's red liquid glimmers when agitated.</p>",
+      "chat": ""
+    },
+    "identifier": "potion-of-healing",
+    "source": {
+      "custom": "",
+      "rules": "2024",
+      "revision": 1,
+      "book": "DMG 2024",
+      "license": ""
+    },
+    "identified": true,
+    "unidentified": {
+      "description": ""
+    },
+    "container": null,
+    "quantity": 1,
+    "weight": {
+      "value": 0.5,
+      "units": "lb"
+    },
+    "price": {
+      "value": 50,
+      "denomination": "gp"
+    },
+    "rarity": "common",
+    "attunement": "",
+    "attuned": false,
+    "equipped": false,
+    "uses": {
+      "spent": 0,
+      "max": "1",
+      "recovery": [],
+      "autoDestroy": true
+    },
+    "damage": {
+      "base": {
+        "number": null,
+        "denomination": null,
+        "types": [],
+        "custom": {
+          "enabled": false
+        },
+        "scaling": {
+          "number": 1
+        }
+      },
+      "replace": false
+    },
+    "type": {
+      "value": "potion",
+      "subtype": ""
+    },
+    "properties": [
+      "mgc"
+    ],
+    "activities": {
+      "cprPotionHealAct": {
+        "type": "heal",
+        "_id": "cprPotionHealAct",
+        "name": "",
+        "img": "",
+        "sort": 0,
+        "activation": {
+          "type": "bonus",
+          "value": null,
+          "override": false,
+          "condition": ""
+        },
+        "consumption": {
+          "scaling": {
+            "allowed": false
+          },
+          "spellSlot": true,
+          "targets": [
+            {
+              "type": "itemUses",
+              "value": "1",
+              "target": "",
+              "scaling": {}
+            }
+          ]
+        },
+        "description": {
+          "chatFlavor": ""
+        },
+        "duration": {
+          "units": "inst",
+          "concentration": false,
+          "override": false
+        },
+        "effects": [],
+        "range": {
+          "value": "5",
+          "units": "ft",
+          "override": false,
+          "special": ""
+        },
+        "target": {
+          "template": {
+            "contiguous": false,
+            "units": "ft",
+            "type": "",
+            "stationary": false
+          },
+          "affects": {
+            "choice": false,
+            "count": "1",
+            "type": "creature",
+            "special": ""
+          },
+          "override": false,
+          "prompt": false
+        },
+        "uses": {
+          "spent": 0,
+          "recovery": [],
+          "max": ""
+        },
+        "healing": {
+          "number": 2,
+          "denomination": 4,
+          "types": [
+            "healing"
+          ],
+          "custom": {
+            "enabled": false
+          },
+          "scaling": {
+            "number": 1
+          },
+          "bonus": "2"
+        }
+      }
+    }
+  },
+  "effects": [],
+  "folder": null,
+  "flags": {
+    "dnd5e": {
+      "riders": {
+        "activity": [],
+        "effect": []
+      }
+    },
+    "chris-premades": {
+      "info": {
+        "identifier": "potionOfHealing",
+        "version": "1.0.0",
+        "source": "chris-premades",
+        "rules": "modern"
+      },
+      "activityIdentifiers": {
+        "potionOfHealingHeal": "cprPotionHealAct"
+      }
+    },
+    "enhancedcombathud": {
+      "skipTargetPicker": true
+    }
+  },
+  "_key": "!items!cprPotionOfHeal0"
+}

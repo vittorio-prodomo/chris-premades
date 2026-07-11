@@ -223,6 +223,7 @@ export {wiltingSmite} from './macros/2024/spells/wiltingSmite.js';
 export {summerWinds} from './macros/2024/spells/summerWinds.js';
 // Items
 export {healersKit} from './macros/2024/items/healersKit.js';
+export {potionOfHealing, potionOfHealingGreater, potionOfHealingSuperior, potionOfHealingSupreme} from './macros/2024/items/consumable/potionOfHealing.js';
 export {unarmedStrike} from './macros/2024/items/misc/unarmedStrike.js';
 export {deckOfIllusions} from './macros/2024/items/trinket/deckOfIllusions.js';
 export {ringOfSpellStoring, ringOfSpellStoringSpell} from './macros/2024/items/trinket/ringOfSpellStoring.js';
