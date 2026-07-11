@@ -1,18 +1,100 @@
-import {actorUtils, animationUtils, dialogUtils, effectUtils, itemUtils} from '../../../utils.js';
-async function use({workflow}) {
-    let templateDoc = await fromUuid(workflow.templateUuid);
-    if (!templateDoc) return;
-    let playAnimation = itemUtils.getConfig(workflow.item, 'playAnimation');
-    let color = itemUtils.getConfig(workflow.item, 'color');
-    let shouldAnimate = playAnimation && animationUtils.jb2aCheck() === 'patreon' && animationUtils.aseCheck();
-    if (shouldAnimate || workflow.failedSaves.size) {
-        let selection = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.FaerieFire.ChooseColor', [
+import {actorUtils, animationUtils, dialogUtils, effectUtils, genericUtils, itemUtils} from '../../../utils.js';
+
+// Hand-off between the pre-use color gate and the rollFinished macro (same client runs both).
+const pendingCasts = new Map();
+
+function isFaerieFire(item) {
+    return item?.flags?.['chris-premades']?.info?.identifier === 'faerieFire';
+}
+
+// Color-first + safe-cancel gate (pattern: potionOfHealing.js / huntersMark.js).
+// dnd5e's preUseActivity fires before the usage dialog, consumption, concentration and the
+// chat card, so cancelling the color pick aborts with zero side effects. The real spend is
+// DEFERRED (preActivityConsumption below) and performed by the rollFinished macro only once
+// the template is actually placed and the workflow completed — cancelling template placement
+// (Esc / right-click) therefore never costs the slot or the innate use.
+Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
+    if (!isFaerieFire(activity.item)) return;
+    if (usageConfig?.chrisPremades?.faerieFireColorPicked) return;
+    (async () => {
+        // Reuse dnd5e's own affordability check up front: with consumption deferred, use()
+        // would no longer abort on an empty pool / missing slot, so validate here instead.
+        let dryRun = await activity._prepareUsageUpdates(genericUtils.mergeObject(usageConfig ?? {}, {consume: true}, {inplace: false}), {returnErrors: true});
+        if (foundry.utils.getType(dryRun) !== 'Object') {
+            dryRun?.forEach?.(err => ui.notifications.warn(err.message));
+            return;
+        }
+        let selection = await dialogUtils.buttonDialog(activity.item.name, 'CHRISPREMADES.Macros.FaerieFire.ChooseColor', [
             ['CHRISPREMADES.Config.Colors.Blue', 'blue'],
             ['CHRISPREMADES.Config.Colors.Green', 'green'],
-            ['CHRISPREMADES.Config.Colors.Purple', 'purple']
+            ['CHRISPREMADES.Config.Colors.Purple', 'purple'],
+            ['CHRISPREMADES.Generic.Cancel', false]
         ]);
-        if (selection) color = selection;
+        if (!selection) return; // cancelled or dismissed: clean abort, nothing spent, no card
+        pendingCasts.set(activity.item.uuid, {color: selection, ts: Date.now()});
+        let results = await activity.use(genericUtils.mergeObject(usageConfig ?? {}, {chrisPremades: {faerieFireColorPicked: true}}, {inplace: false}), {configure: false}, {});
+        // Template placement cancelled (Esc / right-click): the workflow parks before
+        // rollFinished, so the macro's cleanup never runs — undo the cast from here. Nothing
+        // was consumed (deferred); remove the card + concentration and the parked workflow.
+        if (pendingCasts.has(activity.item.uuid) && results) {
+            let placed = (results.templates ?? []).flat();
+            if (!placed.length) {
+                pendingCasts.delete(activity.item.uuid);
+                let message = results.message?.uuid ? await fromUuid(results.message.uuid) : undefined;
+                if (globalThis.MidiQOL?.Workflow?.getWorkflow?.(message?.uuid)) MidiQOL.Workflow.removeWorkflow(message.uuid);
+                await cleanupCancelledCast({actor: activity.item.actor, item: activity.item, itemCardUuid: message?.uuid});
+            }
+        }
+    })();
+    return false;
+});
+
+// Defer the spend for gated casts. Runs inside Activity#consume AFTER the usage dialog, so a
+// dialog can't re-enable it. The rollFinished macro deletes the pendingCasts entry before
+// performing the real consumption, which lets its own consume() call pass through here.
+Hooks.on('dnd5e.preActivityConsumption', (activity, usageConfig) => {
+    if (!isFaerieFire(activity.item)) return;
+    let pending = pendingCasts.get(activity.item.uuid);
+    if (!pending || Date.now() - pending.ts > 60000) return;
+    usageConfig.consume = false;
+});
+
+// Template placement was cancelled: nothing was consumed (deferred), so just remove what
+// dnd5e already created — the concentration effect and the usage card.
+async function cleanupCancelledCast(workflow) {
+    let concentration = Array.from(workflow.actor?.concentration?.effects ?? []).find(e => {
+        let itemId = e.flags?.dnd5e?.item?.id ?? e.flags?.dnd5e?.itemId;
+        return itemId === workflow.item.id || e.origin === workflow.item.uuid;
+    });
+    if (concentration) await genericUtils.remove(concentration);
+    if (workflow.itemCardUuid) {
+        let card = await fromUuid(workflow.itemCardUuid);
+        if (card) await card.delete().catch(() => {});
     }
+}
+
+async function use({workflow}) {
+    let pending = pendingCasts.get(workflow.item.uuid);
+    pendingCasts.delete(workflow.item.uuid);
+    let templateDoc = await fromUuid(workflow.templateUuid);
+    if (!templateDoc) {
+        if (pending) await cleanupCancelledCast(workflow);
+        return;
+    }
+    if (pending) {
+        // Perform the deferred consumption now the cast really happened. Mirrors the chat
+        // card's own "Consume Resource" handler so the card's Refund button keeps working.
+        let message = workflow.itemCardUuid ? await fromUuid(workflow.itemCardUuid) : undefined;
+        let messageConfig = {};
+        // workflow is included because midi's temporary activityConsumption hook (alive until
+        // use() unwinds) writes to usageConfig.workflow and throws on a config without it.
+        await workflow.activity.consume({consume: true, scaling: message?.system?.scaling ?? 0, workflow}, messageConfig);
+        if (message && !foundry.utils.isEmpty(messageConfig.data)) await message.update(messageConfig.data);
+    }
+    let playAnimation = itemUtils.getConfig(workflow.item, 'playAnimation');
+    let color = pending?.color ?? itemUtils.getConfig(workflow.item, 'color');
+    let lightAlpha = Number(itemUtils.getConfig(workflow.item, 'lightIntensity'));
+    if (!(lightAlpha >= 0.05 && lightAlpha <= 1)) lightAlpha = 0.65;
     let lightColor;
     let tintColor;
     let hue;
@@ -65,7 +147,7 @@ async function use({workflow}) {
             {
                 key: 'ATL.light.alpha',
                 mode: 5,
-                value: '0.65',
+                value: String(lightAlpha),
                 priority: 20
             },
             {
@@ -85,8 +167,8 @@ async function use({workflow}) {
     };
     effectUtils.addMacro(effectData, 'effect', ['faerieFireOutlined']);
     let template = templateDoc.object;
-    if (!template) return;
-    let position = template.ray.project(0.5);
+    let position = template ? template.ray.project(0.5) : undefined;
+    let shouldAnimate = playAnimation && position && animationUtils.jb2aCheck() === 'patreon' && animationUtils.aseCheck();
     if (shouldAnimate) {
         new Sequence()
             .effect()
@@ -196,7 +278,7 @@ async function use({workflow}) {
                 .fadeOut(1500, {ease: 'easeInSine'})
                 .name('Faerie Fire')
                 .private()
-    
+
                 .effect()
                 .copySprite(target)
                 .belowTokens()
@@ -262,6 +344,13 @@ export let faerieFire = {
                     label: 'CHRISPREMADES.Config.Colors.Purple'
                 }
             ]
+        },
+        {
+            value: 'lightIntensity',
+            label: 'CHRISPREMADES.Config.LightIntensity',
+            type: 'number',
+            default: 0.65,
+            category: 'animation'
         }
     ]
 };
