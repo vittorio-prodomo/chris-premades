@@ -2745,6 +2745,9 @@
             "ThunderousSmite": {
                 "Push": "Thunderous Smite: Push"
             },
+            "Thunderwave": {
+                "UpcastDistance": "Extra Push Distance Per Upcast Level:"
+            },
             "TimeStop": {
                 "Affect": "Did this affect another creature?"
             },
