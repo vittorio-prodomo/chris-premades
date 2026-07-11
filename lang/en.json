@@ -1532,6 +1532,9 @@
             "EyesOfMinuteSeeing": {
                 "Close": "This check is for something within 1 foot"
             },
+            "FaerieFire": {
+                "ChooseColor": "Which color of light outlines the affected creatures?"
+            },
             "FailedByAmount": {
                 "Amount": "Amount:",
                 "Name": "Failed By Amount"

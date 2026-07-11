@@ -1,9 +1,37 @@
-import {actorUtils, animationUtils, effectUtils, itemUtils} from '../../../utils.js';
+import {actorUtils, animationUtils, dialogUtils, effectUtils, itemUtils} from '../../../utils.js';
 async function use({workflow}) {
     let templateDoc = await fromUuid(workflow.templateUuid);
     if (!templateDoc) return;
     let playAnimation = itemUtils.getConfig(workflow.item, 'playAnimation');
     let color = itemUtils.getConfig(workflow.item, 'color');
+    let shouldAnimate = playAnimation && animationUtils.jb2aCheck() === 'patreon' && animationUtils.aseCheck();
+    if (shouldAnimate || workflow.failedSaves.size) {
+        let selection = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.FaerieFire.ChooseColor', [
+            ['CHRISPREMADES.Config.Colors.Blue', 'blue'],
+            ['CHRISPREMADES.Config.Colors.Green', 'green'],
+            ['CHRISPREMADES.Config.Colors.Purple', 'purple']
+        ]);
+        if (selection) color = selection;
+    }
+    let lightColor;
+    let tintColor;
+    let hue;
+    switch (color) {
+        case 'blue':
+            lightColor = '#5ab9e2';
+            tintColor = '0x91c5d2';
+            hue = 160;
+            break;
+        case 'green':
+            lightColor = '#55d553';
+            tintColor = '0xd3eb6a';
+            hue = 45;
+            break;
+        case 'purple':
+            lightColor = '#844ec6';
+            tintColor = '0xdcace3';
+            hue = 250;
+    }
     let effectData = {
         name: workflow.item.name,
         img: workflow.item.img,
@@ -27,6 +55,24 @@ async function use({workflow}) {
                 mode: 4,
                 value: 10,
                 priority: 20
+            },
+            {
+                key: 'ATL.light.color',
+                mode: 5,
+                value: lightColor,
+                priority: 20
+            },
+            {
+                key: 'ATL.light.alpha',
+                mode: 5,
+                value: '0.65',
+                priority: 20
+            },
+            {
+                key: 'ATL.light.animation',
+                mode: 5,
+                value: '{"type": "pulse", "speed": 1, "intensity": 3}',
+                priority: 20
             }
         ],
         flags: {
@@ -38,24 +84,9 @@ async function use({workflow}) {
         }
     };
     effectUtils.addMacro(effectData, 'effect', ['faerieFireOutlined']);
-    let tintColor;
-    let hue;
-    switch (color) {
-        case 'blue':
-            tintColor = '0x91c5d2';
-            hue = 160;
-            break;
-        case 'green':
-            tintColor = '0xd3eb6a';
-            hue = 45;
-            break;
-        case 'purple':
-            tintColor = '0xdcace3';
-            hue = 250;
-    }
     let template = templateDoc.object;
+    if (!template) return;
     let position = template.ray.project(0.5);
-    let shouldAnimate = playAnimation && animationUtils.jb2aCheck() === 'patreon' && animationUtils.aseCheck();
     if (shouldAnimate) {
         new Sequence()
             .effect()

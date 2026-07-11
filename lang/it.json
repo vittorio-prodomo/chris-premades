@@ -1130,6 +1130,9 @@
             "EyesOfMinuteSeeing": {
                 "Close": "Questo controllo è per qualcosa entro 1 piede"
             },
+            "FaerieFire": {
+                "ChooseColor": "Quale colore di luce delinea le creature colpite?"
+            },
             "Fall": {
                 "Acr": "Sì (Acrobazia)",
                 "Ath": "Sì (Atletica)",
