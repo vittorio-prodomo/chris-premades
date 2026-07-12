@@ -2040,6 +2040,7 @@
             },
             "MagicMissile": {
                 "Bolt": "Magic Missile Bolt",
+                "Cancelled": "{name} cancelled — nothing was spent.",
                 "RollEach": "Roll Damage for Each Bolt?",
                 "Select": "How many? (Max: {maxMissiles})",
                 "Shield": "Shield as reaction?"

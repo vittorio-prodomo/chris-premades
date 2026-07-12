@@ -1,6 +1,54 @@
 import {activityUtils, actorUtils, animationUtils, consumeArgonDistribution, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, workflowUtils} from '../../../utils.js';
+
+// Consumption is DEFERRED for Magic Missile casts (faerieFire.js pattern): the slot used to be
+// spent before rollFinished, so cancelling the dart-distribution dialog needed a refund plus a
+// second "cancelled" chat card. Deferring the spend to the macro below means a cancel simply
+// removes the cast card — nothing was ever consumed, no refund card needed.
+const pendingCasts = new Map();
+
+function isMagicMissile(item) {
+    return item?.flags?.['chris-premades']?.info?.identifier === 'magicMissile';
+}
+
+// Runs inside Activity#consume AFTER the usage dialog, so the chosen upcast level is already
+// fixed on the usage card. Scoped to the item's MAIN cast activity — the per-bolt synthetic
+// activities consume nothing and must not create pending entries. The macro's own deferred
+// consume() call passes back through here via the marker.
+Hooks.on('dnd5e.preActivityConsumption', (activity, usageConfig) => {
+    if (usageConfig?.chrisPremades?.magicMissileDeferred) return;
+    if (!isMagicMissile(activity.item)) return;
+    if (activityUtils.getIdentifier(activity) !== 'magicMissile') return;
+    pendingCasts.set(activity.item.uuid, {ts: Date.now()});
+    usageConfig.consume = false;
+});
+
+// Nothing was consumed (deferred), so removing the usage card leaves the cancelled cast with
+// zero footprint; a toast still tells the caster what happened.
+async function cancelCast(workflow, message) {
+    if (message) await message.delete().catch(() => {});
+    genericUtils.notify(genericUtils.format('CHRISPREMADES.Macros.MagicMissile.Cancelled', {name: workflow.item.name}), 'info', {localize: false});
+}
+
 async function use({workflow}) {
-    if (!workflow.targets.size) return;
+    let pending = pendingCasts.get(workflow.item.uuid);
+    pendingCasts.delete(workflow.item.uuid);
+    if (pending && Date.now() - pending.ts > 60000) pending = undefined;
+    let message = workflow.itemCardUuid ? await fromUuid(workflow.itemCardUuid) : undefined;
+    let scaling = message?.system?.scaling ?? 0;
+    if (!workflow.targets.size) {
+        if (pending) await cancelCast(workflow, message);
+        return;
+    }
+    if (pending) {
+        // With the spend deferred, use() no longer aborts on an empty slot — run dnd5e's own
+        // affordability check before offering the distribution dialog.
+        let dryRun = await workflow.activity._prepareUsageUpdates({consume: true, scaling}, {returnErrors: true});
+        if (foundry.utils.getType(dryRun) !== 'Object') {
+            dryRun?.forEach?.(err => ui.notifications.warn(err.message));
+            await cancelCast(workflow, message);
+            return;
+        }
+    }
     let maxMissiles = 2 + workflowUtils.getCastLevel(workflow);
     let selection;
     let argonSel = consumeArgonDistribution(workflow);
@@ -18,17 +66,21 @@ async function use({workflow}) {
         });
         selection = result ? result[0] : undefined;
         if (!selection || !selection.length) {
-            // Distribution dialog was cancelled or nothing was allotted. The spell slot is
-            // already spent (this macro runs on rollFinished), so refund it and post a short
-            // "cancelled" card (the usage card was already posted at cast time).
-            let refunded = await refundSpellSlot(workflow);
-            await ChatMessage.create({
-                speaker: ChatMessage.implementation.getSpeaker({token: workflow.token}),
-                content: `<em>${workflow.item.name} cancelled${refunded ? ' — spell slot refunded' : ''}.</em>`
-            });
+            if (pending) {
+                await cancelCast(workflow, message);
+            } else {
+                // Consumption wasn't deferred for this cast (hook missed it) — fall back to the
+                // old spend-then-refund cleanup.
+                let refunded = await refundSpellSlot(workflow);
+                await ChatMessage.create({
+                    speaker: ChatMessage.implementation.getSpeaker({token: workflow.token}),
+                    content: `<em>${workflow.item.name} cancelled${refunded ? ' — spell slot refunded' : ''}.</em>`
+                });
+            }
             return;
         }
     }
+    let rollEach = itemUtils.getConfig(workflow.item, 'rollEach');
     let feature = activityUtils.getActivityByIdentifier(workflow.item, 'magicMissileBolt');
     let featureFlat = activityUtils.getActivityByIdentifier(workflow.item, 'magicMissileFlat');
     if (!feature && rollEach) {
@@ -38,7 +90,17 @@ async function use({workflow}) {
         errors.missingActivity('magicMissileFlat');
         return;
     }
-    let rollEach = itemUtils.getConfig(workflow.item, 'rollEach');
+    if (pending) {
+        // Distribution confirmed: perform the deferred consumption now. Mirrors the chat card's
+        // own "Consume Resource" handler so the card's Refund button keeps working.
+        let messageConfig = {};
+        let usageConfig = {consume: true, scaling, workflow, chrisPremades: {magicMissileDeferred: true}};
+        let cause = message?.system?.cause;
+        let linkedActivity = cause ? workflow.activity.getLinkedActivity?.(cause) : undefined;
+        if (linkedActivity) usageConfig.cause = {activity: linkedActivity.relativeUUID, resources: linkedActivity.consumption.targets.length > 0};
+        await workflow.activity.consume(usageConfig, messageConfig);
+        if (message && !foundry.utils.isEmpty(messageConfig.data)) await message.update(messageConfig.data);
+    }
     let damageFormula = feature.damage.parts[0].formula;
     let damageType = feature.damage.parts[0].types.first();
     let activityData;
