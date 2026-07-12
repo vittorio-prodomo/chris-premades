@@ -90,6 +90,7 @@ async function use({workflow}) {
         }
         let attackActivity = Object.entries(beastsStrikeData.system.activities).map(a => a[1]).find(a => a.type === 'attack');
         attackActivity.damage.parts[0].types = new Set(types);
+        addCommandedStrikeMacro(beastsStrikeData);
         updates.actor.items.push(beastsStrikeData);
         genericUtils.setProperty(updates, 'actor.system.attributes.movement', {walk: 40, climb: 40});
     } else if (creatureType === 'sea') {
@@ -111,6 +112,7 @@ async function use({workflow}) {
         let attackActivity = Object.entries(beastsStrikeData.system.activities).map(a => a[1]).find(a => a.type === 'attack');
         attackActivity.damage.parts[0].types = new Set(types);
         beastsStrikeData.flags['chris-premades'].config.generic.autoGrapple.dc = workflow.actor.system.attributes.spell.dc;
+        addCommandedStrikeMacro(beastsStrikeData);
         updates.actor.items.push(amphibiousData, beastsStrikeData);
         genericUtils.setProperty(updates, 'actor.system.attributes.movement', {walk: 5, swim: 60});
     } else {
@@ -127,6 +129,7 @@ async function use({workflow}) {
         }
         let attackActivity = Object.entries(beastsStrikeData.system.activities).map(a => a[1]).find(a => a.type === 'attack');
         attackActivity.damage.parts[0].types = new Set(types);
+        addCommandedStrikeMacro(beastsStrikeData);
         updates.actor.items.push(beastsStrikeData, flybyData);
         genericUtils.mergeObject(updates, {
             actor: {
@@ -194,6 +197,16 @@ async function use({workflow}) {
             favorite: true
         }
     });
+}
+function addCommandedStrikeMacro(strikeData) {
+    let macroList = strikeData.flags['chris-premades'].macros?.midi?.item ?? [];
+    if (!macroList.includes('primalCompanionStrike')) genericUtils.setProperty(strikeData, 'flags.chris-premades.macros.midi.item', macroList.concat('primalCompanionStrike'));
+}
+async function strikePreTargeting({config}) {
+    // A commanded strike is not an opportunity attack: with recordAOO active, midi flags any attack
+    // made outside the beast's own combat turn as an AoO, which skips the out-of-range workflow abort
+    // (warns but still applies damage) and wrongly consumes the beast's reaction.
+    genericUtils.setProperty(config, 'midiOptions.workflowOptions.notReaction', true);
 }
 async function damage({workflow}) {
     let ownerActor = await fromUuid(workflow.actor.flags['chris-premades'].summons.control.actor);
@@ -337,6 +350,20 @@ export let bestialFury = {
                 pass: 'damageRollComplete',
                 macro: damage,
                 priority: 250
+            }
+        ]
+    }
+};
+export let primalCompanionStrike = {
+    name: 'Beast\'s Strike',
+    version: primalCompanion.version,
+    rules: primalCompanion.rules,
+    midi: {
+        item: [
+            {
+                pass: 'preTargeting',
+                macro: strikePreTargeting,
+                priority: 50
             }
         ]
     }
