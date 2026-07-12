@@ -117,7 +117,7 @@
           "visible": false
         },
         "sort": 0,
-        "useConditionText": "",
+        "useConditionText": "reaction === 'isHit' && !workflow.isCritical && workflow.attackTotal < target.attributes.ac.value + 5",
         "forceDialog": false,
         "effectConditionText": "",
         "useConditionReason": "",
