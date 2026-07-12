@@ -1,4 +1,8 @@
 import {activityUtils, combatUtils, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, workflowUtils} from '../../../utils.js';
+function flavoredBonus(formula, item) {
+    let flavor = genericUtils.format('CHRISPREMADES.Macros.Guidance.Flavor', {item: item.name}).replace(/[[\]]/g, '');
+    return '+ ' + formula + '[' + flavor + ']';
+}
 async function use({trigger, workflow}) {
     if (!workflow.targets.size || !workflow.activity) return;
     let options = Object.entries(CONFIG.DND5E.skills).map(([key, value]) => ({
@@ -10,13 +14,15 @@ async function use({trigger, workflow}) {
     if (!selection) return;
     let sourceEffect = workflow.item.effects.contents?.[0];
     if (!sourceEffect) return;
+    let chosenSkill = options.find(i => i.id === selection.id);
     let effectData = genericUtils.duplicate(sourceEffect.toObject());
     effectData.changes[0].key = effectData.changes[0].key.replaceAll('acr', selection.id);
     effectData.origin = sourceEffect.uuid,
     effectData.duration = itemUtils.convertDuration(workflow.activity);
     let formula = itemUtils.getConfig(workflow.item, 'formula');
-    effectData.changes[0].value = '+ ' + formula;
-    effectData.img = options.find(i => i.id === selection.id)?.img ?? sourceEffect.img;
+    effectData.changes[0].value = flavoredBonus(formula, workflow.item);
+    effectData.img = chosenSkill?.img ?? sourceEffect.img;
+    effectData.description = (effectData.description ?? '') + '<p><em>' + genericUtils.format('CHRISPREMADES.Macros.Guidance.ChosenSkill', {skill: chosenSkill?.name ?? selection.id}) + '</em></p>';
     await Promise.all(workflow.targets.map(async token => {
         await effectUtils.createEffect(token.actor, effectData, {concentrationItem: workflow.item});
     }));
@@ -34,7 +40,7 @@ async function skillCheck({trigger: {actor, entity: item, roll, token}}) {
     let activity = activityUtils.getActivityByIdentifier(item, 'selfUse', {strict: true});
     await workflowUtils.syntheticActivityRoll(activity, [token], {consumeResources: true, consumeUsage: true});
     let formula = itemUtils.getConfig(item, 'formula');
-    return await rollUtils.addToRoll(roll, '+ ' + formula);
+    return await rollUtils.addToRoll(roll, flavoredBonus(formula, item));
 }
 export let guidance = {
     name: 'Guidance',

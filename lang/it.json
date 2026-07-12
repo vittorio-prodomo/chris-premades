@@ -1284,6 +1284,10 @@
                 "Select": "Quale forma assumi?",
                 "Tree": "Grande Albero"
             },
+            "Guidance": {
+                "ChosenSkill": "Abilità scelta: {skill}",
+                "Flavor": "da {item}"
+            },
             "GustOfWind": {
                 "Move": "Soffio di Vento: Spostare",
                 "Push": "Soffio di Vento: Spingere",

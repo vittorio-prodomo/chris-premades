@@ -1725,6 +1725,10 @@
                 "Select": "What form do you assume?",
                 "Tree": "Great Tree"
             },
+            "Guidance": {
+                "ChosenSkill": "Chosen skill: {skill}",
+                "Flavor": "from {item}"
+            },
             "GuidedStrike": {
                 "Attack": "Use {item}? Attack Roll: {attackRoll}"
             },
