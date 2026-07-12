@@ -86,10 +86,11 @@ export let arcaneWard = {
             'Arcane Ward': {
                 system: {
                     uses: {
-                        max: 1,
-                        per: 'charges',
-                        recovery: '',
-                        value: 0
+                        spent: 0,
+                        max: '1',
+                        recovery: [
+                            {period: 'lr', type: 'recoverAll'}
+                        ]
                     }
                 }
             }
