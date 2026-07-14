@@ -1620,7 +1620,13 @@
                 "EndTurn": "Flaming Sphere: End Turn",
                 "Move": "Flaming Sphere: Move",
                 "Ram": "Ram Target?",
-                "RamItem": "Flaming Sphere: Ram"
+                "RamItem": "Flaming Sphere: Ram",
+                "RamConfirm": "The Flaming Sphere moved into {name}'s space — ram them?",
+                "BonusActionUsed": "Bonus action already used — the sphere still moved.",
+                "RecastPrompt": "A Flaming Sphere is already active. Move it, or re-cast (which drops your current sphere)?",
+                "RecastMove": "Move (bonus action)",
+                "RecastRecast": "Re-cast (drops current sphere)",
+                "RecastCancel": "Cancel"
             },
             "FlockOfFamiliars": {
                 "Command": "Flock of Familiars: Command",

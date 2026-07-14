@@ -1208,7 +1208,13 @@
                 "EndTurn": "Sfera Fiammeggiante: Fine del Turno",
                 "Move": "Sfera Fiammeggiante: Sposta",
                 "Ram": "Colpire il Bersaglio?",
-                "RamItem": "Sfera Fiammeggiante: Colpire"
+                "RamItem": "Sfera Fiammeggiante: Colpire",
+                "RamConfirm": "La Sfera Fiammeggiante si è spostata nello spazio di {name} — speronare?",
+                "BonusActionUsed": "Azione bonus già usata — la sfera si è mossa comunque.",
+                "RecastPrompt": "Una Sfera Fiammeggiante è già attiva. Spostarla, o rilanciarla (abbandonando quella attuale)?",
+                "RecastMove": "Sposta (azione bonus)",
+                "RecastRecast": "Rilancia (abbandona la sfera attuale)",
+                "RecastCancel": "Annulla"
             },
             "DustDevil": {
                 "ContactItem": "Diavolo di Polvere: Contatto",
