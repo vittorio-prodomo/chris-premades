@@ -2237,7 +2237,11 @@
                 "PrimalBond": "Primal Bond",
                 "Sea": "Sea",
                 "Select": "What companion type?",
-                "Sky": "Sky"
+                "Sky": "Sky",
+                "ReplaceBeast": "You already have a primal beast. Dismiss it and summon a new one?",
+                "Dismiss": "Primal Companion: Dismiss",
+                "Restore": "Primal Companion: Restore",
+                "NoDeadBeast": "There is no fallen primal beast to restore."
             },
             "PrimalKnowledge": {
                 "ReplacementAbilities": "Replacement Abilities",

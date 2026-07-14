@@ -277,7 +277,7 @@
             "StatusAdd": "Aggiungi agli Effetti di Stato",
             "StatusRemove": "Rimuovi dagli Effetti di Stato"
         },
-            "EmbeddedMacros": {
+        "EmbeddedMacros": {
             "Conscious": {
                 "Label": "Cosciente:"
             },
@@ -1653,7 +1653,11 @@
                 "PrimalBond": "Vincolo Primordiale",
                 "Sea": "Mare",
                 "Select": "Quale tipo di compagno?",
-                "Sky": "Cielo"
+                "Sky": "Cielo",
+                "ReplaceBeast": "Hai già una bestia primordiale. Vuoi congedarla ed evocarne una nuova?",
+                "Dismiss": "Compagno Primordiale: Congeda",
+                "Restore": "Compagno Primordiale: Ripristina",
+                "NoDeadBeast": "Non c’è nessuna bestia primordiale caduta da ripristinare."
             },
             "PrimalKnowledge": {
                 "ReplacementAbility": "Caratteristica sostitutiva:"
@@ -2171,7 +2175,7 @@
                 "Target": "Seleziona un bersaglio:",
                 "Teleport": "Teletrasporto"
             },
-             "Wish": {
+            "Wish": {
                 "Blocked": "Uso Desiderio Bloccato:",
                 "BlockedWarn": "Non puoi lanciare questo incantesimo!",
                 "ChanceFormula": "Formula Possibilità Bloccata:",
@@ -2673,7 +2677,7 @@
                 "Hint": "Aggiunge una scheda laterale per gli Effetti Attivi. Ricarica richiesta dopo l'abilitazione.",
                 "Name": "Abilita Interfaccia Effetti"
             },
-             "enableEmbeddedMacrosEditing": {
+            "enableEmbeddedMacrosEditing": {
                 "Hint": "Se abilitato, l'editor di macro incorporato sarà disponibile. (Non pronto per l'uso!)",
                 "Name": "Abilita Modifica Macro Incorporate"
             },
@@ -3108,4 +3112,3 @@
     },
     "dae.fieldData.fieldCategories.CPR": "CPR"
 }
-

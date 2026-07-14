@@ -1,6 +1,64 @@
 import {Summons} from '../../../../../lib/summons.js';
 import {activityUtils, actorUtils, combatUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, workflowUtils} from '../../../../../utils.js';
 
+// Locate the tokens tracked by the caster's Primal Companion summon effect (living or a lingering
+// corpse). The effect keeps its summoned token ids/scenes in flags.chris-premades.summons.
+function getBeastTokens(actor) {
+    let effect = effectUtils.getEffectByIdentifier(actor, 'primalCompanion');
+    if (!effect) return [];
+    let ids = effect.flags['chris-premades']?.summons?.ids ?? {};
+    let scenes = effect.flags['chris-premades']?.summons?.scenes ?? {};
+    let tokens = [];
+    for (let [name, tokenIds] of Object.entries(ids)) {
+        let sceneIds = scenes[name] ?? [];
+        tokenIds.forEach((tid, idx) => {
+            let scene = game.scenes.get(sceneIds[idx]) ?? canvas.scene;
+            let tok = scene?.tokens.get(tid);
+            if (tok) tokens.push(tok);
+        });
+    }
+    return tokens;
+}
+function findDeadBeast(actor) {
+    return getBeastTokens(actor).find(t => t.actor && t.actor.system.attributes.hp.value <= 0);
+}
+async function dismissBeast(actor) {
+    let effect = effectUtils.getEffectByIdentifier(actor, 'primalCompanion');
+    if (!effect) return;
+    // Remove the summoned tokens/combatants, then the caster summon effect. Deleting the effect
+    // also re-hides Command/Dismiss/Restore (CPR's rehideActivities on deleteActiveEffect).
+    await Summons.dismiss({trigger: {entity: effect}});
+    await genericUtils.remove(effect);
+}
+// Re-summoning while a beast (living OR a lingering corpse) already exists must not stack a second
+// beast — the summons lib appends token ids to the existing effect. RAW: the old beast vanishes when
+// the new one appears. Gate on dnd5e.preUseActivity (fires before the card / action-economy / any
+// consumption — see potionOfHealing.js): confirm, then dismiss-and-replace, else abort clean.
+Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
+    if (!['primalCompanionLand', 'primalCompanionSea', 'primalCompanionSky'].includes(activityUtils.getIdentifier(activity))) return;
+    if (usageConfig?.chrisPremades?.primalReplaceConfirmed) return;
+    let actor = activity.item?.actor;
+    if (!actor) return;
+    if (!effectUtils.getEffectByIdentifier(actor, 'primalCompanion')) return; // no beast yet: proceed
+    (async () => {
+        let confirmed = await dialogUtils.confirm(activity.item.name, 'CHRISPREMADES.Macros.PrimalCompanion.ReplaceBeast');
+        if (!confirmed) return; // cancel: clean abort, nothing spent
+        await dismissBeast(actor);
+        await activity.use(genericUtils.mergeObject(usageConfig ?? {}, {chrisPremades: {primalReplaceConfirmed: true}}, {inplace: false}), {configure: false}, {});
+    })();
+    return false;
+});
+// Restore is a Magic action that expends a spell slot to return a beast that has died within the
+// last hour (GM adjudicates the hour). Gate on preUseActivity so a use with no fallen beast aborts
+// BEFORE the spell slot is consumed; the heal itself runs in the rollFinished macro below.
+Hooks.on('dnd5e.preUseActivity', (activity) => {
+    if (activityUtils.getIdentifier(activity) !== 'primalCompanionRestore') return;
+    let actor = activity.item?.actor;
+    if (!actor) return;
+    if (findDeadBeast(actor)) return; // a fallen beast exists: proceed (slot consumed, macro heals)
+    ui.notifications.warn(genericUtils.translate('CHRISPREMADES.Macros.PrimalCompanion.NoDeadBeast'));
+    return false;
+});
 async function use({workflow}) {
     let activityIdentifier = activityUtils.getIdentifier(workflow.activity);
     let sourceActor = await compendiumUtils.getActorFromCompendium(constants.packs.summons, 'CPR - Primal Companion');
@@ -177,26 +235,53 @@ async function use({workflow}) {
     }
     let animation = itemUtils.getConfig(workflow.item, creatureType + 'Animation') ?? 'none';
     let identifiersToVae = ['primalCompanionDodge', 'primalCompanionBeastsStrikeLand', 'primalCompanionBeastsStrikeSea', 'primalCompanionBeastsStrikeSky'];
+    // Dismiss (special) exposed via the summons-lib dismissActivity option → lands in Argon's Special
+    // panel + reroutes the caster effect's VAE button to it. Restore + Dismiss are unhidden alongside
+    // Command (they live in hiddenActivities); re-hidden when the beast is dismissed. Guarded so an
+    // item that predates these activities still summons (falls back to the default VAE dismiss).
+    let dismissActivity = activityUtils.getActivityByIdentifier(workflow.item, 'primalCompanionDismiss');
+    let secondaryUnhide = ['primalCompanionRestore', 'primalCompanionDismiss'].filter(id => activityUtils.getActivityByIdentifier(workflow.item, id));
     await Summons.spawn(sourceActor, updates, workflow.item, workflow.token, {
         range: 10,
         animation,
         initiativeType: 'follows',
-        additionalSummonVaeButtons: 
+        dontDismissOnDefeat: true,
+        ...(dismissActivity ? {dismissActivity} : {}),
+        additionalSummonVaeButtons:
             updates.actor.items
                 .filter(i => identifiersToVae.includes(i.flags['chris-premades'].info.identifier))
                 .map(i => ({type: 'use', name: i.name, identifier: i.flags['chris-premades'].info.identifier})),
         additionalVaeButtons: [{
-            type: 'use', 
+            type: 'use',
             name: commandFeature.name,
             identifier: 'primalCompanion',
             activityIdentifier: 'primalCompanionCommand'
         }],
-        unhideActivities: {
-            itemUuid: workflow.item.uuid,
-            activityIdentifiers: ['primalCompanionCommand'],
-            favorite: true
-        }
+        unhideActivities: [
+            {itemUuid: workflow.item.uuid, activityIdentifiers: ['primalCompanionCommand'], favorite: true},
+            ...(secondaryUnhide.length ? [{itemUuid: workflow.item.uuid, activityIdentifiers: secondaryUnhide, favorite: false}] : [])
+        ]
     });
+}
+async function dismiss({workflow}) {
+    await dismissBeast(workflow.actor);
+}
+async function restore({workflow}) {
+    // The spell slot is consumed by the activity's own consumption config; this returns the fallen
+    // beast to life at full HP and clears its death/knockout states + combatant defeated flag.
+    let deadBeast = findDeadBeast(workflow.actor);
+    if (!deadBeast) return; // gated at preUseActivity, but guard against a race
+    let maxHp = deadBeast.actor.system.attributes.hp.max;
+    await genericUtils.update(deadBeast.actor, {'system.attributes.hp.value': maxHp});
+    // Restoring HP triggers dnd5e's own automation, which asynchronously clears Unconscious +
+    // Incapacitated (but leaves Dead and Prone). Let that settle first, then clear the survivors
+    // on a now-stable actor — clearing them mid-automation races dnd5e's rider re-sync and fails.
+    await genericUtils.sleep(500);
+    for (let statusId of ['dead', 'unconscious', 'incapacitated', 'prone']) {
+        if (deadBeast.actor.statuses?.has(statusId)) await deadBeast.actor.toggleStatusEffect(statusId, {active: false});
+    }
+    let combatant = game.combat?.combatants.find(c => c.tokenId === deadBeast.id);
+    if (combatant?.isDefeated) await genericUtils.update(combatant, {defeated: false});
 }
 function addCommandedStrikeMacro(strikeData) {
     let macroList = strikeData.flags['chris-premades'].macros?.midi?.item ?? [];
@@ -235,6 +320,18 @@ export let primalCompanion = {
                 macro: use,
                 priority: 50,
                 activities: ['primalCompanionLand', 'primalCompanionSea', 'primalCompanionSky']
+            },
+            {
+                pass: 'rollFinished',
+                macro: dismiss,
+                priority: 50,
+                activities: ['primalCompanionDismiss']
+            },
+            {
+                pass: 'rollFinished',
+                macro: restore,
+                priority: 50,
+                activities: ['primalCompanionRestore']
             }
         ]
     },
