@@ -698,6 +698,7 @@
             },
             "ArcaneWard": {
                 "EffectName": "Barriera Arcana: {hp}",
+                "EffectDescription": "<p>La tua Barriera Arcana è attiva. I danni che subisci vengono assorbiti prima dalla barriera — la sua forza rimanente è mostrata nel nome di questo effetto. Ogni volta che lanci un incantesimo di Abiurazione di livello 1 o superiore, la barriera recupera il doppio del livello di quell'incantesimo in forza (fino al suo massimo). Termina quando completi un Riposo Lungo.</p>",
                 "Protect": "Proteggi {tokenName} con la tua barriera arcana?"
             },
             "ArmorOfAgathys": {

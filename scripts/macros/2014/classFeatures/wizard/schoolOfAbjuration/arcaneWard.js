@@ -7,6 +7,9 @@ import {activityUtils, dialogUtils, effectUtils, genericUtils, itemUtils, socket
 function wardName(hp) {
     return genericUtils.format('CHRISPREMADES.Macros.ArcaneWard.EffectName', {hp});
 }
+function wardDescription() {
+    return genericUtils.translate('CHRISPREMADES.Macros.ArcaneWard.EffectDescription');
+}
 function maxWardHP(actor) {
     return (actor.classes?.wizard?.system.levels ?? 0) * 2 + actor.system.abilities.int.mod;
 }
@@ -50,8 +53,8 @@ async function late({trigger: {entity: item}, workflow}) {
         // First abjuration spell (level 1+) of the day → create the ward at full HP (RAW "simultaneously").
         await effectUtils.createEffect(actor, {
             name: wardName(maxHP),
+            description: wardDescription(),
             img: item.img,
-            statuses: ['arcaneWard'],
             flags: {'chris-premades': {arcaneWard: {hp: maxHP, max: maxHP}}}
         }, {identifier: 'arcaneWard'});
     } else {
