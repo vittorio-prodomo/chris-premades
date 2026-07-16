@@ -33,8 +33,13 @@ export async function arcaneWardHelper(item, ditem, token, targetToken) {
         if (!selection) return;
         await workflowUtils.completeItemUse(projectedWard);
     }
-    await genericUtils.update(effect, {name: wardName(hp - absorbed), 'flags.chris-premades.arcaneWard.hp': hp - absorbed});
+    let remaining = hp - absorbed;
+    await genericUtils.update(effect, {name: wardName(remaining), 'flags.chris-premades.arcaneWard.hp': remaining});
     workflowUtils.setDamageItemDamage(ditem, remainingDamage + temp, false);
+    await ChatMessage.create({
+        speaker: ChatMessage.implementation.getSpeaker({actor: item.actor}),
+        content: genericUtils.format('CHRISPREMADES.Macros.ArcaneWard.Absorbed', {absorbed, remaining})
+    });
 }
 async function damageApplication({trigger: {entity: item}, ditem}) {
     await arcaneWardHelper(item, ditem);

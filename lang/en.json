@@ -933,6 +933,7 @@
             "ArcaneWard": {
                 "EffectName": "Arcane Ward: {hp}",
                 "EffectDescription": "<p>Your Arcane Ward is active. Damage you take is absorbed by the ward first — its remaining strength is shown in this effect's name. Whenever you cast an Abjuration spell of level 1 or higher, the ward regains twice that spell's level in strength (up to its maximum). It ends when you finish a Long Rest.</p>",
+                "Absorbed": "<strong>Arcane Ward</strong> absorbs {absorbed} damage — {remaining} strength remaining.",
                 "Protect": "Protect {tokenName} with your arcane ward?",
                 "TempHP": "Consume Temp HP First:"
             },
