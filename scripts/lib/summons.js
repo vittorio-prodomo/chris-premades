@@ -210,17 +210,27 @@ export class Summons {
             resolution: ((this.tokenUpdates?.width ?? tokenDocument.width) % 2) ? 1 : -1
         }, {inplace: true, overwrite: false});
         crosshairsConfig.direction += rotation;
-        const templateData = await crosshairUtils.aimCrosshair({
-            token: this.summonerToken, 
-            maxRange: this.options.range,
-            crosshairsConfig,
-            drawBoundries: false,
-            customCallbacks: this.options.callbacks
-        });
-        if (templateData.cancelled) {
-            console.log('was cancelled, do something different'); // this still needs to be done
-            return;
-        }
+        // enforceRange (opt-in per summon, e.g. Primal Companion's "within 5 ft"): aimCrosshair marks an
+        // out-of-range/blocked spot invalid but still RETURNS it, so by default a summon can be placed out
+        // of reach. When enforceRange is set, draw the range boundary, reject an invalid placement, and
+        // re-prompt until the spot is valid or the user cancels.
+        let templateData;
+        do {
+            templateData = await crosshairUtils.aimCrosshair({
+                token: this.summonerToken,
+                maxRange: this.options.range,
+                crosshairsConfig,
+                drawBoundries: this.options.enforceRange ?? false,
+                customCallbacks: this.options.callbacks
+            });
+            if (templateData.cancelled) {
+                console.log('was cancelled, do something different'); // this still needs to be done
+                return;
+            }
+            if (this.options.enforceRange && !templateData.valid) {
+                genericUtils.notify('CHRISPREMADES.Summons.OutOfRange', 'warn');
+            }
+        } while (this.options.enforceRange && !templateData.valid);
         let existingEffects = currentUpdates?.actor?.effects?.filter(i => genericUtils.getIdentifier(i) !== 'summonedEffect') ?? [];
         this.mergeUpdates({
             actor: {

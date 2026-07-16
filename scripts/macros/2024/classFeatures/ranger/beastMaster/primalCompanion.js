@@ -1,5 +1,5 @@
 import {Summons} from '../../../../../lib/summons.js';
-import {activityUtils, actorUtils, combatUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, workflowUtils} from '../../../../../utils.js';
+import {activityUtils, actorUtils, combatUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 
 // Locate the tokens tracked by the caster's Primal Companion summon effect (living or a lingering
 // corpse). The effect keeps its summoned token ids/scenes in flags.chris-premades.summons.
@@ -48,15 +48,52 @@ Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
     })();
     return false;
 });
-// Restore is a Magic action that expends a spell slot to return a beast that has died within the
-// last hour (GM adjudicates the hour). Gate on preUseActivity so a use with no fallen beast aborts
-// BEFORE the spell slot is consumed; the heal itself runs in the rollFinished macro below.
-Hooks.on('dnd5e.preUseActivity', (activity) => {
+// The ranger's lowest-level spell slot that still has a use left (Restore spends one slot of any level
+// with no scaling benefit, so we always burn the cheapest).
+function findLowestAvailableSpellSlot(actor) {
+    let spells = actor.system.spells ?? {};
+    for (let i = 1; i <= 9; i++) {
+        let slot = spells['spell' + i];
+        if (slot && slot.max > 0 && slot.value > 0) return 'spell' + i;
+    }
+    return null;
+}
+// Restore is a Magic action that expends a spell slot to return a beast that has died within the last
+// hour (GM adjudicates the hour). Gate on preUseActivity so the whole thing aborts BEFORE any cost when
+// there is no fallen beast in reach; and since scaling the slot does nothing here, skip the scaling/slot
+// dialog entirely — spend the LOWEST available slot automatically, then re-invoke with consumption +
+// dialog suppressed. The heal itself runs in the rollFinished macro below.
+Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
     if (activityUtils.getIdentifier(activity) !== 'primalCompanionRestore') return;
+    if (usageConfig?.chrisPremades?.restoreConfirmed) return; // re-invoke: proceed, no dialog / no double-consume
     let actor = activity.item?.actor;
     if (!actor) return;
-    if (findDeadBeast(actor)) return; // a fallen beast exists: proceed (slot consumed, macro heals)
-    ui.notifications.warn(genericUtils.translate('CHRISPREMADES.Macros.PrimalCompanion.NoDeadBeast'));
+    let deadBeast = findDeadBeast(actor);
+    if (!deadBeast) {
+        ui.notifications.warn(genericUtils.translate('CHRISPREMADES.Macros.PrimalCompanion.NoDeadBeast'));
+        return false;
+    }
+    // RAW: Restore has a range of touch — the ranger must be within 5 ft of the fallen beast.
+    let casterToken = actor.getActiveTokens()?.[0];
+    let beastToken = deadBeast.object;
+    if (casterToken && beastToken && tokenUtils.getDistance(casterToken, beastToken) > 5) {
+        ui.notifications.warn(genericUtils.translate('CHRISPREMADES.Macros.PrimalCompanion.RestoreOutOfRange'));
+        return false;
+    }
+    let slotKey = findLowestAvailableSpellSlot(actor);
+    if (!slotKey) {
+        ui.notifications.warn(genericUtils.translate('CHRISPREMADES.Macros.PrimalCompanion.NoSpellSlots'));
+        return false;
+    }
+    (async () => {
+        let current = foundry.utils.getProperty(actor, 'system.spells.' + slotKey + '.value') ?? 0;
+        await genericUtils.update(actor, {['system.spells.' + slotKey + '.value']: Math.max(0, current - 1)});
+        await activity.use(
+            genericUtils.mergeObject(usageConfig ?? {}, {chrisPremades: {restoreConfirmed: true}, consume: {spellSlot: false, resources: false}}, {inplace: false}),
+            {configure: false},
+            {}
+        );
+    })();
     return false;
 });
 async function use({workflow}) {
@@ -242,7 +279,8 @@ async function use({workflow}) {
     let dismissActivity = activityUtils.getActivityByIdentifier(workflow.item, 'primalCompanionDismiss');
     let secondaryUnhide = ['primalCompanionRestore', 'primalCompanionDismiss'].filter(id => activityUtils.getActivityByIdentifier(workflow.item, id));
     await Summons.spawn(sourceActor, updates, workflow.item, workflow.token, {
-        range: 10,
+        range: 5, // RAW 2024: the beast appears within 5 ft of you (every summon, not just re-summons)
+        enforceRange: true, // reject a placement beyond 5 ft instead of just flagging it (see summons.js)
         animation,
         initiativeType: 'follows',
         dontDismissOnDefeat: true,
@@ -267,8 +305,8 @@ async function dismiss({workflow}) {
     await dismissBeast(workflow.actor);
 }
 async function restore({workflow}) {
-    // The spell slot is consumed by the activity's own consumption config; this returns the fallen
-    // beast to life at full HP and clears its death/knockout states + combatant defeated flag.
+    // The spell slot was already spent by the preUseActivity gate (lowest available, no dialog); this
+    // returns the fallen beast to life at full HP and clears its death/knockout states + defeated flag.
     let deadBeast = findDeadBeast(workflow.actor);
     if (!deadBeast) return; // gated at preUseActivity, but guard against a race
     let maxHp = deadBeast.actor.system.attributes.hp.max;

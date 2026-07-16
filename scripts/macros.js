@@ -537,6 +537,7 @@ export {heavyweight} from './macros/2024/classFeatures/pugilist/squaredCircle/he
 export {meatShield} from './macros/2024/classFeatures/pugilist/squaredCircle/meatShield.js';
 // Wizard
 export {arcaneRecovery} from './macros/2024/classFeatures/wizard/arcaneRecovery.js';
+export {arcaneWard} from './macros/2024/classFeatures/wizard/schoolOfAbjuration/arcaneWard.js';
 export {memorizeSpell} from './macros/2024/classFeatures/wizard/memorizeSpell.js';
 // Multiple
 export {evasion} from './macros/2024/classFeatures/multiple/evasion.js';

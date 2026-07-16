@@ -931,6 +931,7 @@
                 "Choose": "Select hit dice to use:"
             },
             "ArcaneWard": {
+                "EffectName": "Arcane Ward: {hp}",
                 "Protect": "Protect {tokenName} with your arcane ward?",
                 "TempHP": "Consume Temp HP First:"
             },
@@ -1622,7 +1623,8 @@
                 "Ram": "Ram Target?",
                 "RamItem": "Flaming Sphere: Ram",
                 "RamConfirm": "The Flaming Sphere moved into {name}'s space — ram them?",
-                "BonusActionUsed": "Bonus action already used — the sphere still moved.",
+                "RamOutOfRange": "No creature within 5 ft of the Flaming Sphere to ram — move it next to a target first.",
+                "BonusActionUsed": "Bonus action already used — the ram resolves anyway.",
                 "RecastPrompt": "A Flaming Sphere is already active. Move it, or re-cast (which drops your current sphere)?",
                 "RecastMove": "Move (bonus action)",
                 "RecastRecast": "Re-cast (drops current sphere)",
@@ -2247,7 +2249,9 @@
                 "ReplaceBeast": "You already have a primal beast. Dismiss it and summon a new one?",
                 "Dismiss": "Primal Companion: Dismiss",
                 "Restore": "Primal Companion: Restore",
-                "NoDeadBeast": "There is no fallen primal beast to restore."
+                "NoDeadBeast": "There is no fallen primal beast to restore.",
+                "RestoreOutOfRange": "You must be within 5 ft of your fallen beast to restore it.",
+                "NoSpellSlots": "You have no spell slots left to restore your beast."
             },
             "PrimalKnowledge": {
                 "ReplacementAbilities": "Replacement Abilities",
@@ -3776,6 +3780,7 @@
         },
         "Summons": {
             "ActorName": "{option} Actor Name",
+            "OutOfRange": "Out of range — place the summon within range of the summoner.",
             "CRSelection": "{numSummons} {typePl} of CR {cr} or lower",
             "CreatureNames": {
                 "AberrantSpirit": "Aberrant Spirit",

@@ -697,6 +697,7 @@
                 "Choose": "Seleziona i dadi di danno da usare:"
             },
             "ArcaneWard": {
+                "EffectName": "Barriera Arcana: {hp}",
                 "Protect": "Proteggi {tokenName} con la tua barriera arcana?"
             },
             "ArmorOfAgathys": {
@@ -1210,7 +1211,8 @@
                 "Ram": "Colpire il Bersaglio?",
                 "RamItem": "Sfera Fiammeggiante: Colpire",
                 "RamConfirm": "La Sfera Fiammeggiante si è spostata nello spazio di {name} — speronare?",
-                "BonusActionUsed": "Azione bonus già usata — la sfera si è mossa comunque.",
+                "RamOutOfRange": "Nessuna creatura entro 5 ft dalla Sfera Fiammeggiante da speronare — avvicinala prima a un bersaglio.",
+                "BonusActionUsed": "Azione bonus già usata — lo speronamento avviene comunque.",
                 "RecastPrompt": "Una Sfera Fiammeggiante è già attiva. Spostarla, o rilanciarla (abbandonando quella attuale)?",
                 "RecastMove": "Sposta (azione bonus)",
                 "RecastRecast": "Rilancia (abbandona la sfera attuale)",
@@ -1663,7 +1665,9 @@
                 "ReplaceBeast": "Hai già una bestia primordiale. Vuoi congedarla ed evocarne una nuova?",
                 "Dismiss": "Compagno Primordiale: Congeda",
                 "Restore": "Compagno Primordiale: Ripristina",
-                "NoDeadBeast": "Non c’è nessuna bestia primordiale caduta da ripristinare."
+                "NoDeadBeast": "Non c’è nessuna bestia primordiale caduta da ripristinare.",
+                "RestoreOutOfRange": "Devi essere entro 5 ft dalla tua bestia caduta per ripristinarla.",
+                "NoSpellSlots": "Non hai più slot incantesimo per ripristinare la tua bestia."
             },
             "PrimalKnowledge": {
                 "ReplacementAbility": "Caratteristica sostitutiva:"
@@ -2908,6 +2912,7 @@
         },
         "Summons": {
             "ActorName": "Nome Attore {option}",
+            "OutOfRange": "Fuori portata — posiziona l'evocazione entro la portata dell'evocatore.",
             "CRSelection": "{numSummons} {typePl} di CR {cr} o inferiore",
             "CreatureNames": {
                 "AberrantSpirit": "Spirito Aberrante",

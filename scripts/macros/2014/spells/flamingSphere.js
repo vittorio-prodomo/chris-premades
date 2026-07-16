@@ -58,9 +58,15 @@ async function use({trigger, workflow}) {
     if (!damageFeature) return await removeConcentration();
     let ramFeature = await Summons.getSummonItem('Flaming Sphere: Ram', damageUpdates, workflow.item,{flatDC: itemUtils.getSaveDC(workflow.item), damageFlat: workflowUtils.getCastLevel(workflow) + 'd6[fire]', translate: 'CHRISPREMADES.Macros.FlamingSphere.RamItem'});
     if (!ramFeature) return await removeConcentration();
-    // Bind the moved-pass ram macro to the sphere's Ram item so every move path (manual GM drag,
-    // crosshair, bridge move) triggers a single space-entry ram + the caster's bonus-action economy.
-    genericUtils.setProperty(ramFeature, 'flags.chris-premades.macros.movement', ['flamingSphereMoved']);
+    // Explicit-ram model (T19 revision): the sphere's Ram is a normal Argon action that uses the usual
+    // targeting flow (the world's clear-and-pick target mode). Give the Ram activity a 5-ft range so
+    // midi's own range machinery flags/blocks an out-of-range pick live in the target step; the bound
+    // preItemRoll macro re-checks the same 5 ft (deterministic backstop, same distance fn as midi) and
+    // spends the CASTER's bonus action — the actorUuid to find the caster is already on the item.
+    genericUtils.setProperty(ramFeature, 'flags.chris-premades.macros.midi.item', ['flamingSphereRam']);
+    for (let ramActivity of Object.values(ramFeature.system?.activities ?? {})) {
+        ramActivity.range = {override: true, units: 'ft', value: 5};
+    }
     let updates = {
         actor: {
             name,
@@ -140,54 +146,38 @@ async function move({workflow}) {
     });
     await workflow.actor.sheet.maximize();
     if (position.cancelled) {
-        // Cancel = free (T19): the bonus action is deferred to the moved pass (which only fires on an
-        // actual move) and the Move activity posts a bare utility card — clear it so nothing lingers.
+        // Cancel = free: moving never costs a bonus action (only the explicit Ram does), and the Move
+        // activity posts a bare utility card — clear it so a cancelled move leaves nothing behind.
         let card = game.messages.get(workflow.itemCardId);
         if (card) await genericUtils.remove(card);
         return;
     }
     let xOffset = token.width * canvas.grid.size / 2;
     let yOffset = token.height * canvas.grid.size / 2;
-    // The reposition fires the v13 moveToken hook → CPR's moved pass → flamingSphereMoved, which
-    // handles the ram (space-entry) and the caster's bonus action. Same path as a manual drag, so
-    // there is exactly one ram trigger (no double-offer).
+    // Just reposition the sphere — moving no longer rams or costs a bonus action (T19 revision: the
+    // ram is now an explicit Argon action). A manual GM drag does the same thing: a plain move.
     await genericUtils.update(token, {x: (position.x ?? token.center.x) - xOffset, y: (position.y ?? token.center.y) - yOffset});
     await token.object.movementAnimationPromise;
 }
-// 2024 RAM (space-entry): the single creature the sphere was moved into. Foundry won't reliably let
-// the sphere share a square with a creature (a drag onto one snaps it up against the target), so
-// "moved into a creature's space" resolves to the creature the sphere ended on top of OR right up
-// against — the nearest creature within 5 ft of the destination. One ram (nearest), never all nearby;
-// confirm-first guards an incidental reposition near a bystander.
-function findEnteredCreature(sphereToken) {
-    let nearby = tokenUtils.findNearby(sphereToken, 5, 'all', {includeIncapacitated: true});
-    if (!nearby.length) return null;
-    let sc = sphereToken.center;
-    nearby.sort((a, b) => Math.hypot(a.center.x - sc.x, a.center.y - sc.y) - Math.hypot(b.center.x - sc.x, b.center.y - sc.y));
-    return nearby[0];
-}
-async function moved({trigger}) {
-    let sphereToken = trigger.token;
-    let ramItem = trigger.entity;
-    if (!sphereToken || !ramItem) return;
-    let actorUuid = ramItem.flags['chris-premades']?.flamingSphere?.actorUuid;
-    let caster = actorUuid ? await fromUuid(actorUuid) : null;
-    // Bonus-action economy (warn-and-allow): moving the sphere in combat costs the caster's bonus
-    // action. Already spent → warn but let the move stand (GM-override). Out of combat: free.
-    if (caster?.inCombat) {
-        if (MidiQOL.hasUsedBonusAction(caster)) {
-            genericUtils.notify('CHRISPREMADES.Macros.FlamingSphere.BonusActionUsed', 'warn');
-        } else {
-            await MidiQOL.setBonusActionUsed(caster);
-        }
+// Explicit Ram (preItemRoll — runs AFTER the normal target pick): enforce the 5-ft range on the chosen
+// target and spend the caster's bonus action. Because it runs post-targeting, it composes with the
+// world's usual clear-and-pick target flow (no pre-selection needed) instead of fighting it.
+async function ram({workflow}) {
+    let sphereToken = workflow.token;
+    let targets = [...(workflow.targets ?? [])];
+    let outOfRange = !sphereToken || !targets.length || targets.some(t => tokenUtils.getDistance(sphereToken, t) > 5);
+    if (outOfRange) {
+        let card = workflow.itemCardId ? game.messages.get(workflow.itemCardId) : null;
+        if (card) await genericUtils.remove(card);
+        genericUtils.notify('CHRISPREMADES.Macros.FlamingSphere.RamOutOfRange', 'warn');
+        return false;
     }
-    // Ram: only when the sphere was moved into a creature's space (confirm-first, guards accidental drags).
-    let entered = findEnteredCreature(sphereToken);
-    if (!entered) return;
-    let confirmed = await dialogUtils.confirm(ramItem.parent.name, genericUtils.format('CHRISPREMADES.Macros.FlamingSphere.RamConfirm', {name: entered.document.name}));
-    if (!confirmed) return;
-    let featureData = genericUtils.duplicate(ramItem.toObject());
-    await workflowUtils.syntheticItemDataRoll(featureData, sphereToken.actor, [entered]);
+    let actorUuid = workflow.item?.flags['chris-premades']?.flamingSphere?.actorUuid;
+    let caster = actorUuid ? await fromUuid(actorUuid) : null;
+    if (caster?.inCombat) {
+        if (MidiQOL.hasUsedBonusAction(caster)) genericUtils.notify('CHRISPREMADES.Macros.FlamingSphere.BonusActionUsed', 'warn');
+        else await MidiQOL.setBonusActionUsed(caster);
+    }
 }
 async function endTurn({trigger}) {
     let actorUuid = trigger.entity.flags['chris-premades']?.flamingSphere?.actorUuid;
@@ -199,8 +189,8 @@ async function endTurn({trigger}) {
 }
 async function early({dialog, config}) {
     dialog.configure = false;
-    // The bonus action is marked by the moved pass (unifies drag + crosshair and stays cancel-free),
-    // so don't let midi also mark it for the Move activity here — that would double-spend it.
+    // Moving the sphere costs no bonus action (T19 revision: only the explicit Ram does) — suppress
+    // midi's bonus-action marking for the bonus-typed Move activity so a move stays economy-free.
     genericUtils.setProperty(config, 'midiOptions.workflowOptions.notBonusAction', true);
 }
 export let flamingSphere = {
@@ -303,16 +293,14 @@ export let flamingSphereEndTurn = {
 };
 export let flamingSphereRam = {
     name: 'Flaming Sphere: Ram',
-    version: '1.0.25'
-};
-export let flamingSphereMoved = {
-    name: 'Flaming Sphere: Moved',
     version: '1.0.25',
-    movement: [
-        {
-            pass: 'moved',
-            macro: moved,
-            priority: 50
-        }
-    ]
+    midi: {
+        item: [
+            {
+                pass: 'preItemRoll',
+                macro: ram,
+                priority: 50
+            }
+        ]
+    }
 };

@@ -60,7 +60,7 @@ export {findSteed, findSteedActive} from './macros/2014/spells/findSteed.js';
 export {fireShield, fireShieldShielded, fireShieldDismiss} from './macros/2014/spells/fireShield.js';
 export {fireStorm} from './macros/2014/spells/fireStorm.js';
 export {flameBlade} from './macros/2014/spells/flameBlade.js';
-export {flamingSphere, flamingSphereEndTurn, flamingSphereRam, flamingSphereMoved} from './macros/2014/spells/flamingSphere.js';
+export {flamingSphere, flamingSphereEndTurn, flamingSphereRam} from './macros/2014/spells/flamingSphere.js';
 export {flockOfFamiliars, flockOfFamiliarsTouch} from './macros/2014/spells/flockOfFamiliars.js';
 export {fly, flyFlying} from './macros/2014/spells/fly.js';
 export {fogCloud} from './macros/2014/spells/fogCloud.js';

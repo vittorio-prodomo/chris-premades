@@ -134,8 +134,11 @@ async function use({workflow}) {
                 if (effectUtils.getEffectByIdentifier(targetToken.actor, 'shield')) isShielded = true;
             }
         }
-        for (let i = 0; i < numBolts; i++) {
-            if (playAnimation) {
+        // Fire every bolt's animation up front so the missiles strike SIMULTANEOUSLY (RAW: all darts hit
+        // at once). Previously each bolt's damage `await` gated the next bolt's animation, making them
+        // arrive one-by-one. Colour cycling advances here; damage is still rolled per bolt below.
+        if (playAnimation) {
+            for (let i = 0; i < numBolts; i++) {
                 let path = 'jb2a.magic_missile.';
                 if (colorSelection === 'random') {
                     path += colors[Math.floor(Math.random() * colors.length)];
@@ -153,13 +156,15 @@ async function use({workflow}) {
                     .stretchTo(targetToken)
                     .randomizeMirrorY()
                     .missed(isShielded)
-                    
+
                     .sound()
                     .playIf(sound)
                     .file(sound)
-                    
+
                     .play();
             }
+        }
+        for (let i = 0; i < numBolts; i++) {
             if (isShielded) {
                 await workflowUtils.syntheticActivityDataRoll(shieldedFeatureData, workflow.item, workflow.actor, [targetToken], {options: {workflowOptions: {targetConfirmation: 'none', skipHeroicInspiration: true}}});
             } else if (rollEach) {
