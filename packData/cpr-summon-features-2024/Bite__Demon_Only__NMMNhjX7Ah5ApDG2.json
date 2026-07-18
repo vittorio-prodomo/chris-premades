@@ -4,7 +4,7 @@
   "img": "icons/creatures/abilities/mouth-teeth-long-red.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p><em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. Hit: 1d12 + 3 + the spell’s level Necrotic damage.</p>",
       "chat": ""
     },
     "source": {

@@ -4,7 +4,7 @@
   "img": "icons/creatures/slimes/slime-movement-dripping-purple.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p><strong><em>Devil's Sight (Devil Only).</em></strong> Magical Darkness doesn't impede the spirit's &amp;Reference[darkvision]{Darkvision}.</p>\n</div>",
       "chat": ""
     },
     "source": {

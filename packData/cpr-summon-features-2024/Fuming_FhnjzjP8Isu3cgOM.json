@@ -4,7 +4,7 @@
   "img": "icons/magic/control/debuff-energy-snare-green.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p><em>Fey Step (Fuming mood):</em> after the spirit uses its Fey Step, it has Advantage on the next attack roll it makes before the end of this turn.</p>",
       "chat": ""
     },
     "source": {

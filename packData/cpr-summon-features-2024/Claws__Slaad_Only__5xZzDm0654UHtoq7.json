@@ -4,7 +4,7 @@
   "img": "icons/commodities/claws/claws-white.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p> <em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> 1d10 + 3 + the spell’s level Slashing damage, and the target can’t regain Hit Points until the start of the spirit’s next turn.</p>",
       "chat": ""
     },
     "source": {

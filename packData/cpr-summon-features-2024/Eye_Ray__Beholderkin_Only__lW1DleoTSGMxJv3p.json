@@ -4,7 +4,7 @@
   "img": "icons/skills/melee/blade-tip-orange.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p> <em>Ranged Attack Roll:</em> Bonus equals your spell attack modifier, range 150 ft. <em>Hit:</em> [[/damage 1d8 + 3 + @item.level type=psychic average=true]] damage.</p>\n</div>",
       "chat": ""
     },
     "source": {

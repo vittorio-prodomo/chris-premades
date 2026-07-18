@@ -4,7 +4,7 @@
   "img": "icons/magic/earth/orb-stone-smoke-teal.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p><strong><em>Festering Aura (Putrid Only).</em></strong> <em>[[/save con format=long]]</em> DC equals your spell save DC, any creature (other than you) that starts its turn within a 5-foot Emanation originating from the spirit. <em>Failure:</em> The creature has the Poisoned condition until the start of its next turn.</p>\n</div>",
       "chat": ""
     },
     "source": {

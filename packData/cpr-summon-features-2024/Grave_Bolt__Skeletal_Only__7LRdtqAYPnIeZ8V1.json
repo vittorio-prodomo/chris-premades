@@ -4,7 +4,7 @@
   "img": "icons/magic/lightning/bolt-forked-large-orange-purple.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p> <em>Ranged Attack Roll:</em> Bonus equals your spell attack modifier, range 150 ft. <em>Hit:</em> [[/damage 2d4 + 3 + @item.level type=necrotic average=true]] damage.</p>\n</div>",
       "chat": ""
     },
     "source": {

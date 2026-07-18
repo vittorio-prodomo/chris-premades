@@ -10,6 +10,7 @@
     "build": "node dev-manifest.mjs && webpack",
     "devManifest": "node dev-manifest.mjs",
     "buildCompendiums": "node packData/packData.mjs",
+    "buildCompendiums:backfillDescriptions": "node packData/t43-backfillDescriptions.mjs",
     "extractCompendiums": "node packData/unpackData.mjs"
   },
   "repository": {

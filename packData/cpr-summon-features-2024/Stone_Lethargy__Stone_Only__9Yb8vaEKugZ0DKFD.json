@@ -4,7 +4,7 @@
   "img": "icons/creatures/webs/webthin-blue.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p> When a creature starts its turn within 10 feet of the spirit, the spirit can target it with magical energy if the spirit can see it. <em>Wisdom Saving Throw:</em> DC equals your spell save DC, the target. <em>Failure:</em> Until the start of its next turn, the target can’t make Opportunity Attacks, and its Speed is halved.</p>",
       "chat": ""
     },
     "source": {

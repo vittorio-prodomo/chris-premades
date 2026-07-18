@@ -4,7 +4,7 @@
   "img": "icons/equipment/hand/gauntlet-tooled-leather-brown.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p> <em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em>1d8 + 3 + the spell's level Psychic damage.</p>\n</div>",
       "chat": ""
     },
     "source": {

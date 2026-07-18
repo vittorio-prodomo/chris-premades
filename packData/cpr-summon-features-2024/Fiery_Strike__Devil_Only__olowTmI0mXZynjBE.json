@@ -4,7 +4,7 @@
   "img": "icons/magic/fire/explosion-embers-orange.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p><em>Melee or Ranged Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. or range 150 ft. <em>Hit:</em> 2d6 + 3 + the spell’s level Fire damage.</p>",
       "chat": ""
     },
     "source": {

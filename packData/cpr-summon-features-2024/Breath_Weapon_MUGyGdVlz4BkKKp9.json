@@ -4,7 +4,7 @@
   "img": "icons/creatures/abilities/dragon-fire-breath-orange.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p><em>Dexterity Saving Throw: </em>DC equals your spell save DC, each creature in a 30-foot Cone. <em>Failure: </em>2d6 damage of a type this spirit has Resistance to (your choice when you cast the spell). <em>Success: </em>Half damage.</p>",
       "chat": ""
     },
     "source": {

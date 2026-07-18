@@ -4,7 +4,7 @@
   "img": "icons/commodities/leather/scales-brown.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p>When you summon the spirit, choose one of its Resistances. You have &amp;Reference[damageresistance]{Resistance} to the chosen damage type until the spell ends.</p><section id=\"secret-FlNLM1mGXlBLAFfA\" class=\"secret\"><p><strong>Foundry Note</strong></p><p>Active effects and activities applying those effects on this item are provided for optional application of the chosen resistance.</p></section>",
       "chat": ""
     },
     "source": {

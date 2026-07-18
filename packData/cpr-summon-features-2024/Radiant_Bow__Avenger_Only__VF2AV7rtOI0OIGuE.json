@@ -4,7 +4,7 @@
   "img": "icons/weapons/bows/longbow-leather-green.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p> <em>Ranged Attack Roll</em>: Bonus equals your spell attack modifier, range 600 ft. <em>Hit:</em> [[/damage 2d6 + 2 + @item.level type=radiant average=true]] damage.</p>\n</div>",
       "chat": ""
     },
     "source": {

@@ -4,7 +4,7 @@
   "img": "icons/magic/control/debuff-energy-snare-purple-blue.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p><strong><em>Incorporeal Passage (Ghostly Only).</em></strong> The spirit can move through other creatures and objects as if they were Difficult Terrain. If it ends its turn inside an object, it is shunted to the nearest unoccupied space and takes [[/damage 1d10 type=force average=true]] damage for every 5 feet traveled.</p>\n</div>",
       "chat": ""
     },
     "source": {

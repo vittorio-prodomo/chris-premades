@@ -4,7 +4,7 @@
   "img": "icons/magic/air/wind-swirl-purple-blue.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p><strong><em>Water Breathing (Water Only).</em></strong> The spirit can breathe only underwater.</p>\n</div>",
       "chat": ""
     },
     "source": {

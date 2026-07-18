@@ -4,7 +4,7 @@
   "img": "icons/magic/unholy/strike-beam-blood-large-red-green.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p><em>Trigger:</em> The spirit takes damage from a creature. <em>Response:</em> The spirit makes a [[/item Slam]] attack against that creature if possible, or the spirit moves up to half its Speed toward that creature without provoking Opportunity Attacks.</p>",
       "chat": ""
     },
     "source": {

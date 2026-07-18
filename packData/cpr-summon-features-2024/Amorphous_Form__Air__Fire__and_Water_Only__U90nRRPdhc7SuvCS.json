@@ -4,7 +4,7 @@
   "img": "icons/magic/air/wind-tornado-wall-blue.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p> The spirit can move through a space as narrow as 1 inch wide without it counting as Difficult Terrain.</p>",
       "chat": ""
     },
     "source": {

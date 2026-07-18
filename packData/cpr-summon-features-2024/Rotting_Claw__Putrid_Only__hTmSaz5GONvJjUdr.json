@@ -4,7 +4,7 @@
   "img": "icons/commodities/claws/claws-white.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p> <em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> [[/damage 1d6 + 3 + @item.level type=slashing average=true]] damage. If the target has the Poisoned condition, it has the Paralyzed condition until the end of its next turn.</p>\n</div>",
       "chat": ""
     },
     "source": {

@@ -4,7 +4,7 @@
   "img": "icons/creatures/abilities/paw-glowing-yellow.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p>Add your Proficiency Bonus to any ability check or saving throw the beast makes.</p>",
       "chat": ""
     },
     "source": {

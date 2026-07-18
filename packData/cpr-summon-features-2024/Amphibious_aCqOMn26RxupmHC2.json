@@ -4,7 +4,7 @@
   "img": "icons/creatures/amphibians/frog-water-teal.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p> The beast can breathe air and water.</p>",
       "chat": ""
     },
     "source": {

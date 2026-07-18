@@ -4,7 +4,7 @@
   "img": "icons/commodities/claws/claws-white.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p><em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> 1d8 + 3 + the spell’s level Slashing damage. Immediately after the attack hits or misses, the spirit can teleport up to 30 feet to an unoccupied space it can see.</p>",
       "chat": ""
     },
     "source": {

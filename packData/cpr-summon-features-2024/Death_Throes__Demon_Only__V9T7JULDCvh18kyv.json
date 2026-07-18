@@ -4,7 +4,7 @@
   "img": "icons/magic/fire/explosion-fireball-large-red-orange.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p><strong><em>Death Throes (Demon Only).</em></strong> When the spirit drops to 0 Hit Points or the spell ends, the spirit explodes. <em>[[/save dex format=long]]</em> DC equals your spell save DC, each creature in a 10-foot Emanation originating from the spirit. <em>Failure:</em> 2d10 plus this spell's level Fire damage. <em>Success:</em> Half damage.</p>\n</div>",
       "chat": ""
     },
     "source": {

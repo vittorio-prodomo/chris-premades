@@ -4,7 +4,7 @@
   "img": "icons/commodities/claws/claws-white.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p>Rider of the spirit's Rotting Claw: if the target has the &amp;Reference[poisoned apply=false] condition, it has the &amp;Reference[paralyzed apply=false] condition until the end of its next turn.</p>",
       "chat": ""
     },
     "source": {

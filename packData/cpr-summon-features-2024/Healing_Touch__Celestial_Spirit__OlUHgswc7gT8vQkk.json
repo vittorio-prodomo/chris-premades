@@ -4,7 +4,7 @@
   "img": "icons/magic/light/hand-sparks-smoke-teal.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p> The spirit touches another creature. The target regains Hit Points equal to 2d8 + the spell’s level.</p>",
       "chat": ""
     },
     "source": {

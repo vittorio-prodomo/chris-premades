@@ -4,7 +4,7 @@
   "img": "icons/magic/control/debuff-energy-snare-green.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p>The spirit fills a 10-foot Cube within 5 feet of it with magical &amp;Reference[darkness], which lasts until the end of its next turn.</p>",
       "chat": ""
     },
     "source": {

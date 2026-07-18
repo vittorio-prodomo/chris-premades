@@ -4,7 +4,7 @@
   "img": "icons/magic/defensive/shield-barrier-glowing-blue.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p> The spirit has Advantage on saving throws against spells and other magical effects.</p>",
       "chat": ""
     },
     "source": {

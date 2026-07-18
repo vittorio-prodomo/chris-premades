@@ -4,7 +4,7 @@
   "img": "icons/equipment/hand/gauntlet-tooled-leather-brown.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p><em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> Force damage based on the object's size — 1d4 + 3 (Tiny, Small, or Medium), 2d6 + 3 + your spellcasting ability modifier (Large), or 2d12 + 3 + your spellcasting ability modifier (Huge).</p>",
       "chat": ""
     },
     "source": {

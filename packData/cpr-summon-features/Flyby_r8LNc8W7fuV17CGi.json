@@ -4,7 +4,7 @@
   "img": "icons/commodities/biological/wing-bird-white.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p> The beast doesn’t provoke Opportunity Attacks when it flies out of an enemy’s reach.</p>",
       "chat": ""
     },
     "source": {

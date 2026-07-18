@@ -4,7 +4,7 @@
   "img": "icons/magic/earth/strike-fist-stone-gray.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p>The hand strikes one creature or object within 5 feet of it. Make a melee spell Attack for the hand using your game Statistics. On a hit, the target takes 4d8 force damage.</p>",
       "chat": ""
     },
     "source": {

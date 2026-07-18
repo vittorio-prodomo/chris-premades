@@ -4,7 +4,7 @@
   "img": "icons/equipment/hand/glove-simple-leather-purple.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p> <em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> [[/damage 1d8 + 3 + @item.level type=necrotic average=true]] damage, and the target has the Frightened condition until the end of its next turn.</p>\n</div>",
       "chat": ""
     },
     "source": {

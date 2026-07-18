@@ -4,7 +4,7 @@
   "img": "icons/commodities/claws/talon-white.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p><em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> 1d4 + 3 plus your Wisdom modifier Slashing damage.</p>",
       "chat": ""
     },
     "source": {

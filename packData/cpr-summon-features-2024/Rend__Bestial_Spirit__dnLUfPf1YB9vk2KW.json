@@ -4,7 +4,7 @@
   "img": "icons/commodities/claws/claws-white.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p> <em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> 1d8 + 4 + the spell’s level Piercing damage.</p>",
       "chat": ""
     },
     "source": {

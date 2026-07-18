@@ -4,7 +4,7 @@
   "img": "icons/skills/melee/strike-weapons-orange.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<p>The spirit makes a number of [[/item Rend]] attacks equal to half the spell’s level (round down), and it uses [[/item Breath Weapon]].</p><p>[[floor(@flags.dnd5e.summon.level / 2)]]{Number of attacks}</p>",
       "chat": ""
     },
     "source": {

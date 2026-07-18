@@ -271,7 +271,9 @@ async function getItemFromCompendium(key, name, {ignoreNotFound, folderId, objec
         let document = await pack.getDocument(match._id);
         if (object) {
             let documentData = document.toObject();
-            if (getDescription) documentData.system.description.value = itemUtils.getItemDescription(document.name);
+            // T43: the world "CPR - Descriptions" journal page stays the per-table override,
+            // but an EMPTY page must not wipe the pack item's own (backfilled) description.
+            if (getDescription) documentData.system.description.value = itemUtils.getItemDescription(document.name) || documentData.system.description.value;
             if (translate) {
                 documentData.name = genericUtils.translate(translate);
                 documentData.effects?.forEach(effectData => {

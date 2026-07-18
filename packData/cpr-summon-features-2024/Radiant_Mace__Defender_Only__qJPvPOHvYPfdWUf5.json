@@ -4,7 +4,7 @@
   "img": "icons/weapons/maces/mace-flanged-steel.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p> <em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> [[/damage 1d10 + 3 + @item.level type=radiant average=true]] damage, and the spirit can choose itself or another creature it can see within 10 feet of the target. The chosen creature gains 1d10 Temporary Hit Points.</p>\n</div>",
       "chat": ""
     },
     "source": {

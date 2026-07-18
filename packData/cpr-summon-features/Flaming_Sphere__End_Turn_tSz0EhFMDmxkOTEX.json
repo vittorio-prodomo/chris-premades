@@ -4,7 +4,7 @@
   "img": "icons/magic/light/explosion-star-orange.webp",
   "system": {
     "description": {
-      "value": "",
+      "value": "<div class=\"ddb\">\n<p> A 5-foot-diameter sphere of fire appears in an unoccupied space of your choice within range and lasts for the duration. Any creature that ends its turn within 5 feet of the sphere must make a [[/save dex format=long]]. The creature takes [[/damage 2d6 type=fire average=true]] damage on a failed save, or half as much damage on a successful one.</p>\n</div>",
       "chat": ""
     },
     "source": {

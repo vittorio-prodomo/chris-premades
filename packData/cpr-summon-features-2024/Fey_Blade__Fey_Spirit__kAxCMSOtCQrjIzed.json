@@ -143,7 +143,7 @@
       "max": ""
     },
     "description": {
-      "value": "",
+      "value": "<p> <em>Melee Attack Roll:</em> Bonus equals your spell attack modifier, reach 5 ft. <em>Hit:</em> 2d6 + 3 + the spell’s level Force damage.</p>",
       "chat": ""
     },
     "identifier": "fey-blade-fey-spirit",
