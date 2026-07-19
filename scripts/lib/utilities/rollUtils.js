@@ -206,6 +206,26 @@ function updateDieResult(roll, termIndex, resultIndex, newValue) {
     rollData.total = Number(rollData.total) + (afterActiveSum - beforeActiveSum);
     return Roll.fromData(rollData);
 }
+/**
+ * Reroll/rewrite a workflow's damage rolls, stamping the SOURCE (feat/feature
+ * name) onto each rerolled/floored die via buildModifierFormula, so the expanded
+ * roll shows why. Optional `skipType` leaves rolls of that damage type untouched
+ * (checked per-roll) — used to keep Healer's Healing Rerolls off temporary-HP
+ * parts (RAW: it applies to Hit Points you RESTORE, not temp HP).
+ * @param {object} workflow  midi workflow (reads/writes workflow.damageRolls)
+ * @param {{modifier:string, source:string, skipType?:string}} opts
+ */
+async function rerollDamageWithSource(workflow, {modifier, source, skipType} = {}) {
+    const newRolls = await Promise.all(workflow.damageRolls.map(async (roll) => {
+        const type = roll.options?.type;
+        const types = roll.options?.types;
+        if (skipType && (type === skipType || types?.includes?.(skipType))) return roll;
+        const newFormula = buildModifierFormula(roll.terms, modifier, source);
+        return await rollUtils.damageRoll(newFormula, workflow.activity, roll.options);
+    }));
+    await workflow.setDamageRolls(newRolls);
+}
+
 export let rollUtils = {
     getCriticalFormula,
     contestedRoll,
@@ -221,5 +241,6 @@ export let rollUtils = {
     rollDiceSync,
     makeCritical,
     updateDieResult,
-    buildModifierFormula
+    buildModifierFormula,
+    rerollDamageWithSource
 };
