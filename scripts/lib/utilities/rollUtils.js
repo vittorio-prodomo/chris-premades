@@ -1,6 +1,7 @@
 import {epicRolls} from '../../integrations/epicRolls.js';
 import {socket, sockets} from '../sockets.js';
 import {genericUtils, socketUtils} from '../../utils.js';
+import {buildModifierFormula} from './rollUtils.buildModifierFormula.mjs';
 async function getCriticalFormula(formula, rollData) {
     return new CONFIG.Dice.DamageRoll(formula, rollData, {isCritical: true}).formula;
 }
@@ -219,5 +220,6 @@ export let rollUtils = {
     replaceD20,
     rollDiceSync,
     makeCritical,
-    updateDieResult
+    updateDieResult,
+    buildModifierFormula
 };
