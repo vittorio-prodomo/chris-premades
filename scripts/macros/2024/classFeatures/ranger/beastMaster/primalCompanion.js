@@ -100,13 +100,19 @@ Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
 // action (warn-and-allow, never a hard block — mirrors the flaming-sphere / Shield GM-trust philosophy);
 // Dodge is free (RAW default, auto-fired when uncommanded by T44b). Beast's Strike additionally offers the
 // hunter a choice: spend a bonus action, or forgo one of their own attacks (the RAW level-3 option). At L3
-// the beast's Dash/Disengage/Help come through the shared "Generic Actions" MENU (a synthetic roll of the
+// the beast's non-Dodge actions (Dash/Disengage/Help/Hide/Search/…) come through the shared "Generic Actions" MENU (a synthetic roll of the
 // picked pack action — detected by its stable system.identifier), not as separate items; the L7 Exceptional-
 // Training separate-item layout is out of scope (those spend the beast's OWN bonus action). Gated on
 // dnd5e.preUseActivity so a cancelled Strike aborts before any card/economy (the only clean cancel point —
 // see potionOfHealing.js and the CLAUDE.md preUseActivity landmine).
 let PRIMAL_STRIKE_IDS = ['primalCompanionLandBeastsStrike', 'primalCompanionSeaBeastsStrike', 'primalCompanionSkyBeastsStrike'];
-let PRIMAL_COMMANDED_GENERICS = ['dash', 'disengage', 'help']; // system.identifier of the commanded generic actions (Dodge excluded)
+// system.identifier of the commanded generic (menu) actions that cost the hunter's bonus action. Per RAW 2024 any
+// commanded action other than Dodge (free) costs the hunter a bonus action — so this is the full standard action
+// set minus Dodge and minus Attack (the beast attacks via Beast's Strike, handled by isStrike below). The
+// situational / movement entries the menu also offers (jump, mount, squeeze, fall, checkCover, knockOut, stabilize,
+// suffocation, underwater, circleCast) are deliberately left unmetered — they aren't action-economy "commands".
+// Identifiers verified against cpr-actions-2024 packData.
+let PRIMAL_COMMANDED_GENERICS = ['dash', 'disengage', 'help', 'hide', 'search', 'influence', 'magic', 'ready', 'study'];
 function isPrimalCompanionBeast(beastActor) {
     if (!beastActor?.flags?.['chris-premades']?.summons?.control?.actor) return false; // not a CPR summon at all
     // Only a Primal Companion beast carries the Strike or the dedicated Dodge item — this excludes other summons
@@ -151,8 +157,8 @@ Hooks.on('dnd5e.preUseActivity', (activity, usageConfig, dialogConfig, messageCo
     let sysId = activity.item?.system?.identifier;
     if (itemId === 'primalCompanionDodge' || sysId === 'dodge') return; // Dodge is always free
     let isStrike = PRIMAL_STRIKE_IDS.includes(itemId) && activity.type === 'attack'; // the attack activity, not the hidden charge rider
-    let isCommandedGeneric = PRIMAL_COMMANDED_GENERICS.includes(sysId); // Dash/Disengage/Help via the Generic Actions menu
-    if (!isStrike && !isCommandedGeneric) return; // Generic Actions item itself, Hide/Search/…, Primal Bond, etc.
+    let isCommandedGeneric = PRIMAL_COMMANDED_GENERICS.includes(sysId); // any non-Dodge standard action via the Generic Actions menu
+    if (!isStrike && !isCommandedGeneric) return; // the Generic Actions menu item itself, situational actions (jump/mount/…), Primal Bond, etc.
     let actionName = activity.item.name;
     (async () => {
         let hunter = await getHunterActor(beast);
