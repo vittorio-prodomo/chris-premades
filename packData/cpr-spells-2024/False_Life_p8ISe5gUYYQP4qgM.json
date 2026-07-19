@@ -51,7 +51,7 @@
         "healing": {
           "number": 2,
           "denomination": 4,
-          "bonus": "4 + 5 * (@scaling - 1)",
+          "bonus": "4",
           "types": [
             "temphp"
           ],
@@ -59,9 +59,9 @@
             "enabled": false
           },
           "scaling": {
-            "mode": "",
-            "number": null,
-            "formula": ""
+            "mode": "whole",
+            "number": 0,
+            "formula": "5"
           }
         },
         "useConditionText": "",
