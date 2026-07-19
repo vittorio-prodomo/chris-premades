@@ -7,18 +7,7 @@ async function damage({trigger: {entity: item}, workflow}) {
     let validTypes = itemUtils.getConfig(item, 'damageTypes');
     let damageRolls = await Promise.all(workflow.damageRolls.map(async roll => {
         if (!validTypes.includes(roll.options.type)) return roll;
-        let newFormula = '';
-        for (let i of roll.terms) {
-            if (i.isDeterministic) {
-                newFormula += i.expression;
-            } else if (i.expression.toLowerCase().includes('min2')) {
-                newFormula += i.formula;
-            } else if (i.flavor) {
-                newFormula += i.expression + 'min2[' + i.flavor + ']';
-            } else {
-                newFormula += i.expression + 'min2';
-            }
-        }
+        const newFormula = rollUtils.buildModifierFormula(roll.terms, 'min2', 'Elemental Adept');
         return await rollUtils.damageRoll(newFormula, workflow.activity, roll.options);
     }));
     await workflow.setDamageRolls(damageRolls);
