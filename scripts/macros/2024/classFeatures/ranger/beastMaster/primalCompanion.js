@@ -201,6 +201,7 @@ Hooks.on('dnd5e.preUseActivity', (activity, usageConfig, dialogConfig, messageCo
 // commanded a non-Dodge action this round it Dodges by default (RAW), firing its own Dodge item — then advance
 // past it. Re-entrancy- and all-beast-loop-guarded; the while loop also chains consecutive beast turns.
 let primalAutoTurnInFlight = false;
+let primalReanchorInFlight = false;
 async function resolvePrimalBeastTurn(combat, combatant) {
     let tokenDoc = combatant.token;
     let commandedRound = tokenDoc?.getFlag('chris-premades', 'primalCommandedRound');
@@ -222,6 +223,7 @@ async function primalCompanionAutoTurn(combat, changes) {
     if (!changes.turn && !changes.round) return;
     if (!combat.started || !combat.isActive) return;
     if (primalAutoTurnInFlight) return; // re-entrant call from our own nextTurn()
+    if (primalReanchorInFlight) return; // an initiative re-anchor is repositioning the beast
     if (!isPrimalCompanionBeast(combat.combatant?.actor)) return;
     primalAutoTurnInFlight = true;
     try {
@@ -239,6 +241,38 @@ async function primalCompanionAutoTurn(combat, changes) {
     }
 }
 Hooks.on('updateCombat', primalCompanionAutoTurn);
+// T44b-fix (Option A) — keep the beast anchored right after its hunter. The summons lib only applies the
+// 'follows' initiative (hunter − 0.01) at SUMMON time (summons.js), so a beast summoned BEFORE combat rolls an
+// independent initiative and can land anywhere — e.g. ABOVE the hunter, which made the auto-Dodge fire at the
+// START of the hunter's turn (or at combat start) and let the beast auto-act before the hunter could command
+// it. Re-assert the anchor whenever ANY combatant's initiative changes: this fires during Roll-All / manual
+// sets, BEFORE startCombat establishes turn 0, so the beast is never the opening turn. GM-side single writer;
+// the in-flight guard both breaks the self-triggered update loop and suppresses the auto-turn mid-reposition.
+async function reanchorPrimalBeasts(combat) {
+    for (let beastCombatant of combat.combatants) {
+        if (!isPrimalCompanionBeast(beastCombatant.actor)) continue;
+        let hunterUuid = beastCombatant.actor.flags?.['chris-premades']?.summons?.control?.actor;
+        if (!hunterUuid) continue;
+        let hunterCombatant = combat.combatants.find(c => c.actor?.uuid === hunterUuid);
+        if (hunterCombatant?.initiative == null) continue;
+        let target = hunterCombatant.initiative - 0.01;
+        if (beastCombatant.initiative !== target) await beastCombatant.update({initiative: target});
+    }
+}
+Hooks.on('updateCombatant', async (combatant, changes) => {
+    if (!socketUtils.isTheGM()) return; // single writer across GMs
+    if (!('initiative' in changes)) return;
+    if (primalReanchorInFlight) return; // our own re-anchor write re-triggering
+    let combat = combatant.parent;
+    if (!combat?.combatants?.size) return; // EmbeddedCollection is Map-like: .size, not .length
+    if (!combat.combatants.some(c => isPrimalCompanionBeast(c.actor))) return; // no Primal Companion beast here
+    primalReanchorInFlight = true;
+    try {
+        await reanchorPrimalBeasts(combat);
+    } finally {
+        primalReanchorInFlight = false;
+    }
+});
 async function use({workflow}) {
     let activityIdentifier = activityUtils.getIdentifier(workflow.activity);
     let sourceActor = await compendiumUtils.getActorFromCompendium(constants.packs.summons, 'CPR - Primal Companion');
@@ -468,11 +502,19 @@ function addCommandedStrikeMacro(strikeData) {
     let macroList = strikeData.flags['chris-premades'].macros?.midi?.item ?? [];
     if (!macroList.includes('primalCompanionStrike')) genericUtils.setProperty(strikeData, 'flags.chris-premades.macros.midi.item', macroList.concat('primalCompanionStrike'));
 }
-async function strikePreTargeting({config}) {
-    // A commanded strike is not an opportunity attack: with recordAOO active, midi flags any attack
-    // made outside the beast's own combat turn as an AoO, which skips the out-of-range workflow abort
-    // (warns but still applies damage) and wrongly consumes the beast's reaction.
-    genericUtils.setProperty(config, 'midiOptions.workflowOptions.notReaction', true);
+async function strikePreTargeting({config, actor}) {
+    // Only a COMMANDED strike (made on the hunter's turn) opts out of midi's recordAOO auto-flagging: midi
+    // otherwise marks any attack made outside the beast's own turn as an AoO, which for a commanded strike
+    // wrongly consumes the beast's reaction and skips the out-of-range abort. A GENUINE opportunity attack
+    // happens on the FLEEING creature's turn and MUST stay a reaction — Gambit's runs it as one, and it needs
+    // the reaction's out-of-range exemption so a target that has already stepped away is still hit (otherwise
+    // midi aborts with a "target out of range" toast). Gambit's sets no reaction marker we can read at
+    // preTargeting, so the distinguisher is whose turn it is: the hunter's turn = commanded.
+    let hunterUuid = actor?.flags?.['chris-premades']?.summons?.control?.actor;
+    let currentActor = game.combat?.combatant?.actor;
+    if (hunterUuid && currentActor?.uuid === hunterUuid) {
+        genericUtils.setProperty(config, 'midiOptions.workflowOptions.notReaction', true);
+    }
 }
 async function damage({workflow}) {
     let ownerActor = await fromUuid(workflow.actor.flags['chris-premades'].summons.control.actor);
