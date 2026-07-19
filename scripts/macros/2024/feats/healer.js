@@ -31,22 +31,7 @@ async function healing({trigger: {entity: item}, workflow}) {
     else {
         if (activityUtils.getIdentifier(workflow.item) !== 'healer') return;
     }
-    let damageRolls = await Promise.all(workflow.damageRolls.map(async roll => {
-        let newFormula = '';
-        for (let i of roll.terms) {
-            if (i.isDeterministic) {
-                newFormula += i.expression;
-            } else if (i.expression.toLowerCase().includes('r1')) {
-                newFormula += i.formula;
-            } else if (i.flavor) {
-                newFormula += i.expression + 'r1[' + i.flavor + ']';
-            } else {
-                newFormula += i.expression + 'r1';
-            }
-        }
-        return await rollUtils.damageRoll(newFormula, workflow.activity, roll.options);
-    }));
-    await workflow.setDamageRolls(damageRolls);
+    await rollUtils.rerollDamageWithSource(workflow, {modifier: 'r1', source: 'Healer', skipType: 'temphp'});
 }
 
 export let healer = {
