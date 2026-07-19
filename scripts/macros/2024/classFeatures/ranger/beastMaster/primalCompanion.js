@@ -96,6 +96,98 @@ Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
     })();
     return false;
 });
+// T44a — Primal Companion action economy. A commanded non-Dodge beast action costs the HUNTER's bonus
+// action (warn-and-allow, never a hard block — mirrors the flaming-sphere / Shield GM-trust philosophy);
+// Dodge is free (RAW default, auto-fired when uncommanded by T44b). Beast's Strike additionally offers the
+// hunter a choice: spend a bonus action, or forgo one of their own attacks (the RAW level-3 option). At L3
+// the beast's Dash/Disengage/Help come through the shared "Generic Actions" MENU (a synthetic roll of the
+// picked pack action — detected by its stable system.identifier), not as separate items; the L7 Exceptional-
+// Training separate-item layout is out of scope (those spend the beast's OWN bonus action). Gated on
+// dnd5e.preUseActivity so a cancelled Strike aborts before any card/economy (the only clean cancel point —
+// see potionOfHealing.js and the CLAUDE.md preUseActivity landmine).
+let PRIMAL_STRIKE_IDS = ['primalCompanionLandBeastsStrike', 'primalCompanionSeaBeastsStrike', 'primalCompanionSkyBeastsStrike'];
+let PRIMAL_COMMANDED_GENERICS = ['dash', 'disengage', 'help']; // system.identifier of the commanded generic actions (Dodge excluded)
+function isPrimalCompanionBeast(beastActor) {
+    if (!beastActor?.flags?.['chris-premades']?.summons?.control?.actor) return false; // not a CPR summon at all
+    // Only a Primal Companion beast carries the Strike or the dedicated Dodge item — this excludes other summons
+    // (Flaming Sphere, Mage Hand, …) that also get a Generic Actions item from the summons lib.
+    return beastActor.items.some(i => {
+        let id = genericUtils.getIdentifier(i);
+        return id === 'primalCompanionDodge' || PRIMAL_STRIKE_IDS.includes(id);
+    });
+}
+async function getHunterActor(beastActor) {
+    let uuid = beastActor?.flags?.['chris-premades']?.summons?.control?.actor;
+    return uuid ? await fromUuid(uuid) : null;
+}
+// Charge the hunter's bonus action for a commanded beast action. If the hunter already spent their bonus
+// action this turn, post the shared T46 double-spend card (warn-and-allow) instead of silently double-spending.
+async function chargeHunterBonusAction(hunter, actionName) {
+    if (!hunter?.inCombat) return;
+    if (MidiQOL.hasUsedBonusAction(hunter)) await MidiQOL.postDoubleSpendCard(hunter, 'bonus', actionName);
+    else await MidiQOL.setBonusActionUsed(hunter);
+}
+// Record that the beast was commanded to take a non-Dodge action this round, on the beast's token document.
+// T44b's hidden-turn handler reads flag primalCommandedRound (=== game.combat.round) to decide skip-only vs
+// auto-Dodge, then clears it. Round is stored explicitly (not combatUtils.setTurnCheck's round-turn string)
+// because the command lands on the HUNTER's turn but is read on the beast's later turn — a per-turn key would
+// mismatch across that boundary.
+async function markBeastCommanded(beastActor) {
+    if (!game.combat) return;
+    let tokenDoc = beastActor.token ?? beastActor.getActiveTokens()?.[0]?.document;
+    if (tokenDoc) await tokenDoc.setFlag('chris-premades', 'primalCommandedRound', game.combat.round);
+}
+async function postCommandBookkeeping(hunter, contentKey) {
+    await ChatMessage.create({
+        speaker: ChatMessage.getSpeaker({actor: hunter}),
+        content: genericUtils.format(contentKey, {name: hunter.name})
+    });
+}
+Hooks.on('dnd5e.preUseActivity', (activity, usageConfig, dialogConfig, messageConfig) => {
+    let beast = activity?.item?.actor;
+    if (!isPrimalCompanionBeast(beast)) return;
+    if (usageConfig?.chrisPremades?.beastCommandResolved) return; // re-invoke: proceed untouched
+    let itemId = genericUtils.getIdentifier(activity.item);
+    let sysId = activity.item?.system?.identifier;
+    if (itemId === 'primalCompanionDodge' || sysId === 'dodge') return; // Dodge is always free
+    let isStrike = PRIMAL_STRIKE_IDS.includes(itemId) && activity.type === 'attack'; // the attack activity, not the hidden charge rider
+    let isCommandedGeneric = PRIMAL_COMMANDED_GENERICS.includes(sysId); // Dash/Disengage/Help via the Generic Actions menu
+    if (!isStrike && !isCommandedGeneric) return; // Generic Actions item itself, Hide/Search/…, Primal Bond, etc.
+    let actionName = activity.item.name;
+    (async () => {
+        let hunter = await getHunterActor(beast);
+        if (!hunter) return;
+        if (!hunter.inCombat) {
+            // Out of combat there is no economy to spend — the Strike just proceeds (no dialog); the generic
+            // path already returned undefined (proceeds on its own).
+            if (isStrike) await activity.use(genericUtils.mergeObject(usageConfig ?? {}, {chrisPremades: {beastCommandResolved: true}}, {inplace: false}), dialogConfig, messageConfig);
+            return;
+        }
+        if (isStrike) {
+            let choice = await dialogUtils.buttonDialog(actionName, 'CHRISPREMADES.Macros.PrimalCompanion.CommandStrikePrompt', [
+                ['CHRISPREMADES.Macros.PrimalCompanion.CommandBonusAction', 'bonus'],
+                ['CHRISPREMADES.Macros.PrimalCompanion.CommandForgoAttack', 'attack']
+            ]);
+            if (!choice) return; // cancel: nothing spent, no card, Strike aborted (the hook returned false)
+            if (choice === 'bonus') {
+                await chargeHunterBonusAction(hunter, actionName);
+                await postCommandBookkeeping(hunter, 'CHRISPREMADES.Macros.PrimalCompanion.CommandedBonus');
+            } else {
+                await postCommandBookkeeping(hunter, 'CHRISPREMADES.Macros.PrimalCompanion.CommandedForgo');
+            }
+            await markBeastCommanded(beast);
+            await activity.use(genericUtils.mergeObject(usageConfig ?? {}, {chrisPremades: {beastCommandResolved: true}}, {inplace: false}), dialogConfig, messageConfig);
+        } else {
+            // Dash / Disengage / Help: cost the hunter's bonus action (warn-and-allow), no dialog. The action
+            // itself proceeds untouched — the economy is on the hunter, independent of the beast's roll.
+            await chargeHunterBonusAction(hunter, actionName);
+            await markBeastCommanded(beast);
+        }
+    })();
+    // Only the Strike path aborts-and-reinvokes (to gate the choice dialog before the card/economy). The
+    // generic path proceeds normally — its bonus-action charge above is an independent side effect.
+    if (isStrike) return false;
+});
 async function use({workflow}) {
     let activityIdentifier = activityUtils.getIdentifier(workflow.activity);
     let sourceActor = await compendiumUtils.getActorFromCompendium(constants.packs.summons, 'CPR - Primal Companion');

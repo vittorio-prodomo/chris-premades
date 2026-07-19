@@ -2253,7 +2253,12 @@
                 "Restore": "Primal Companion: Restore",
                 "NoDeadBeast": "There is no fallen primal beast to restore.",
                 "RestoreOutOfRange": "You must be within 5 ft of your fallen beast to restore it.",
-                "NoSpellSlots": "You have no spell slots left to restore your beast."
+                "NoSpellSlots": "You have no spell slots left to restore your beast.",
+                "CommandStrikePrompt": "How do you command the beast to Strike?",
+                "CommandBonusAction": "Spend my bonus action",
+                "CommandForgoAttack": "Forgo one of my attacks",
+                "CommandedBonus": "{name} commanded the beast to Strike (spent a bonus action).",
+                "CommandedForgo": "{name} commanded the beast to Strike (forwent one of their attacks)."
             },
             "PrimalKnowledge": {
                 "ReplacementAbilities": "Replacement Abilities",

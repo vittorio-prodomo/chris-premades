@@ -1669,7 +1669,12 @@
                 "Restore": "Compagno Primordiale: Ripristina",
                 "NoDeadBeast": "Non c’è nessuna bestia primordiale caduta da ripristinare.",
                 "RestoreOutOfRange": "Devi essere entro 5 ft dalla tua bestia caduta per ripristinarla.",
-                "NoSpellSlots": "Non hai più slot incantesimo per ripristinare la tua bestia."
+                "NoSpellSlots": "Non hai più slot incantesimo per ripristinare la tua bestia.",
+                "CommandStrikePrompt": "Come comandi alla bestia di Colpire?",
+                "CommandBonusAction": "Spendi la mia azione bonus",
+                "CommandForgoAttack": "Rinuncia a uno dei miei attacchi",
+                "CommandedBonus": "{name} ha comandato alla bestia di Colpire (azione bonus spesa).",
+                "CommandedForgo": "{name} ha comandato alla bestia di Colpire (rinunciando a uno dei suoi attacchi)."
             },
             "PrimalKnowledge": {
                 "ReplacementAbility": "Caratteristica sostitutiva:"
