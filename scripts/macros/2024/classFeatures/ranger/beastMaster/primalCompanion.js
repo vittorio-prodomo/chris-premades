@@ -1,5 +1,5 @@
 import {Summons} from '../../../../../lib/summons.js';
-import {activityUtils, actorUtils, combatUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
+import {activityUtils, actorUtils, combatUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 
 // Locate the tokens tracked by the caster's Primal Companion summon effect (living or a lingering
 // corpse). The effect keeps its summoned token ids/scenes in flags.chris-premades.summons.
@@ -188,6 +188,51 @@ Hooks.on('dnd5e.preUseActivity', (activity, usageConfig, dialogConfig, messageCo
     // generic path proceeds normally — its bonus-action charge above is an independent side effect.
     if (isStrike) return false;
 });
+// T44b — Primal Companion hidden combatant + auto-Dodge. The beast KEEPS its 'follows' initiative slot (that
+// is what keeps Foundry recording its movementHistory → the T34 charge rider fires for free), but its turn is
+// auto-resolved so the table never stops on it, and the combat-tracker-dock fork hides its portrait. GM-side
+// (single writer): when the turn lands on the beast, read the T44a per-round commanded flag — if it was NOT
+// commanded a non-Dodge action this round it Dodges by default (RAW), firing its own Dodge item — then advance
+// past it. Re-entrancy- and all-beast-loop-guarded; the while loop also chains consecutive beast turns.
+let primalAutoTurnInFlight = false;
+async function resolvePrimalBeastTurn(combat, combatant) {
+    let tokenDoc = combatant.token;
+    let commandedRound = tokenDoc?.getFlag('chris-premades', 'primalCommandedRound');
+    // Consume the per-round flag (unset only if present, to avoid a spurious write on every skip).
+    if (commandedRound !== undefined) await tokenDoc.unsetFlag('chris-premades', 'primalCommandedRound');
+    if (commandedRound === combat.round) return; // commanded a non-Dodge action this round → it already acted
+    // Uncommanded: the beast Dodges by default. Fire its own Dodge item (self-effect); never let a failure
+    // block the skip.
+    let dodgeItem = combatant.actor?.items.find(i => genericUtils.getIdentifier(i) === 'primalCompanionDodge');
+    if (!dodgeItem) return;
+    try {
+        await workflowUtils.syntheticItemRoll(dodgeItem, []);
+    } catch (error) {
+        console.error('Primal Companion auto-Dodge failed', error);
+    }
+}
+async function primalCompanionAutoTurn(combat, changes) {
+    if (!socketUtils.isTheGM()) return; // single writer across GMs
+    if (!changes.turn && !changes.round) return;
+    if (!combat.started || !combat.isActive) return;
+    if (primalAutoTurnInFlight) return; // re-entrant call from our own nextTurn()
+    if (!isPrimalCompanionBeast(combat.combatant?.actor)) return;
+    primalAutoTurnInFlight = true;
+    try {
+        // Chain consecutive beast turns; bounded by combat size so a corrupt state can never loop forever.
+        let guard = 0;
+        while (isPrimalCompanionBeast(combat.combatant?.actor) && guard++ < combat.turns.length) {
+            // Only auto-advance while a non-beast, non-defeated combatant remains — a beast-only combat would
+            // otherwise loop; park the turn instead.
+            if (!combat.turns.some(c => !c.isDefeated && !isPrimalCompanionBeast(c.actor))) break;
+            await resolvePrimalBeastTurn(combat, combat.combatant);
+            await combat.nextTurn();
+        }
+    } finally {
+        primalAutoTurnInFlight = false;
+    }
+}
+Hooks.on('updateCombat', primalCompanionAutoTurn);
 async function use({workflow}) {
     let activityIdentifier = activityUtils.getIdentifier(workflow.activity);
     let sourceActor = await compendiumUtils.getActorFromCompendium(constants.packs.summons, 'CPR - Primal Companion');
