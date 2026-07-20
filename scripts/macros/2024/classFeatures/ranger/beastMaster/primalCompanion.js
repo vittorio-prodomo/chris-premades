@@ -159,6 +159,12 @@ Hooks.on('dnd5e.preUseActivity', (activity, usageConfig, dialogConfig, messageCo
     let isStrike = PRIMAL_STRIKE_IDS.includes(itemId) && activity.type === 'attack'; // the attack activity, not the hidden charge rider
     let isCommandedGeneric = PRIMAL_COMMANDED_GENERICS.includes(sysId); // any non-Dodge standard action via the Generic Actions menu
     if (!isStrike && !isCommandedGeneric) return; // the Generic Actions menu item itself, situational actions (jump/mount/…), Primal Bond, etc.
+    // The command economy only applies to a COMMANDED action, which happens on the HUNTER's turn. A Beast's
+    // Strike used as a genuine opportunity attack fires on the FLEEING creature's turn (Gambit's runs it as a
+    // reaction) and must NOT pop the command dialog or spend the hunter's economy — it just uses the beast's
+    // own reaction. So once combat has started and it is NOT the hunter's turn, leave the use untouched.
+    let hunterUuid = beast.flags?.['chris-premades']?.summons?.control?.actor;
+    if (game.combat?.started && game.combat.combatant?.actor?.uuid !== hunterUuid) return;
     let actionName = activity.item.name;
     (async () => {
         let hunter = await getHunterActor(beast);
