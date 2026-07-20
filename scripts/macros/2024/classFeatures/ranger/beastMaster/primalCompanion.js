@@ -279,6 +279,45 @@ Hooks.on('updateCombatant', async (combatant, changes) => {
         primalReanchorInFlight = false;
     }
 });
+// Beast <-> hunter combat linkage + fixed (no-roll) initiative. The beast's CCT portrait is hidden (T44b), so
+// it's easy to lose track of whether it's actually in the fight — so keep the pair together: adding EITHER to
+// combat drags the other in. And the beast's initiative is fixed (hunter - 0.01, per the re-anchor), so it must
+// never ROLL — a roll shows a pointless 3D die and, when only the hunter + beast are present, makes the Alert
+// feat's swap prompt fire with no real target. Setting the beast's initiative DIRECTLY at creation makes
+// Roll-All / combat-start skip it (a non-null initiative is never rolled); the re-anchor then keeps it correct.
+let primalLinkInFlight = false;
+async function primalEnsureCombatant(combat, tokenDoc, initiative) {
+    if (!tokenDoc || tokenDoc.parent?.id !== combat.scene?.id) return; // missing, or on another scene
+    if (combat.combatants.some(c => c.tokenId === tokenDoc.id)) return; // already in this combat
+    primalLinkInFlight = true;
+    try {
+        let data = {tokenId: tokenDoc.id, sceneId: combat.scene?.id, actorId: tokenDoc.actorId};
+        if (initiative != null) data.initiative = initiative;
+        await combat.createEmbeddedDocuments('Combatant', [data]);
+    } finally {
+        primalLinkInFlight = false;
+    }
+}
+Hooks.on('createCombatant', async (combatant) => {
+    if (!socketUtils.isTheGM()) return; // single writer across GMs
+    if (primalLinkInFlight) return; // our own linked create — don't recurse
+    let combat = combatant.parent;
+    if (!combat?.combatants || !combat.scene) return;
+    let actor = combatant.actor;
+    if (isPrimalCompanionBeast(actor)) {
+        // A beast entered combat: pin its initiative (no roll → no 3D die) + pull its hunter in.
+        let hunterUuid = actor.flags?.['chris-premades']?.summons?.control?.actor;
+        let hunterCombatant = combat.combatants.find(c => c.actor?.uuid === hunterUuid);
+        let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative - 0.01 : 0;
+        if (combatant.initiative !== init) await combatant.update({initiative: init});
+        if (!hunterCombatant) await primalEnsureCombatant(combat, combat.scene.tokens.find(t => t.actor?.uuid === hunterUuid));
+    } else if (actor) {
+        // A creature entered combat: if it owns a Primal Companion beast, pull the beast in with a fixed init.
+        let hunterCombatant = combat.combatants.find(c => c.actor?.uuid === actor.uuid);
+        let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative - 0.01 : 0;
+        for (let beastToken of getBeastTokens(actor)) await primalEnsureCombatant(combat, beastToken, init);
+    }
+});
 async function use({workflow}) {
     let activityIdentifier = activityUtils.getIdentifier(workflow.activity);
     let sourceActor = await compendiumUtils.getActorFromCompendium(constants.packs.summons, 'CPR - Primal Companion');
