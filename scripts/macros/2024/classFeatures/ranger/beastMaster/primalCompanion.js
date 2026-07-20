@@ -224,12 +224,23 @@ async function resolvePrimalBeastTurn(combat, combatant) {
         console.error('Primal Companion auto-Dodge failed', error);
     }
 }
+// Fix A: the beast's default Dodge should cover the ENEMIES' turns but clear on the HUNTER's turn (RAW: a Dodge
+// lasts until the start of your next turn, and the beast acts on the hunter's turn). Remove any 'Dodge' effect
+// from a beast whose hunter's turn just began; it re-Dodges at its own slot if still uncommanded.
+async function clearBeastDodge(beast) {
+    for (let effect of beast.effects.filter(e => e.name === 'Dodge' || e.statuses?.has?.('dodging'))) {
+        try { await genericUtils.remove(effect); } catch (err) { /* already gone */ }
+    }
+}
 async function primalCompanionAutoTurn(combat, changes) {
     if (!socketUtils.isTheGM()) return; // single writer across GMs
     if (!changes.turn && !changes.round) return;
     if (!combat.started || !combat.isActive) return;
     if (primalAutoTurnInFlight) return; // re-entrant call from our own nextTurn()
     if (primalReanchorInFlight) return; // an initiative re-anchor is repositioning the beast
+    // When the turn lands on a Primal Companion hunter, clear their beast's carried-over Dodge (see clearBeastDodge).
+    let currentActor = combat.combatant?.actor;
+    if (currentActor) for (let beastToken of getBeastTokens(currentActor)) if (beastToken?.actor) await clearBeastDodge(beastToken.actor);
     if (!isPrimalCompanionBeast(combat.combatant?.actor)) return;
     primalAutoTurnInFlight = true;
     try {
@@ -297,6 +308,51 @@ async function primalEnsureCombatant(combat, tokenDoc, initiative) {
     } finally {
         primalLinkInFlight = false;
     }
+}
+// Fix C: the beast must never ROLL initiative (a roll shows a 3D die + can drive the Alert prompt). BELT — set
+// its initiative in the creation DATA before the combatant exists, so Roll-All / combat-start always skip it (a
+// non-null initiative is never rolled), with no dependency on the async createCombatant timing that could race a
+// Roll-All. SUSPENDERS — cancel any explicit initiative roll of the beast (manual die click, reroll-all).
+Hooks.on('preCreateCombatant', (combatant, data) => {
+    if (!socketUtils.isTheGM()) return;
+    let actor = combatant.actor;
+    if (!isPrimalCompanionBeast(actor)) return;
+    if (data.initiative != null) return; // already fixed (e.g. our own linked create)
+    let hunterUuid = actor.flags['chris-premades'].summons.control.actor;
+    let hunterCombatant = combatant.parent?.combatants.find(c => c.actor?.uuid === hunterUuid);
+    let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative - 0.01 : 0;
+    combatant.updateSource({initiative: init});
+});
+Hooks.on('dnd5e.preRollInitiative', (actor) => {
+    if (!isPrimalCompanionBeast(actor)) return;
+    return false; // never roll — the beast's initiative is fixed at hunter - 0.01 (set at creation + re-anchored)
+});
+// Catch-all for Fix C: the belt/suspenders above miss an EXPLICIT `combat.rollInitiative([beastId])` (core
+// "Roll All" for a still-null beast, CCT's roll-all over the hidden beast, a reroll). Wrap rollInitiative to
+// strip Primal Companion beast ids — set their initiative directly (re-anchor keeps it exact) instead of rolling
+// (no 3D die). libWrapper (a CPR dependency) handles clean (re)registration; the flag guards a dev-loader re-import.
+if (!globalThis.__primalRollInitiativeWrapped) {
+    globalThis.__primalRollInitiativeWrapped = true;
+    // Register at 'setup' — libWrapper forbids registration before its Ready hook, and doing it at module-eval
+    // throws and aborts the rest of this file.
+    Hooks.once('setup', () => {
+        if (!globalThis.libWrapper) return;
+        libWrapper.register('chris-premades', 'CONFIG.Combat.documentClass.prototype.rollInitiative', async function (wrapped, ids, ...rest) {
+            let rollIds = [];
+            for (let id of (Array.isArray(ids) ? ids : [ids]).filter(i => i != null)) {
+                let combatant = this.combatants.get(id);
+                if (isPrimalCompanionBeast(combatant?.actor)) {
+                    if (socketUtils.isTheGM() && combatant.initiative == null) {
+                        let hunterUuid = combatant.actor.flags['chris-premades'].summons.control.actor;
+                        let hc = this.combatants.find(x => x.actor?.uuid === hunterUuid);
+                        await combatant.update({initiative: (hc?.initiative != null) ? hc.initiative - 0.01 : 0});
+                    }
+                } else rollIds.push(id);
+            }
+            if (!rollIds.length) return this;
+            return wrapped(rollIds, ...rest);
+        }, 'MIXED');
+    });
 }
 Hooks.on('createCombatant', async (combatant) => {
     if (!socketUtils.isTheGM()) return; // single writer across GMs
