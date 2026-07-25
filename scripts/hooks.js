@@ -79,6 +79,7 @@ export function registerHooks() {
     
     // Wire up chat card buttons
     Hooks.on('createChatMessage', chat.createChatMessage);
+    Hooks.on('renderChatMessageHTML', chat.renderChatMessageHTML);
 
     // Effect events, conditional hiding, auto-token-image stuff
     Hooks.on('preCreateActiveEffect', effectEvents.preCreateActiveEffect);

@@ -2,6 +2,7 @@ import {ItemMedkit} from '../applications/medkit-item.js';
 import {tours} from '../applications/tour.js';
 import {troubleshooter} from '../applications/troubleshooter.js';
 import {genericUtils} from '../utils.js';
+import {formatRerollNote} from '../lib/utilities/rerollNotes.mjs';
 async function createChatMessage(message, options, userId) {
     let buttonData = message.flags?.['chris-premades']?.button;
     if (!buttonData) return;
@@ -48,6 +49,34 @@ async function createChatMessage(message, options, userId) {
     });
     
 }
+/**
+ * Render reroll attribution notes into a midi chat card (T51).
+ *
+ * Reads the array flag written by rollUtils.postRerollNote. Runs on EVERY render — including
+ * scrollback and post-reload — which is why the data lives on the message rather than being
+ * injected once at creation time. Idempotent: bails if the block is already present.
+ *
+ * @param {ChatMessage} message
+ * @param {HTMLElement} element
+ */
+function renderChatMessageHTML(message, element) {
+    let notes = message.flags?.['chris-premades']?.rerollNotes;
+    if (!Array.isArray(notes) || !notes.length) return;
+    if (element.querySelector('.chris-reroll-notes')) return;
+    let container = element.querySelector('.message-content');
+    if (!container) return;
+    let template = genericUtils.translate('CHRISPREMADES.RerollNote.Line');
+    let block = document.createElement('div');
+    block.classList.add('chris-reroll-notes');
+    for (let note of notes) {
+        let line = document.createElement('div');
+        line.classList.add('chris-reroll-note');
+        line.textContent = '↻ ' + formatRerollNote(template, note);
+        block.appendChild(line);
+    }
+    container.appendChild(block);
+}
 export let chat = {
-    createChatMessage
+    createChatMessage,
+    renderChatMessageHTML
 };
