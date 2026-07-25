@@ -252,6 +252,37 @@ async function postRerollNote(workflow, note) {
     }
 }
 
+/**
+ * Would a damage reroll have anything to act on? (T66)
+ *
+ * A 2024 Unarmed Strike deals a flat `1 + @mod` — no damage dice at all — so a reroll
+ * feature offered on it can only spend its resource for exactly zero benefit (the reroll
+ * loops themselves already `continue` past deterministic terms). The offer, not the
+ * reroll, is what needs gating: never ask for something that cannot change anything.
+ *
+ * Generic on purpose — covers any flat-damage attack, so the unarmed case needs no
+ * special-casing. Fails OPEN: an unparseable formula keeps the existing offer rather
+ * than silently removing a feature.
+ *
+ * @param {object} activity dnd5e activity (reads activity.damage.parts)
+ * @returns {boolean} true when at least one damage part carries a non-deterministic term
+ */
+function hasRerollableDamage(activity) {
+    let parts = activity?.damage?.parts;
+    if (!parts?.length) return false;
+    let rollData = activity?.getRollData?.() ?? {};
+    return parts.some(part => {
+        let formula = part?.formula;
+        if (!formula) return false;
+        try {
+            return !new Roll(formula, rollData).isDeterministic;
+        } catch (error) {
+            genericUtils.log('warn', 'Could not parse damage formula "' + formula + '": ' + (error?.message ?? error));
+            return true;
+        }
+    });
+}
+
 export let rollUtils = {
     getCriticalFormula,
     contestedRoll,
@@ -269,5 +300,6 @@ export let rollUtils = {
     updateDieResult,
     buildModifierFormula,
     rerollDamageWithSource,
-    postRerollNote
+    postRerollNote,
+    hasRerollableDamage
 };
