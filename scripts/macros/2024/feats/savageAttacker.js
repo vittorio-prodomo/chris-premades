@@ -1,4 +1,4 @@
-import {dialogUtils, genericUtils, workflowUtils} from '../../../utils.js';
+import {dialogUtils, genericUtils, rollUtils, workflowUtils} from '../../../utils.js';
 async function attack({trigger: {entity: item}, workflow}) {
     if (workflow.hitTargets.size !== 1 || item.system.uses.value == 0 || !workflowUtils.isAttackType(workflow, 'weaponAttack')) return;
     let selection = await dialogUtils.confirm(item.name, genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: item.name}));
@@ -28,9 +28,12 @@ async function damage({trigger: {entity: item}, workflow}) {
             if (term.isDeterministic) continue;
             let lowTerm = lowRoll.terms[j];
             for (let result of lowTerm.results) {
+                // T51: `discarded` is Foundry's native "rolled but does not count" flag (as used by
+                // kh/kl). The previous `hidden` is Dice So Nice's hide flag, which suppressed these
+                // dice in the 3D scene AND the chat tooltip. `rerolled` is deliberately not set —
+                // it would split the roll into separate DSN throw waves instead of one tumble.
                 result.active = false;
-                result.hidden = true;
-                result.rerolled = true;
+                result.discarded = true;
                 term.results.push(result);
             }
         }
@@ -40,6 +43,11 @@ async function damage({trigger: {entity: item}, workflow}) {
         newDamageRolls[i] = highRolls[i];
     }
     await workflow.setDamageRolls(newDamageRolls);
+    await rollUtils.postRerollNote(workflow, {
+        source: item.name,
+        before: Math.min(oldTotal, newTotal),
+        after: Math.max(oldTotal, newTotal)
+    });
 }
 export let savageAttacker = {
     name: 'Savage Attacker',
