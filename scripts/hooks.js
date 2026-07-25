@@ -79,7 +79,13 @@ export function registerHooks() {
     
     // Wire up chat card buttons
     Hooks.on('createChatMessage', chat.createChatMessage);
-    Hooks.on('renderChatMessageHTML', chat.renderChatMessageHTML);
+    // Registered on dnd5e's post-processing hook, NOT core's renderChatMessageHTML: for
+    // type: "usage" messages (every real activity/damage card), ChatMessage5e#renderHTML
+    // calls system.getHTML() AFTER core's hook fires, which overwrites .message-content
+    // innerHTML wholesale — wiping anything appended during renderChatMessageHTML. dnd5e's
+    // own hook fires last, after that overwrite, so this survives on the cards it exists to
+    // annotate. See reference_cpr_reroll_attribution.md.
+    Hooks.on('dnd5e.renderChatMessage', chat.renderChatMessageHTML);
 
     // Effect events, conditional hiding, auto-token-image stuff
     Hooks.on('preCreateActiveEffect', effectEvents.preCreateActiveEffect);
