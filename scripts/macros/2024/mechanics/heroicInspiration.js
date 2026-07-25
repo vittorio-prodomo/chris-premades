@@ -25,7 +25,8 @@ async function damage(workflow) {
     await rollUtils.postRerollNote(workflow, {
         source: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name'),
         before: previousDieValue,
-        after: roll.roll.total
+        after: roll.roll.total,
+        forced: true
     });
 }
 async function saveSkillCheck(roll, actor, mode) {

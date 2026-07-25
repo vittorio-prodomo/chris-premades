@@ -63,3 +63,18 @@ test('a source containing $& is inserted literally, not expanded as a replacemen
     const line = formatRerollNote('{source} — rerolled {before}, kept {after}', {source: 'Sword $& of Doom', before: 7, after: 9});
     assert.equal(line, 'Sword $& of Doom — rerolled 7, kept 9');
 });
+
+test('carries the forced flag through', () => {
+    const result = appendRerollNote([], {source: 'Piercer', before: 2, after: 1, forced: true});
+    assert.equal(result[0].forced, true);
+});
+
+test('omits forced when the reroll was a choice', () => {
+    const result = appendRerollNote([], {source: 'Savage Attacker', before: 7, after: 9});
+    assert.equal('forced' in result[0], false);
+});
+
+test('forced template drops the "kept" claim', () => {
+    const line = formatRerollNote('{source} — rerolled {before} → {after}', {source: 'Piercer', before: 2, after: 1, forced: true});
+    assert.equal(line, 'Piercer — rerolled 2 → 1');
+});

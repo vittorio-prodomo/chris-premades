@@ -64,7 +64,8 @@ async function damageReroll({trigger: {entity: item}, workflow}) {
     await rollUtils.postRerollNote(workflow, {
         source: item.name,
         before: existingRoll.results[worstInd],
-        after: newRoll.total
+        after: newRoll.total,
+        forced: true
     });
 }
 async function damageCrit({trigger: {entity: item}, workflow}) {

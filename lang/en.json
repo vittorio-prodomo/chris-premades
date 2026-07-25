@@ -3263,7 +3263,8 @@
             "ScaleAdded": "The scale {scaleIdentifier} has been added to the class {classIdentifier}!"
         },
         "RerollNote": {
-            "Line": "{source} — rerolled {before}, kept {after}"
+            "Line": "{source} — rerolled {before}, kept {after}",
+            "LineForced": "{source} — rerolled {before} → {after}"
         },
         "Section": {
             "Rage": "Rage",

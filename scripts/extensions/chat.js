@@ -65,10 +65,10 @@ function renderRerollNotes(message, element) {
     if (element.querySelector('.chris-reroll-notes')) return;
     let container = element.querySelector('.message-content');
     if (!container) return;
-    let template = genericUtils.translate('CHRISPREMADES.RerollNote.Line');
     let block = document.createElement('div');
     block.classList.add('chris-reroll-notes');
     for (let note of notes) {
+        let template = genericUtils.translate(note?.forced ? 'CHRISPREMADES.RerollNote.LineForced' : 'CHRISPREMADES.RerollNote.Line');
         let line = document.createElement('div');
         line.classList.add('chris-reroll-note');
         line.textContent = '↻ ' + formatRerollNote(template, note);

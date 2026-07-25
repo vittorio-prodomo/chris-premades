@@ -30,6 +30,11 @@ export function appendRerollNote(existing, note) {
     if (!note || typeof note.source !== 'string' || !note.source.length) return history;
     if (!isReading(note.before) || !isReading(note.after)) return history;
     const candidate = {source: note.source, before: note.before, after: note.after};
+    // `forced` distinguishes a reroll you had no choice about (Piercer, Heroic Inspiration:
+    // "must use the new roll") from one where you kept the better result (Savage Attacker).
+    // The renderer picks a different wording for each -- saying "kept 1" after rerolling a 2
+    // is accurate but reads like a bug.
+    if (note.forced) candidate.forced = true;
     const isDuplicate = history.some(entry =>
         entry?.source === candidate.source &&
         entry?.before === candidate.before &&

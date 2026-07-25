@@ -2480,7 +2480,8 @@
             "ScaleAdded": "Il valore di scala {scaleIdentifier} è stato aggiunto alla classe {classIdentifier}!"
         },
         "RerollNote": {
-            "Line": "{source} — ritirato {before}, tenuto {after}"
+            "Line": "{source} — ritirato {before}, tenuto {after}",
+            "LineForced": "{source} — ritirato {before} → {after}"
         },
         "Section": {
             "Rage": "Ira",
