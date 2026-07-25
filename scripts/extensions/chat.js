@@ -76,7 +76,31 @@ function renderChatMessageHTML(message, element) {
     }
     container.appendChild(block);
 }
+/**
+ * Re-render reroll notes into cards already sitting in the chat log before the
+ * `dnd5e.renderChatMessage` hook attached (T51b).
+ *
+ * `registerHooks()` runs inside this module's `ready` handler, but Foundry's sidebar
+ * (including the chat log's message backlog) renders earlier in the boot sequence
+ * (`Game#setupGame` -> `initializeUI` -> `ui.sidebar.render`), well before `ready` fires.
+ * Cards already in the DOM at that point never pass through the hook, so a message
+ * carrying rerollNotes shows the line live but loses it after a reload or on scrollback.
+ * Reuses renderChatMessageHTML (already idempotent - it bails if the block exists), so
+ * running this alongside live hook renders can never duplicate a note. Purely cosmetic:
+ * never throws. Same problem/fix shape as npc-name-veil's chat alias sweep.
+ */
+function sweepRenderedChatMessages() {
+    try {
+        for (let element of document.querySelectorAll('.chat-message[data-message-id]')) {
+            let message = game.messages?.get(element.dataset.messageId);
+            if (message) renderChatMessageHTML(message, element);
+        }
+    } catch (error) {
+        genericUtils.log('warn', 'Failed to sweep reroll notes into the rendered chat log: ' + (error?.message ?? error));
+    }
+}
 export let chat = {
     createChatMessage,
-    renderChatMessageHTML
+    renderChatMessageHTML,
+    sweepRenderedChatMessages
 };
