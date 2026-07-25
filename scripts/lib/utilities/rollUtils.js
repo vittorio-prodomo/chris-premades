@@ -247,7 +247,7 @@ async function postRerollNote(workflow, note) {
         await genericUtils.setFlag(card, 'chris-premades', 'rerollNotes', updated);
         return true;
     } catch (error) {
-        genericUtils.log('warn', 'Failed to post reroll note: ' + error.message);
+        genericUtils.log('warn', 'Failed to post reroll note: ' + (error?.message ?? error));
         return false;
     }
 }
