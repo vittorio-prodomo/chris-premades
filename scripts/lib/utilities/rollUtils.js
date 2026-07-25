@@ -2,6 +2,7 @@ import {epicRolls} from '../../integrations/epicRolls.js';
 import {socket, sockets} from '../sockets.js';
 import {genericUtils, socketUtils} from '../../utils.js';
 import {buildModifierFormula} from './rollUtils.buildModifierFormula.mjs';
+import {appendRerollNote} from './rerollNotes.mjs';
 async function getCriticalFormula(formula, rollData) {
     return new CONFIG.Dice.DamageRoll(formula, rollData, {isCritical: true}).formula;
 }
@@ -225,6 +226,31 @@ async function rerollDamageWithSource(workflow, {modifier, source, skipType} = {
     }));
     await workflow.setDamageRolls(newRolls);
 }
+/**
+ * Record on the midi chat card that a feature rerolled part of this roll (T51).
+ *
+ * Stored as an array flag so several rerollers touching one roll each get a line;
+ * `extensions/chat.js` renders them on every message render, so the note survives
+ * reload and scrollback. Purely cosmetic — every failure degrades to "no line".
+ *
+ * @param {object} workflow midi workflow
+ * @param {{source: string, before: number|string, after: number|string}} note
+ * @returns {Promise<boolean>} true when a note was stored
+ */
+async function postRerollNote(workflow, note) {
+    try {
+        let card = workflow?.chatCard;
+        if (!card) return false;
+        let existing = card.flags?.['chris-premades']?.rerollNotes;
+        let updated = appendRerollNote(existing, note);
+        if (updated.length === (existing?.length ?? 0)) return false;
+        await genericUtils.setFlag(card, 'chris-premades', 'rerollNotes', updated);
+        return true;
+    } catch (error) {
+        genericUtils.log('warn', 'Failed to post reroll note: ' + error.message);
+        return false;
+    }
+}
 
 export let rollUtils = {
     getCriticalFormula,
@@ -242,5 +268,6 @@ export let rollUtils = {
     makeCritical,
     updateDieResult,
     buildModifierFormula,
-    rerollDamageWithSource
+    rerollDamageWithSource,
+    postRerollNote
 };

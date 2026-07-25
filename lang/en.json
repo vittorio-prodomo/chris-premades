@@ -3262,6 +3262,9 @@
             "MissingClass": "The configured class/subclass {classIdentifier} does not exist on this actor!",
             "ScaleAdded": "The scale {scaleIdentifier} has been added to the class {classIdentifier}!"
         },
+        "RerollNote": {
+            "Line": "{source} — rerolled {before}, kept {after}"
+        },
         "Section": {
             "Rage": "Rage",
             "RingOfSpellStoring": "Ring of Spell Storing",

@@ -2479,6 +2479,9 @@
         "Requirements": {
             "ScaleAdded": "Il valore di scala {scaleIdentifier} è stato aggiunto alla classe {classIdentifier}!"
         },
+        "RerollNote": {
+            "Line": "{source} — ritirato {before}, tenuto {after}"
+        },
         "Section": {
             "Rage": "Ira",
             "RingOfSpellStoring": "Anello di Conservazione degli Incantesimi",
