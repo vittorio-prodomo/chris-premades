@@ -1,5 +1,5 @@
 import {DialogApp} from '../../../applications/dialog.js';
-import {combatUtils, constants, genericUtils, workflowUtils} from '../../../utils.js';
+import {combatUtils, constants, genericUtils, rollUtils, workflowUtils} from '../../../utils.js';
 async function damageReroll({trigger: {entity: item}, workflow}) {
     if (workflow.hitTargets.size !== 1 || !workflow.damageRoll || !workflowUtils.isAttackType(workflow, 'attack')) return;
     if (!workflowUtils.getDamageTypes(workflow.damageRolls).has('piercing')) return;
@@ -61,6 +61,11 @@ async function damageReroll({trigger: {entity: item}, workflow}) {
     });
     newDamageRolls[roll].terms[term].results[worstInd].result = newRoll.total;
     await workflow.setDamageRolls(newDamageRolls);
+    await rollUtils.postRerollNote(workflow, {
+        source: item.name,
+        before: existingRoll.results[worstInd],
+        after: newRoll.total
+    });
 }
 async function damageCrit({trigger: {entity: item}, workflow}) {
     if (!workflow.isCritical) return;

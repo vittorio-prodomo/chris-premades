@@ -15,11 +15,17 @@ async function damage(workflow) {
     let selection = await dialogUtils.selectDie(workflow.damageRolls, 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name')}), {buttons: 'yesNo'});
     if (!selection) return;
     let positions = selection[0].split('-').map(i => Number(i));
+    let previousDieValue = workflow.damageRolls[positions[0]].terms[positions[1]].results[positions[2]].result;
     let mode = ((workflow.activity.midiProperties?.rollMode ?? 'default') === 'default') ? game.settings.get('core', 'rollMode') : workflow.activity.midiProperties?.rollMode;
     let roll = await rollUtils.rollDice('1d' + workflow.damageRolls[positions[0]].terms[positions[1]].faces, {chatMessage: true, mode, flavor: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name')});
     let newRoll = rollUtils.updateDieResult(workflow.damageRolls[positions[0]], positions[1], positions[2], roll.roll.total);
     workflow.damageRolls[[positions[0]]] = newRoll;
     await workflow.setDamageRolls(workflow.damageRolls);
+    await rollUtils.postRerollNote(workflow, {
+        source: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name'),
+        before: previousDieValue,
+        after: roll.roll.total
+    });
     await genericUtils.update(workflow.actor, {'system.attributes.inspiration': false});
 }
 async function saveSkillCheck(roll, actor, mode) {
