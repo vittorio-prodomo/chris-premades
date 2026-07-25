@@ -297,12 +297,24 @@ Hooks.on('updateCombatant', async (combatant, changes) => {
 // feat's swap prompt fire with no real target. Setting the beast's initiative DIRECTLY at creation makes
 // Roll-All / combat-start skip it (a non-null initiative is never rolled); the re-anchor then keeps it correct.
 let primalLinkInFlight = false;
-async function primalEnsureCombatant(combat, tokenDoc, initiative) {
-    if (!tokenDoc || tokenDoc.parent?.id !== combat.scene?.id) return; // missing, or on another scene
+// T53: NEVER gate on combat.scene. A combat created the way a GM actually creates one — the Token HUD's combat
+// toggle or the tracker's "+" — has NO scene: core's TokenDocument.createCombatants() makes the Combat with
+// {active: true} and stamps only a PER-COMBATANT sceneId (client/documents/token.mjs), so combat.scene is null and
+// every same-scene check against it fails. (The MCP bridge's createCombat does pass a scene, which is why this
+// silently "passed" agent verification while never working at the table.) Resolve the reference scene from the
+// combatant instead — Combatant#token already prefers its own sceneId and falls back to the combat's scene.
+function primalCombatantScene(combatant) {
+    return combatant?.token?.parent
+        ?? (combatant?.sceneId ? game.scenes.get(combatant.sceneId) : null)
+        ?? combatant?.parent?.scene
+        ?? null;
+}
+async function primalEnsureCombatant(combat, tokenDoc, initiative, scene) {
+    if (!tokenDoc || tokenDoc.parent?.id !== scene?.id) return; // missing, or on another scene
     if (combat.combatants.some(c => c.tokenId === tokenDoc.id)) return; // already in this combat
     primalLinkInFlight = true;
     try {
-        let data = {tokenId: tokenDoc.id, sceneId: combat.scene?.id, actorId: tokenDoc.actorId};
+        let data = {tokenId: tokenDoc.id, sceneId: tokenDoc.parent?.id, actorId: tokenDoc.actorId};
         if (initiative != null) data.initiative = initiative;
         await combat.createEmbeddedDocuments('Combatant', [data]);
     } finally {
@@ -358,7 +370,9 @@ Hooks.on('createCombatant', async (combatant) => {
     if (!socketUtils.isTheGM()) return; // single writer across GMs
     if (primalLinkInFlight) return; // our own linked create — don't recurse
     let combat = combatant.parent;
-    if (!combat?.combatants || !combat.scene) return;
+    if (!combat?.combatants) return;
+    let scene = primalCombatantScene(combatant); // NOT combat.scene — see primalCombatantScene (T53)
+    if (!scene) return; // can't tell which scene this combatant lives on
     let actor = combatant.actor;
     if (isPrimalCompanionBeast(actor)) {
         // A beast entered combat: pin its initiative (no roll → no 3D die) + pull its hunter in.
@@ -366,12 +380,12 @@ Hooks.on('createCombatant', async (combatant) => {
         let hunterCombatant = combat.combatants.find(c => c.actor?.uuid === hunterUuid);
         let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative - 0.01 : 0;
         if (combatant.initiative !== init) await combatant.update({initiative: init});
-        if (!hunterCombatant) await primalEnsureCombatant(combat, combat.scene.tokens.find(t => t.actor?.uuid === hunterUuid));
+        if (!hunterCombatant) await primalEnsureCombatant(combat, scene.tokens.find(t => t.actor?.uuid === hunterUuid), null, scene);
     } else if (actor) {
         // A creature entered combat: if it owns a Primal Companion beast, pull the beast in with a fixed init.
         let hunterCombatant = combat.combatants.find(c => c.actor?.uuid === actor.uuid);
         let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative - 0.01 : 0;
-        for (let beastToken of getBeastTokens(actor)) await primalEnsureCombatant(combat, beastToken, init);
+        for (let beastToken of getBeastTokens(actor)) await primalEnsureCombatant(combat, beastToken, init, scene);
     }
 });
 async function use({workflow}) {
