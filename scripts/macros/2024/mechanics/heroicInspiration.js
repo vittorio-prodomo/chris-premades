@@ -21,12 +21,12 @@ async function damage(workflow) {
     let newRoll = rollUtils.updateDieResult(workflow.damageRolls[positions[0]], positions[1], positions[2], roll.roll.total);
     workflow.damageRolls[[positions[0]]] = newRoll;
     await workflow.setDamageRolls(workflow.damageRolls);
+    await genericUtils.update(workflow.actor, {'system.attributes.inspiration': false});
     await rollUtils.postRerollNote(workflow, {
         source: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name'),
         before: previousDieValue,
         after: roll.roll.total
     });
-    await genericUtils.update(workflow.actor, {'system.attributes.inspiration': false});
 }
 async function saveSkillCheck(roll, actor, mode) {
     if (!actor.system.attributes.inspiration) return;

@@ -43,3 +43,23 @@ test('formats numeric zero correctly', () => {
     const line = formatRerollNote('{before}->{after}', {source: 'X', before: 0, after: 3});
     assert.equal(line, '0->3');
 });
+
+test('appends a note to a null history', () => {
+    const result = appendRerollNote(null, {source: 'Savage Attacker', before: 7, after: 9});
+    assert.deepEqual(result, [{source: 'Savage Attacker', before: 7, after: 9}]);
+});
+
+test('formats with a null note without throwing', () => {
+    const line = formatRerollNote('{source} — rerolled {before}, kept {after}', null);
+    assert.equal(line, ' — rerolled , kept ');
+});
+
+test('an item literally named "{after}" is not re-substituted by a later replacement pass', () => {
+    const line = formatRerollNote('{source} — rerolled {before}, kept {after}', {source: '{after}', before: 7, after: 9});
+    assert.equal(line, '{after} — rerolled 7, kept 9');
+});
+
+test('a source containing $& is inserted literally, not expanded as a replacement pattern', () => {
+    const line = formatRerollNote('{source} — rerolled {before}, kept {after}', {source: 'Sword $& of Doom', before: 7, after: 9});
+    assert.equal(line, 'Sword $& of Doom — rerolled 7, kept 9');
+});

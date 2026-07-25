@@ -85,7 +85,7 @@ export function registerHooks() {
     // innerHTML wholesale — wiping anything appended during renderChatMessageHTML. dnd5e's
     // own hook fires last, after that overwrite, so this survives on the cards it exists to
     // annotate. See reference_cpr_reroll_attribution.md.
-    Hooks.on('dnd5e.renderChatMessage', chat.renderChatMessageHTML);
+    Hooks.on('dnd5e.renderChatMessage', chat.renderRerollNotes);
     // registerHooks() runs at 'ready', after the chat log's initial backlog already
     // rendered - sweep once so already-visible messages pick up their reroll notes too.
     chat.sweepRenderedChatMessages();

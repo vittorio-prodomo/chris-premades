@@ -59,7 +59,7 @@ async function createChatMessage(message, options, userId) {
  * @param {ChatMessage} message
  * @param {HTMLElement} element
  */
-function renderChatMessageHTML(message, element) {
+function renderRerollNotes(message, element) {
     let notes = message.flags?.['chris-premades']?.rerollNotes;
     if (!Array.isArray(notes) || !notes.length) return;
     if (element.querySelector('.chris-reroll-notes')) return;
@@ -85,7 +85,7 @@ function renderChatMessageHTML(message, element) {
  * (`Game#setupGame` -> `initializeUI` -> `ui.sidebar.render`), well before `ready` fires.
  * Cards already in the DOM at that point never pass through the hook, so a message
  * carrying rerollNotes shows the line live but loses it after a reload or on scrollback.
- * Reuses renderChatMessageHTML (already idempotent - it bails if the block exists), so
+ * Reuses renderRerollNotes (already idempotent - it bails if the block exists), so
  * running this alongside live hook renders can never duplicate a note. Purely cosmetic:
  * never throws. Same problem/fix shape as npc-name-veil's chat alias sweep.
  */
@@ -93,7 +93,7 @@ function sweepRenderedChatMessages() {
     try {
         for (let element of document.querySelectorAll('.chat-message[data-message-id]')) {
             let message = game.messages?.get(element.dataset.messageId);
-            if (message) renderChatMessageHTML(message, element);
+            if (message) renderRerollNotes(message, element);
         }
     } catch (error) {
         genericUtils.log('warn', 'Failed to sweep reroll notes into the rendered chat log: ' + (error?.message ?? error));
@@ -101,6 +101,6 @@ function sweepRenderedChatMessages() {
 }
 export let chat = {
     createChatMessage,
-    renderChatMessageHTML,
+    renderRerollNotes,
     sweepRenderedChatMessages
 };

@@ -42,13 +42,15 @@ export function appendRerollNote(existing, note) {
 
 /**
  * Substitute a note into a localised template containing {source}, {before} and {after}.
+ * A single regex pass, not chained String#replaceAll calls: chaining would let one
+ * substitution's output be re-matched by the next placeholder (an item literally named
+ * "{after}" getting re-substituted) and would treat the replacement VALUE as a pattern
+ * (a `$&` in an item name is a live back-reference to replaceAll, even for a plain-string
+ * search) — both cosmetic-garbling bugs, since Foundry item names are user-editable.
  * @param {string} template
  * @param {object} note
  * @returns {string}
  */
 export function formatRerollNote(template, note) {
-    return String(template)
-        .replaceAll('{source}', String(note?.source ?? ''))
-        .replaceAll('{before}', String(note?.before ?? ''))
-        .replaceAll('{after}', String(note?.after ?? ''));
+    return String(template).replace(/\{(source|before|after)\}/g, (_, key) => String(note?.[key] ?? ''));
 }
