@@ -2481,7 +2481,8 @@
         },
         "RerollNote": {
             "Line": "{source} — ritirato {before}, tenuto {after}",
-            "LineForced": "{source} — ritirato {before} → {after}"
+            "LineForced": "{source} — ritirato {before} → {after}",
+            "TooltipTitle": "Ritiri"
         },
         "Section": {
             "Rage": "Ira",

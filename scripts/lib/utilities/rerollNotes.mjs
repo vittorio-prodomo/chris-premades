@@ -59,3 +59,42 @@ export function appendRerollNote(existing, note) {
 export function formatRerollNote(template, note) {
     return String(template).replace(/\{(source|before|after)\}/g, (_, key) => String(note?.[key] ?? ''));
 }
+
+/**
+ * Escape text destined for an HTML string.
+ * Local rather than foundry.utils.escapeHTML so this module stays free of Foundry globals
+ * (it is unit tested under plain node). `&` must go first or the later entities double-escape.
+ * @param {string} text
+ * @returns {string}
+ */
+function escapeHtml(text) {
+    return String(text)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
+
+/**
+ * Build the hover-tooltip markup that carries the reroll notes (T52).
+ *
+ * Deliberately mirrors MidiQoL's own attribution tooltip (`templates/attribution-tooltip.html`)
+ * class for class, so midi's already-loaded CSS styles it and the ⓘ beside the DAMAGE title
+ * looks native next to the one dnd5e/midi put beside ADVANTAGE on the attack title.
+ *
+ * ⚠️ The result is handed to Foundry as `data-tooltip-html`, so it IS parsed as HTML — every
+ * interpolated value must be escaped. Note sources are in-world item names, which are
+ * user-editable.
+ *
+ * @param {string} title heading for the tooltip; omitted when empty
+ * @param {string[]} lines already-localised, already-formatted note lines
+ * @returns {string} tooltip HTML, or '' when there is nothing to show
+ */
+export function buildRerollTooltip(title, lines) {
+    const items = (Array.isArray(lines) ? lines : []).filter(line => typeof line === 'string' && line.length);
+    if (!items.length) return '';
+    const header = typeof title === 'string' && title.length ? `<div class="attribution-header">${escapeHtml(title)}</div>` : '';
+    const body = items.map(line => `<li class="attribution-item"><span class="attribution-source">${escapeHtml(line)}</span></li>`).join('');
+    return `<div class="midi-attribution-tooltip">${header}<ul class="attribution-list">${body}</ul></div>`;
+}

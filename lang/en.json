@@ -3264,7 +3264,8 @@
         },
         "RerollNote": {
             "Line": "{source} — rerolled {before}, kept {after}",
-            "LineForced": "{source} — rerolled {before} → {after}"
+            "LineForced": "{source} — rerolled {before} → {after}",
+            "TooltipTitle": "Rerolls"
         },
         "Section": {
             "Rage": "Rage",

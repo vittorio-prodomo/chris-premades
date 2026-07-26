@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { appendRerollNote, formatRerollNote } from './rerollNotes.mjs';
+import { appendRerollNote, formatRerollNote, buildRerollTooltip } from './rerollNotes.mjs';
 
 test('appends a note to an empty history', () => {
     const result = appendRerollNote(undefined, {source: 'Savage Attacker', before: 7, after: 9});
@@ -77,4 +77,59 @@ test('omits forced when the reroll was a choice', () => {
 test('forced template drops the "kept" claim', () => {
     const line = formatRerollNote('{source} — rerolled {before} → {after}', {source: 'Piercer', before: 2, after: 1, forced: true});
     assert.equal(line, 'Piercer — rerolled 2 → 1');
+});
+
+// --- buildRerollTooltip (T52): the note moves into a hover tooltip on the DAMAGE title ---
+
+test('builds a tooltip in midi\'s attribution shape so its CSS applies', () => {
+    const html = buildRerollTooltip('Rerolls', ['↻ Savage Attacker — rerolled 7, kept 9']);
+    assert.match(html, /^<div class="midi-attribution-tooltip">/);
+    assert.match(html, /<div class="attribution-header">Rerolls<\/div>/);
+    assert.match(html, /<ul class="attribution-list">/);
+    assert.match(html, /<li class="attribution-item"><span class="attribution-source">↻ Savage Attacker — rerolled 7, kept 9<\/span><\/li>/);
+});
+
+test('renders one item per note, in order', () => {
+    const html = buildRerollTooltip('Rerolls', ['↻ Savage Attacker — rerolled 7, kept 9', '↻ Piercer — rerolled 2 → 1']);
+    assert.equal(html.match(/<li class="attribution-item">/g).length, 2);
+    assert.ok(html.indexOf('Savage Attacker') < html.indexOf('Piercer'), 'notes must keep their order');
+});
+
+test('omits the header when no title is given', () => {
+    const html = buildRerollTooltip('', ['↻ Healer — rerolled 1, kept 4']);
+    assert.doesNotMatch(html, /attribution-header/);
+    assert.match(html, /attribution-source/);
+});
+
+test('returns an empty string when there is nothing to show', () => {
+    assert.equal(buildRerollTooltip('Rerolls', []), '');
+    assert.equal(buildRerollTooltip('Rerolls', undefined), '');
+    assert.equal(buildRerollTooltip('Rerolls', null), '');
+    assert.equal(buildRerollTooltip('Rerolls', ['', null, undefined]), '');
+});
+
+test('drops non-string entries but keeps the usable ones', () => {
+    const html = buildRerollTooltip('Rerolls', [null, '↻ Healer — rerolled 1, kept 4', 42]);
+    assert.equal(html.match(/<li class="attribution-item">/g).length, 1);
+    assert.match(html, /Healer/);
+});
+
+// Item names are user-editable, and this string is handed to Foundry as data-tooltip-html,
+// i.e. it IS parsed as HTML - so an item named with a tag must not become live markup.
+test('escapes HTML in a note so a crafted item name cannot inject markup', () => {
+    const html = buildRerollTooltip('Rerolls', ['↻ <img src=x onerror="boom"> — rerolled 7, kept 9']);
+    assert.doesNotMatch(html, /<img/);
+    assert.match(html, /&lt;img src=x onerror=&quot;boom&quot;&gt;/);
+});
+
+test('escapes an ampersand without double-escaping', () => {
+    const html = buildRerollTooltip('Rerolls', ['↻ Sword & Shield — rerolled 7, kept 9']);
+    assert.match(html, /Sword &amp; Shield/);
+    assert.doesNotMatch(html, /&amp;amp;/);
+});
+
+test('escapes the title too', () => {
+    const html = buildRerollTooltip('<b>Rerolls</b>', ['↻ Healer — rerolled 1, kept 4']);
+    assert.doesNotMatch(html, /<b>/);
+    assert.match(html, /&lt;b&gt;Rerolls&lt;\/b&gt;/);
 });
