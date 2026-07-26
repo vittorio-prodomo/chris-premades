@@ -1,12 +1,17 @@
 import {DialogApp} from '../../applications/dialog.js';
 import {constants, tokenUtils, genericUtils, itemUtils} from '../../utils.js';
 import {socket, sockets} from '../sockets.js';
+import {resolveDamageLabel} from './damageTypeLabels.mjs';
 async function buttonDialog(title, content, buttons, {displayAsRows = true, userId = game.user.id} = {}) {
     let inputs = [
         ['button', [], {displayAsRows: displayAsRows}]
     ];
     for (let [label, value, options] of buttons) {
-        inputs[0][1].push({label: label, name: value, options: options ?? {}});
+        // T72: damage-type pickers pass literal `DND5E.Damage<Type>` keys that dnd5e no longer
+        // defines, so they rendered as raw keys. Resolved here — the one chokepoint all 83
+        // occurrences share — rather than at every call site, to keep the upstream diff small.
+        let resolved = resolveDamageLabel(label, {has: key => game.i18n.has(key), types: CONFIG.DND5E?.damageTypes});
+        inputs[0][1].push({label: resolved, name: value, options: options ?? {}});
     }
     let result;
     if (userId != game.user.id) {
