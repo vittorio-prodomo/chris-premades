@@ -41,6 +41,10 @@ import {ui} from './extensions/ui.js';
 import {toolCheck} from './events/toolCheck.js';
 import {acc} from './integrations/acc.js';
 import {quickConditions} from './extensions/quickConditions.js';
+// FORK PATCH (T59): expose the generic-actions extension on the public API. It is otherwise
+// module-private, and gm-table-tools needs to replay `actions.createToken` for tokens that
+// predate the `addActions` setting rather than reimplementing the policy.
+import {actions} from './extensions/actions.js';
 import {setupConstants} from './lib/constants.js';
 Hooks.once('socketlib.ready', registerSockets);
 Hooks.once('init', () => {
@@ -115,6 +119,7 @@ Hooks.once('ready', () => {
     Hooks.callAll('cprReady');
 });
 globalThis['chrisPremades'] = {
+    actions, // FORK PATCH (T59) — see the import.
     DialogApp,
     Crosshairs,
     CompendiumBrowser,
