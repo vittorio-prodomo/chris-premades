@@ -37,7 +37,7 @@ async function use({trigger, workflow}) {
         let reference = documents.find(i => i._id === selection.id);
         if (reference?.reference) {
             let journal = await fromUuid(reference.reference);
-            if (journal) documentData.system.description.value = journal.text.content;
+            if (journal) documentData.system.description.value = itemUtils.getJournalPageContent(journal);
         }
     }
     await workflowUtils.syntheticItemDataRoll(documentData, workflow.actor, []);

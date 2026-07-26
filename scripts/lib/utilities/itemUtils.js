@@ -4,6 +4,7 @@ import {miscPremades} from '../../integrations/miscPremades.js';
 import {custom} from '../../events/custom.js';
 import {ItemMedkit} from '../../applications/medkit-item.js';
 import {requirements} from '../../extensions/requirements.js';
+import {absolutizeJournalLinks} from './journalLinks.mjs';
 function getSaveDC(item) {
     if (item.hasSave) return item.system.activities.getByType('save')[0].save.dc.value;
     let spellChanges = item.effects.get('dnd5espellchange');
@@ -39,7 +40,13 @@ function getItemDescription(name) {
         genericUtils.notify('CHRISPREMADES.Error.MissingDescriptionPage', 'warn');
         return '';
     }
-    return page.text.content;
+    return getJournalPageContent(page);
+}
+// T64: journal text copied onto an item loses the parent journal that its relative @UUID links
+// resolve against, so sibling-page links enrich as `content-link broken`. Every copy site goes
+// through here.
+function getJournalPageContent(page) {
+    return absolutizeJournalLinks(page?.text?.content ?? '', page?.parent?.uuid);
 }
 function isSpellFeature(item) {
     return item.system.type?.value === 'spellFeature';
@@ -251,6 +258,7 @@ export let itemUtils = {
     getSaveDC,
     createItems,
     getItemDescription,
+    getJournalPageContent,
     isSpellFeature,
     getConfig,
     getItemByIdentifier,

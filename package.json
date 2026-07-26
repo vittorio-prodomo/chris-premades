@@ -6,7 +6,7 @@
     "doc": "docs"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test \"scripts/**/*.test.mjs\"",
     "build": "node dev-manifest.mjs && webpack",
     "devManifest": "node dev-manifest.mjs",
     "buildCompendiums": "node packData/packData.mjs",

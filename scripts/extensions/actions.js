@@ -52,7 +52,7 @@ async function createToken(token, options, userId) {
                 let ruleKey = ACTION_RULE_MAPPING[j.name] ?? j.name.toLowerCase().replace(/\s+/g, '');
                 let reference = CONFIG.DND5E.rules?.[ruleKey];
                 let journal = await fromUuid(reference);
-                if (journal) itemData.system.description.value = journal.text.content;
+                if (journal) itemData.system.description.value = itemUtils.getJournalPageContent(journal);
             }
             return itemData;
         }));
