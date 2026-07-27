@@ -1,4 +1,4 @@
-import {actorUtils, constants, dialogUtils, effectUtils, genericUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
+import {actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 import {determineSuperiorityDie} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
 import {superiorityDice as superiorityDiceLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
@@ -191,6 +191,27 @@ async function useManeuveringAttack({workflow}) {
     await workflowUtils.updateTargets(workflow, [ally]);
 }
 
+// ⚠️ WITHOUT THIS, A DIRECTLY-USED MANEUVER CANNOT BE SPENT AT ALL (T83, 2026-07-27).
+//
+// The packData ships its consumption target as a COMPENDIUM UUID placeholder
+// (`Compendium.chris-premades.CPRClassFeatures.Item.tr7yGwS1sVVeJVXt`), which is meaningless once
+// the item sits on an actor — dnd5e cannot resolve it to anything the character owns, so the
+// consumption prompt reports "0 of 1 usage" while Combat Superiority sits there at 4/4. Upstream
+// fixes this at add-time by re-pointing the target to the actor's OWN Superiority Dice item, and
+// the T56 slice ported the maneuvers without porting that step.
+//
+// Only maneuvers that carry an item-level consumption target need this, and that is a real
+// distinction rather than an oversight: the ON-HIT riders (Goading Attack, Maneuvering Attack, …)
+// are spent by the `superiorityDice` DRIVER, which decrements the die itself
+// (`2014/.../superiorityDice.js:74`), so they deliberately have no target. Riposte is a Reaction
+// used directly from the sheet, so nothing else would ever spend its die.
+//
+// ⚠️ Do NOT register this on a maneuver with no consumption target — `correctActivityItemConsumption`
+// writes `consumption.targets[0].target` unconditionally and would throw on an empty array.
+async function added({trigger: {entity: item}}) {
+    await itemUtils.correctActivityItemConsumption(item, ['use'], 'superiorityDice');
+}
+
 export let maneuversRiposte = {
     name: 'Maneuvers: Riposte',
     // No bare-name alias on purpose: the Monster Manual ships an NPC feat also called "Riposte"
@@ -198,8 +219,31 @@ export let maneuversRiposte = {
     // would put this Battle Master automation in front of it. `Maneuver: X` is what our DDB fork's
     // enricher produces, which is what a real 2024 sheet actually carries.
     aliases: ['Maneuver: Riposte'],
-    version: '1.0.0',
+    // 1.0.1 — T83: register the `added` consumption fixer. ⚠️ The version here is the MACRO
+    // registry stamp; `isUpToDate` reads it while the packData carries its own. An already-deployed
+    // item only re-runs the fixer once this bump makes it report out-of-date.
+    version: '1.0.1',
     rules: 'modern',
+    // Three passes, matching upstream's legacy registration: `created` covers a fresh add,
+    // `itemMedkit` an item-level Medkit run, `actorMunch` a DDB (re-)import. An item already on a
+    // sheet before this shipped is only repaired by one of the latter two — see the memory note.
+    item: [
+        {
+            pass: 'created',
+            macro: added,
+            priority: 55
+        },
+        {
+            pass: 'itemMedkit',
+            macro: added,
+            priority: 55
+        },
+        {
+            pass: 'actorMunch',
+            macro: added,
+            priority: 55
+        }
+    ],
     midi: {
         item: [
             {
