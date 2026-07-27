@@ -230,6 +230,24 @@ test('en and it both define the ally-picker and prompt strings', () => {
     }
 });
 
+test('creature names in the prompt go through the name veil', () => {
+    /*
+     * The prompt is composed GM-side and socketed to whoever answers, so npc-name-veil's own
+     * effectiveViewer() is the wrong frame — on a GM client it reports omniscient and a veiled NPC's
+     * true name lands in the dialog. The viewer must be built from the ALLY token instead.
+     */
+    const path = fileURLToPath(new URL('../../macros/2024/classFeatures/fighter/battleMaster/maneuvers.js', import.meta.url));
+    const source = readFileSync(path, 'utf8');
+    // Strip comments first — the file names effectiveViewer() while explaining why it is wrong here,
+    // and a whole-source grep would fail on its own documentation (same trap as the useBrace test).
+    const code = source.replace(/\/\/.*$/gm, '');
+    assert.match(code, /npc-name-veil'\)\?\.api/, 'the veil module is never consulted');
+    assert.match(code, /omniscient: false, refs: \[viewerToken\]/, 'the viewer must be framed on the ally, not the GM');
+    assert.ok(!/effectiveViewer\(\)/.test(code), 'effectiveViewer() resolves from the GM client and leaks');
+    assert.match(source, /enemy: attackedToken \? veiledName\(/, 'the enemy name must be veiled');
+    assert.match(source, /attacker: veiledName\(/, 'the attacker name must go through the same path');
+});
+
 test('the ally effect carries its own short description', () => {
     // Without one, Visual Active Effects falls back to the origin item and shows the whole feature.
     const path = fileURLToPath(new URL('../../macros/2024/classFeatures/fighter/battleMaster/maneuvers.js', import.meta.url));

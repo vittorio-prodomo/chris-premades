@@ -52,6 +52,25 @@ async function useRiposte({workflow}) {
     await genericUtils.update(itemToUse, {'system.uses.spent': itemToUse.system.uses.spent + 1});
 }
 
+// A creature's name as the ASKED CHARACTER would know it, not as the GM does.
+//
+// ⚠️ The prompt is composed GM-side and socketed to whoever answers it, so the veil module's own
+// `effectiveViewer()` is the wrong frame — on a GM client it returns `{omniscient: true}` and a
+// veiled NPC's true name goes straight into the dialog text. Framing it on the ALLY token asks the
+// question that actually matters ("can the character being asked tell who that is?") and gives the
+// same answer no matter which user reads the dialog.
+//
+// `{omniscient: false, refs: [token]}` is the module's own supported viewer shape — it is exactly
+// what `computeEffectiveViewer` builds for a GM with a PC selected. A no-op for PCs, and for NPCs
+// when the module is disabled or the creature is already identified.
+// ⚠️ The effect description bakes this in at creation time, so a name resolved as a placeholder
+// stays a placeholder even if the ally later closes the distance. Acceptable as a snapshot.
+function veiledName(token, viewerToken) {
+    let veil = game.modules.get('npc-name-veil')?.api;
+    if (!veil?.getDisplayName) return token.name;
+    return veil.getDisplayName(token, {omniscient: false, refs: [viewerToken]});
+}
+
 // Ally selection, on canvas where possible. Argon's own picker is what the player already uses to
 // choose an attack target, so picking the ally the same way is one less modality — but it only
 // exists while the HUD is running, and a sheet click has no picker at all (that gap is T79). The
@@ -130,8 +149,8 @@ async function useManeuveringAttack({workflow}) {
     // about a creature that just attacked in front of them, but it is the one leak worth knowing about.
     let names = {
         name: ally.name ?? ally.actor.name,
-        attacker: workflow.token.name ?? workflow.actor.name,
-        enemy: attackedToken?.name ?? game.i18n.localize('DND5E.Target')
+        attacker: veiledName(workflow.token, ally),
+        enemy: attackedToken ? veiledName(attackedToken, ally) : game.i18n.localize('DND5E.Target')
     };
     dialogUtils.confirm(
         genericUtils.format('CHRISPREMADES.Macros.Maneuvers.ManeuveringTitle', names),
