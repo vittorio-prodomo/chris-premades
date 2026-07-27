@@ -7,6 +7,13 @@ function gmID() {
         let preferredGM = game.users.get(preferredGMId);
         if (preferredGM?.active) gmID = preferredGM.id;
     }
+    // FORK PATCH — never route a prompt to a GM who is not connected. Upstream checks `.active` for
+    // midi's PreferredGM but takes the stored `gmID` setting on faith, so a stale value (here: the
+    // agent's own user) silently sends every GM-bound prompt to `socket.executeAsUser` for an absent
+    // user. Nothing errors, nothing renders, and the caller's `.then()` never resolves — which is
+    // exactly how the Maneuvering Attack confirmation vanished on 2026-07-27, and is the same shape
+    // as the known Heroic Inspiration stall when a PC's owner is offline.
+    if (!game.users.get(gmID)?.active) gmID = game.users.activeGM?.id ?? gmID;
     return gmID;
 }
 function isTheGM() {

@@ -199,6 +199,20 @@ test('the ally picker degrades to the dialog when Argon is absent', () => {
     assert.match(source, /label: genericUtils\.translate\('CHRISPREMADES\.Macros\.Maneuvers\.SelectAlly'\)/);
 });
 
+test('the ally picker reads game.user.targets, not the picker\'s return value', () => {
+    /*
+     * Argon's runTargetPicker resolves to a BOOLEAN (true completed / false cancelled) and leaves
+     * the selection in game.user.targets. Treating the resolved value as a token collection makes
+     * the branch a silent no-op — `Array.from(true)` is `[]` — so no ally is chosen, no confirmation
+     * is raised and no exemption is applied, all without an error. That shipped once (2026-07-27)
+     * and read as "it works" at the table because the missing OA had an unrelated cause.
+     */
+    const path = fileURLToPath(new URL('../../macros/2024/classFeatures/fighter/battleMaster/maneuvers.js', import.meta.url));
+    const source = readFileSync(path, 'utf8');
+    assert.match(source, /Array\.from\(game\.user\.targets\)/, 'the picked ally must come from game.user.targets');
+    assert.ok(!/Array\.from\(picked/.test(source), 'the picker\'s resolved value is a boolean, not tokens');
+});
+
 test('en and it both define the ally-picker strings', () => {
     for (const lang of ['en', 'it']) {
         const data = JSON.parse(readFileSync(fileURLToPath(new URL(`../../../lang/${lang}.json`, import.meta.url)), 'utf8'));

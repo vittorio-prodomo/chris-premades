@@ -59,13 +59,19 @@ async function useRiposte({workflow}) {
 async function pickAlly(workflow, candidates) {
     let picker = game.modules.get('enhancedcombathud')?.active ? game.modules.get('enhancedcombathud').api?.runTargetPicker : null;
     if (picker) {
-        let picked = await picker({
+        // ⚠️ runTargetPicker resolves to a BOOLEAN (true = completed, false = cancelled), NOT to the
+        // tokens picked — the selection is left in `game.user.targets`. Assuming it returned tokens
+        // made this whole branch a silent no-op: `Array.from(true)` is `[]`, so no ally was ever
+        // chosen, no confirmation was ever raised, and no exemption was ever applied. It failed
+        // without an error, which is why it looked like it worked.
+        let completed = await picker({
             token: workflow.token,
             targets: 1,
             label: genericUtils.translate('CHRISPREMADES.Macros.Maneuvers.SelectAlly'),
             item: workflow.item
         });
-        let chosen = Array.from(picked ?? [])[0];
+        if (!completed) return undefined;
+        let chosen = Array.from(game.user.targets)[0];
         if (!chosen) return undefined;
         // The picker targets any token — deliberately, since RAW leaves the choice to the player and
         // Vittorio asked to trust them. Warn on a pick outside the see-or-hear ally set rather than
