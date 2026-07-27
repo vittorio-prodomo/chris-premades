@@ -39,6 +39,24 @@ let packs = [
     'cpr-3rd-party-items-2024',
     'cpr-class-feature-items-2024'
 ];
-for (let i of packs) {
+/*
+ * With no arguments this rebuilds every pack, as it always has. Naming packs rebuilds only
+ * those — `npm run buildCompendiums cpr-items-2024` — which is what you want after editing a
+ * single packData entry. Foundry must be STOPPED either way: a running server write-locks the
+ * pack LevelDBs.
+ */
+let selected = process.argv.slice(2);
+let unknown = selected.filter(i => !packs.includes(i));
+if (unknown.length) {
+    console.error('unknown pack(s): ' + unknown.join(', '));
+    process.exit(1);
+}
+for (let i of (selected.length ? selected : packs)) {
     await compilePack('./packData/' + i, './packs/' + i, {log: true});
 }
+/*
+ * Leave before teardown. On node >=25 abstract-level throws "Iterator is not open: cannot call
+ * all() after close()" while closing down, AFTER every pack is written — which used to abort the
+ * loop and leave later packs unbuilt. compilePack having resolved means the writes are done.
+ */
+process.exit(0);

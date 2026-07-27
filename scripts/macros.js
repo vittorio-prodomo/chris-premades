@@ -225,6 +225,7 @@ export {summerWinds} from './macros/2024/spells/summerWinds.js';
 export {healersKit} from './macros/2024/items/healersKit.js';
 export {potionOfHealing, potionOfHealingGreater, potionOfHealingSuperior, potionOfHealingSupreme} from './macros/2024/items/consumable/potionOfHealing.js';
 export {unarmedStrike} from './macros/2024/items/misc/unarmedStrike.js';
+export {bootsOfElvenkind} from './macros/2024/items/trinket/bootsOfElvenkind.js';
 export {deckOfIllusions} from './macros/2024/items/trinket/deckOfIllusions.js';
 export {ringOfSpellStoring, ringOfSpellStoringSpell} from './macros/2024/items/trinket/ringOfSpellStoring.js';
 export {orbOfDamara, orbOfDamaraEffect} from './macros/2024/items/trinket/orbOfDamara.js';
