@@ -48,18 +48,29 @@ async function contestedRoll({sourceToken, targetToken, sourceRollType, targetRo
         let targetRoll = results.results[1].value;
         return sourceRoll - targetRoll;
     } else {
+        /*
+         * T88: fast-forward both halves unless the caller asked otherwise.
+         *
+         * A contested roll is issued from inside an automation that has already decided what is
+         * being rolled and with what advantage, so dnd5e's roll-configuration dialog has nothing
+         * left to ask -- and its Ability dropdown actively invites contradicting the choice the
+         * macro just made (picking Acrobatics to escape a grapple, then being offered Strength).
+         * ⚠️ Until midi patch #12 this could not be expressed at all: `MidiQOL.contestedRoll`
+         * destructured rollOptions and never read them, so advantage/disadvantage were dropped
+         * too. Both halves are needed -- this line is inert on an unpatched midi.
+         */
         let contestedData = {
             source: {
                 token: sourceToken,
                 rollType: sourceRollType,
                 ability: bestSourceAbility,
-                rollOptions: sourceRollOptions
+                rollOptions: {fastForward: true, ...sourceRollOptions}
             },
             target: {
                 token: targetToken,
                 rollType: targetRollType,
                 ability: bestTargetAbility,
-                rollOptions: targetRollOptions
+                rollOptions: {fastForward: true, ...targetRollOptions}
             }
         };
         return (await MidiQOL.contestedRoll(contestedData)).result;
@@ -67,15 +78,38 @@ async function contestedRoll({sourceToken, targetToken, sourceRollType, targetRo
 }
 async function requestRoll(token, request, ability, options = {}) {
     let userID = socketUtils.firstOwner(token, true);
+    /*
+     * T88 — two bugs lived in this object literal, and together they produced the whole
+     * "Grapple: Escape ignores the ability you picked" report.
+     *
+     * ⚠️ (1) `rollAbilities: [ability]` was set here for EVERY request type, then the switch
+     * below set the *correct* array on top. For a skill request that left
+     * `rollAbilities: ['acr']` behind — a SKILL id sitting in the abilities slot. midi's
+     * rollAbility does `if (ability) config.ability = ability`, so dnd5e received
+     * `{skill: 'acr', ability: 'acr'}`. 'acr' matches no entry in CONFIG.DND5E.abilities, the
+     * dialog's ability <select> therefore matched no option and fell back to its FIRST one —
+     * Strength — and rolling from there rolled Acrobatics using STR. The switch is the only
+     * assignment that should happen; the literal must not pre-seed one.
+     *
+     * ⚠️ (2) `displayOptions` was nested INSIDE saveDetails, but midi reads `data.displayOptions`
+     * at the top level. It was therefore always undefined, and rollAbility computes
+     * `fastForward = disp?.fastForward ?? false` -> `dialog.configure = true`, so dnd5e's
+     * roll-configuration dialog was guaranteed on every escape attempt.
+     *
+     * Fast-forward by default: the skill was already chosen in the prompt immediately before
+     * this, so the dialog has nothing left to ask. A caller can still pass fastForward: false.
+     */
     let data = {
         saveDetails: {
             actorUuid: token.document.uuid,
             rollType: request,
-            rollAbilities: [ability],
             rollDC: options.target,
             advantage: options.advantage,
-            disadvantage: options.disadvantage,
-            displayOptions: options
+            disadvantage: options.disadvantage
+        },
+        displayOptions: {
+            fastForward: true,
+            ...options
         }
     };
     switch(request) {
