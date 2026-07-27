@@ -34,6 +34,46 @@ test('rejects a note with a missing value', () => {
     assert.deepEqual(appendRerollNote([], {source: 'Healer', before: 1}), []);
 });
 
+test('appends a superiority die note', () => {
+    const result = appendRerollNote(undefined, {source: 'Maneuvers: Riposte', kind: 'superiorityDie', die: 'd8', total: 5});
+    assert.deepEqual(result, [{source: 'Maneuvers: Riposte', kind: 'superiorityDie', die: 'd8', total: 5}]);
+});
+
+test('a superiority die note sits alongside a reroll note on the same roll', () => {
+    // The pairing that prompted this: Savage Attacker rerolled the weapon dice, and the
+    // superiority die was added afterwards and deliberately left out of that reroll (T93).
+    const existing = appendRerollNote(undefined, {source: 'Savage Attacker', before: 12, after: 15});
+    const result = appendRerollNote(existing, {source: 'Maneuvers: Riposte', kind: 'superiorityDie', die: 'd8', total: 5});
+    assert.equal(result.length, 2);
+    assert.equal(result[0].kind, undefined, 'a reroll note keeps its original shape');
+    assert.equal(result[1].kind, 'superiorityDie');
+});
+
+test('rejects a superiority die note with no die or total', () => {
+    assert.deepEqual(appendRerollNote([], {source: 'Maneuvers: Riposte', kind: 'superiorityDie', total: 5}), []);
+    assert.deepEqual(appendRerollNote([], {source: 'Maneuvers: Riposte', kind: 'superiorityDie', die: 'd8'}), []);
+});
+
+test('ignores a duplicate superiority die note', () => {
+    const existing = [{source: 'Maneuvers: Riposte', kind: 'superiorityDie', die: 'd8', total: 5}];
+    const result = appendRerollNote(existing, {source: 'Maneuvers: Riposte', kind: 'superiorityDie', die: 'd8', total: 5});
+    assert.equal(result.length, 1);
+});
+
+test('keeps two superiority die notes that rolled different totals', () => {
+    const existing = [{source: 'Maneuvers: Trip Attack', kind: 'superiorityDie', die: 'd8', total: 5}];
+    const result = appendRerollNote(existing, {source: 'Maneuvers: Trip Attack', kind: 'superiorityDie', die: 'd8', total: 3});
+    assert.equal(result.length, 2);
+});
+
+test('formats a superiority die note into its template', () => {
+    const line = formatRerollNote(
+        '{source} — expended a Superiority Die ({die}) and added it to the damage: +{total}',
+        {source: 'Maneuvers: Riposte', kind: 'superiorityDie', die: 'd8', total: 5}
+    );
+    assert.equal(line, 'Maneuvers: Riposte — expended a Superiority Die (d8) and added it to the damage: +5');
+});
+
 test('formats a note into the template', () => {
     const line = formatRerollNote('{source} — rerolled {before}, kept {after}', {source: 'Savage Attacker', before: 7, after: 9});
     assert.equal(line, 'Savage Attacker — rerolled 7, kept 9');

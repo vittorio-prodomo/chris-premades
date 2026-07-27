@@ -1,11 +1,16 @@
 /**
- * Pure helpers for reroll attribution notes (T51).
+ * Pure helpers for roll attribution notes (T51).
  *
- * A "note" records that some feature rerolled part of a roll, and what it cost or gained:
- *   {source: 'Savage Attacker', before: 7, after: 9}
+ * A "note" records that some feature CHANGED a roll, and what it cost or gained. Two kinds:
  *
- * These are stored as an array on the midi chat card so several rerollers touching one roll
- * each get their own line. Kept free of Foundry globals so they can be unit tested under node.
+ *   reroll (default)  {source: 'Savage Attacker', before: 7, after: 9}
+ *   superiorityDie    {source: 'Maneuvers: Riposte', kind: 'superiorityDie', die: 'd8', total: 5}
+ *
+ * These are stored as an array on the midi chat card so several features touching one roll each
+ * get their own line. Kept free of Foundry globals so they can be unit tested under node.
+ *
+ * ⚠️ The stored flag is still called `rerollNotes` even though it now carries both kinds —
+ * renaming it would orphan the notes on every chat card already in a world's log.
  */
 
 /**
@@ -19,15 +24,35 @@ function isReading(value) {
 }
 
 /**
- * Append a reroll note to a history array, returning a NEW array.
+ * Append a note to a history array, returning a NEW array.
  * Invalid notes and exact duplicates are ignored.
  * @param {object[]|undefined} existing
- * @param {{source: string, before: number|string, after: number|string}} note
+ * @param {{source: string, kind?: string, before?: number|string, after?: number|string,
+ *          die?: string, total?: number|string}} note
  * @returns {object[]}
  */
 export function appendRerollNote(existing, note) {
     const history = Array.isArray(existing) ? [...existing] : [];
     if (!note || typeof note.source !== 'string' || !note.source.length) return history;
+    /*
+     * A superiority die is ADDED to the roll rather than rerolled, so it carries no before/after
+     * reading — it needs its own shape and its own line. This is the note that explains where the
+     * extra die on a maneuver's damage came from (T93 follow-up); without it the card shows a
+     * mystery die, which is exactly the confusion that prompted it.
+     */
+    if (note.kind === 'superiorityDie') {
+        if (!isReading(note.die) || !isReading(note.total)) return history;
+        const candidate = {source: note.source, kind: 'superiorityDie', die: note.die, total: note.total};
+        const isDuplicateDie = history.some(entry =>
+            entry?.kind === 'superiorityDie' &&
+            entry?.source === candidate.source &&
+            entry?.die === candidate.die &&
+            entry?.total === candidate.total
+        );
+        if (isDuplicateDie) return history;
+        history.push(candidate);
+        return history;
+    }
     if (!isReading(note.before) || !isReading(note.after)) return history;
     const candidate = {source: note.source, before: note.before, after: note.after};
     // `forced` distinguishes a reroll you had no choice about (Piercer, Heroic Inspiration:
@@ -46,7 +71,8 @@ export function appendRerollNote(existing, note) {
 }
 
 /**
- * Substitute a note into a localised template containing {source}, {before} and {after}.
+ * Substitute a note into a localised template containing {source}, {before}, {after},
+ * {die} or {total}.
  * A single regex pass, not chained String#replaceAll calls: chaining would let one
  * substitution's output be re-matched by the next placeholder (an item literally named
  * "{after}" getting re-substituted) and would treat the replacement VALUE as a pattern
@@ -57,7 +83,7 @@ export function appendRerollNote(existing, note) {
  * @returns {string}
  */
 export function formatRerollNote(template, note) {
-    return String(template).replace(/\{(source|before|after)\}/g, (_, key) => String(note?.[key] ?? ''));
+    return String(template).replace(/\{(source|before|after|die|total)\}/g, (_, key) => String(note?.[key] ?? ''));
 }
 
 /**

@@ -1,4 +1,4 @@
-import {activityUtils, constants, dialogUtils, genericUtils, itemUtils, workflowUtils} from '../../../../../utils.js';
+import {activityUtils, constants, dialogUtils, genericUtils, itemUtils, rollUtils, workflowUtils} from '../../../../../utils.js';
 async function hit({workflow}) {
     await superiorityHelper(workflow);
 }
@@ -74,6 +74,14 @@ export async function superiorityHelper(workflow) {
     if (!['maneuversGrapplingStrike', 'maneuversSweepingAttack'].includes(selectedIdentifier)) {
         await workflowUtils.bonusDamage(workflow, superiorityDie, {damageType: workflow.defaultDamageType});
         rollTotal = workflow.damageRolls.at(-1).total;
+        // Same explanation Riposte posts for its own die: name the maneuver that spent it, so the
+        // damage ⓘ accounts for every die on the card rather than leaving an unexplained one.
+        await rollUtils.postRerollNote(workflow, {
+            source: selected.name,
+            kind: 'superiorityDie',
+            die: superiorityDie,
+            total: rollTotal
+        });
     } else if (selectedIdentifier === 'maneuversSweepingAttack') {
         await genericUtils.update(selected, {'flags.chris-premades.sweepingAttack': {
             currAttackRoll: workflow.attackRoll.total,

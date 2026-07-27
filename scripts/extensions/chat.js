@@ -76,6 +76,11 @@ function renderRerollNotes(message, element) {
     // one must still get its reroll notes.
     if (element.querySelector('.chris-reroll-notes, .chris-reroll-info')) return;
     let lines = notes.map(note => {
+        // A superiority die was ADDED to the roll, not rerolled — different glyph, different
+        // wording. The line names the maneuver that spent the die, which is the "why".
+        if (note?.kind === 'superiorityDie') {
+            return '+ ' + formatRerollNote(genericUtils.translate('CHRISPREMADES.RerollNote.LineSuperiorityDie'), note);
+        }
         let template = genericUtils.translate(note?.forced ? 'CHRISPREMADES.RerollNote.LineForced' : 'CHRISPREMADES.RerollNote.Line');
         return '↻ ' + formatRerollNote(template, note);
     });

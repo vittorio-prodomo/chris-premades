@@ -3271,7 +3271,8 @@
         "RerollNote": {
             "Line": "{source} — rerolled {before}, kept {after}",
             "LineForced": "{source} — rerolled {before} → {after}",
-            "TooltipTitle": "Rerolls"
+            "LineSuperiorityDie": "{source} — expended a Superiority Die ({die}) and added it to the damage: +{total}",
+            "TooltipTitle": "Roll adjustments"
         },
         "Section": {
             "Rage": "Rage",

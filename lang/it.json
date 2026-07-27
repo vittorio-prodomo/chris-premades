@@ -2488,7 +2488,8 @@
         "RerollNote": {
             "Line": "{source} — ritirato {before}, tenuto {after}",
             "LineForced": "{source} — ritirato {before} → {after}",
-            "TooltipTitle": "Ritiri"
+            "LineSuperiorityDie": "{source} — speso un Dado di Superiorità ({die}) e aggiunto al danno: +{total}",
+            "TooltipTitle": "Modifiche al tiro"
         },
         "Section": {
             "Rage": "Ira",
