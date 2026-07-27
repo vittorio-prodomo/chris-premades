@@ -33,7 +33,7 @@
  */
 
 import { extractPack } from '@foundryvtt/foundryvtt-cli';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -129,18 +129,42 @@ function readPackData(dir, type) {
   const docs = new Map();
   if (!existsSync(dir)) return docs;
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
-    const doc = JSON.parse(readFileSync(join(dir, file), 'utf8'));
-    docs.set(doc._id ?? file, { doc: normalise(doc, type), file });
+    const full = join(dir, file);
+    const doc = JSON.parse(readFileSync(full, 'utf8'));
+    docs.set(doc._id ?? file, { doc: normalise(doc, type), file, mtime: statSync(full).mtimeMs });
   }
   return docs;
 }
 
-async function verifyPack(pack, tmpRoot) {
+/**
+ * When was each pack last COMPILED? Written by `packData.mjs` after every build.
+ *
+ * ⚠️ WHY NOT FILE MTIMES — this was got wrong twice before landing on a stamp.
+ * Merely OPENING a LevelDB rewrites its LOG/MANIFEST, so a pack's files get a fresh mtime every
+ * time anything reads it — including this checker. The first attempt read mtimes after extracting
+ * and timed its own read; moving the read earlier still failed, because a PREVIOUS verify run had
+ * already touched the files. Timestamps on the artifact cannot answer "when was this built".
+ *
+ * ⚠️ WHY DIRECTION MATTERS AT ALL. Drift has two causes with opposite responses:
+ *   - packs/ newer    -> a compendium was edited IN FOUNDRY. A rebuild DESTROYS it. Capture first.
+ *   - packData/ newer -> the source was edited and not yet built. A rebuild APPLIES it — the normal
+ *     workflow, which must not read as an alarm or the check gets ignored.
+ */
+function readBuildStamp() {
+  try {
+    return JSON.parse(readFileSync(join('packs', '.build-stamp.json'), 'utf8'));
+  } catch {
+    return null; // never built since stamping was added — direction is unknowable, not assumed
+  }
+}
+
+async function verifyPack(pack, tmpRoot, stamp) {
   const live = join(tmpRoot, pack.name);
   await extractPack(pack.path, live, { log: false, documentType: pack.type });
 
   const fromPacks = readPackData(live, pack.type);
   const fromData = readPackData(join('packData', pack.name), pack.type);
+  const builtAt = stamp?.[pack.name] ?? null;
 
   const onlyInPacks = [];
   const onlyInData = [];
@@ -151,8 +175,10 @@ async function verifyPack(pack, tmpRoot) {
       onlyInPacks.push(`${doc.name ?? file} (${id})`);
       continue;
     }
-    const paths = diffPaths(fromData.get(id).doc, doc);
-    if (paths.length) modified.push({ name: doc.name ?? file, id, paths });
+    const src = fromData.get(id);
+    const paths = diffPaths(src.doc, doc);
+    // Source edited after the pack was last compiled => a pending build, not a Foundry edit.
+    if (paths.length) modified.push({ name: doc.name ?? file, id, paths, packDataNewer: builtAt === null ? null : src.mtime > builtAt });
   }
   for (const [id, { doc, file }] of fromData) {
     if (!fromPacks.has(id)) onlyInData.push(`${doc.name ?? file} (${id})`);
@@ -184,6 +210,7 @@ if (unknown.length) {
 }
 const packs = selected.length ? all.filter((p) => selected.includes(p.name)) : all;
 
+const stamp = readBuildStamp();
 const tmpRoot = mkdtempSync(join(tmpdir(), 'cpr-verify-'));
 const results = [];
 let failed = null;
@@ -194,7 +221,7 @@ try {
       results.push({ pack: pack.name, missing: true, clean: false });
       continue;
     }
-    results.push(await verifyPack(pack, tmpRoot));
+    results.push(await verifyPack(pack, tmpRoot, stamp));
   }
 } catch (err) {
   const msg = String(err?.message ?? err);
@@ -250,8 +277,14 @@ if (asJson) {
       console.log(`      IN packData ONLY ${n}  <-- present in source, absent from the built pack`);
     }
     for (const m of r.modified) {
-      console.log(`      MODIFIED         ${m.name} (${m.id})  <-- a rebuild would REVERT this`);
-      for (const p of m.paths) console.log(`                         ${p}`);
+      console.log(
+        m.packDataNewer === null
+          ? `      DIFFERS          ${m.name} (${m.id})  <-- direction unknown (no build stamp yet)`
+          : m.packDataNewer
+            ? `      PENDING BUILD    ${m.name} (${m.id})  <-- packData/ is NEWER; a rebuild APPLIES this`
+            : `      EDITED IN FOUNDRY ${m.name} (${m.id})  <-- packs/ is NEWER; a rebuild DESTROYS this`
+      );
+      for (const p of m.paths) console.log(`                         packData: ${p.split(' -> ')[0].split(': ').slice(1).join(': ')}  |  built: ${p.split(' -> ')[1] ?? '?'}   (${p.split(':')[0]})`);
     }
   }
 
@@ -259,14 +292,41 @@ if (asJson) {
     console.log('  clean — packs/ and packData/ hold the same documents with the same content.');
     console.log('  Safe to run buildCompendiums.\n');
   } else {
-    console.log(
-      `\n  ${dirty.length} pack(s) DRIFTED.\n` +
-        '  If these are edits you made in Foundry and want to keep, capture them FIRST:\n' +
-        '      npm run extractCompendiums   # rewrites packData/ from packs/\n' +
-        '      git diff packData/           # review, then commit\n' +
-        '  Rebuilding before doing that will silently discard them.\n'
-    );
+    const foundryEdits = dirty.flatMap((r) => (r.modified ?? []).filter((m) => m.packDataNewer === false));
+    const unknownDir = dirty.flatMap((r) => (r.modified ?? []).filter((m) => m.packDataNewer === null));
+    const pending = dirty.flatMap((r) => (r.modified ?? []).filter((m) => m.packDataNewer));
+    console.log(`\n  ${dirty.length} pack(s) differ.`);
+    if (pending.length) {
+      console.log(
+        `\n  ${pending.length} PENDING BUILD — packData/ is newer than the built pack.\n` +
+          '  This is the normal edit-then-build flow. Rebuilding applies them; nothing is lost.'
+      );
+    }
+    if (foundryEdits.length) {
+      console.log(
+        `\n  ⚠️ ${foundryEdits.length} EDITED IN FOUNDRY — the built pack is newer than packData/.\n` +
+          '  A rebuild DESTROYS these. To keep them, capture FIRST:\n' +
+          '      npm run extractCompendiums   # rewrites packData/ from packs/\n' +
+          '      git diff packData/           # review, then commit'
+      );
+    }
+    if (unknownDir.length) {
+      console.log(
+        `\n  ${unknownDir.length} of unknown direction — packs/.build-stamp.json does not exist yet.\n` +
+          '  It is written by the next build, after which direction is reported reliably.\n' +
+          '  Not treated as blocking: a first run establishes the baseline rather than crying wolf.'
+      );
+    }
+    console.log('');
   }
 }
 
-process.exit(results.every((r) => r.clean) ? 0 : 1);
+/**
+ * Exit non-zero only for drift a rebuild would DESTROY — Foundry-side edits, or documents present
+ * on one side only. A pending packData edit is the normal workflow and must not block the build it
+ * is waiting for, or `buildCompendiums:guarded` could never ship a source change.
+ */
+const blocking = results.some(
+  (r) => r.missing || r.onlyInPacks?.length || r.onlyInData?.length || (r.modified ?? []).some((m) => m.packDataNewer === false)
+);
+process.exit(blocking ? 1 : 0);

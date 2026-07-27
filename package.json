@@ -13,7 +13,7 @@
     "buildCompendiums:backfillDescriptions": "node packData/t43-backfillDescriptions.mjs",
     "extractCompendiums": "node packData/unpackData.mjs",
     "verifyPacks": "node packData/verify-packs.mjs",
-    "buildCompendiums:guarded": "node packData/verify-packs.mjs && node packData/packData.mjs && node packData/verify-packs.mjs"
+    "buildCompendiums:guarded": "sh -c 'node packData/verify-packs.mjs \"$@\" && node packData/packData.mjs \"$@\" && node packData/verify-packs.mjs \"$@\"' --"
   },
   "repository": {
     "type": "git",

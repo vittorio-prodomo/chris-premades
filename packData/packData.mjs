@@ -1,4 +1,5 @@
 import {compilePack, extractPack} from '@foundryvtt/foundryvtt-cli';
+import fs from 'fs';
 let packs = [
     'cpr-3rd-party-class-features',
     'cpr-3rd-party-items',
@@ -51,9 +52,23 @@ if (unknown.length) {
     console.error('unknown pack(s): ' + unknown.join(', '));
     process.exit(1);
 }
-for (let i of (selected.length ? selected : packs)) {
+let built = (selected.length ? selected : packs);
+for (let i of built) {
     await compilePack('./packData/' + i, './packs/' + i, {log: true});
 }
+/*
+ * Record WHEN each pack was compiled, so `verify-packs` can tell the two kinds of drift apart:
+ * packData edited but not yet built (harmless, a rebuild applies it) vs a compendium edited inside
+ * Foundry (a rebuild destroys it). File mtimes cannot answer that — merely OPENING a LevelDB
+ * rewrites its LOG/MANIFEST, so any prior verification run makes every pack look freshly built.
+ * Lives in packs/ because it describes the built artifact, and packs/ is gitignored.
+ */
+let stampPath = './packs/.build-stamp.json';
+let stamp = {};
+try { stamp = JSON.parse(fs.readFileSync(stampPath, 'utf8')); } catch { /* first build */ }
+let now = Date.now();
+for (let i of built) stamp[i] = now;
+fs.writeFileSync(stampPath, JSON.stringify(stamp, null, 2) + '\n');
 /*
  * Leave before teardown. On node >=25 abstract-level throws "Iterator is not open: cannot call
  * all() after close()" while closing down, AFTER every pack is written — which used to abort the
