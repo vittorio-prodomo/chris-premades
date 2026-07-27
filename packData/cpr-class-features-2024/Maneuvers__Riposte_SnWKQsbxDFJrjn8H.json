@@ -42,7 +42,7 @@
             {
               "type": "itemUses",
               "value": "1",
-              "target": "Compendium.chris-premades.CPRClassFeatures.Item.tr7yGwS1sVVeJVXt"
+              "target": "Compendium.chris-premades.CPRClassFeatures2024.Item.k7XUlveGqe1S7ail"
             }
           ],
           "scaling": {
@@ -203,7 +203,7 @@
     "chris-premades": {
       "info": {
         "name": "Maneuvers: Riposte",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "identifier": "maneuversRiposte",
         "source": "chris-premades",
         "rules": "modern"
