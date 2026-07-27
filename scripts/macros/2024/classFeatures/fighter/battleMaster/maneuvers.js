@@ -1,6 +1,7 @@
 import {actorUtils, constants, dialogUtils, effectUtils, genericUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 import {determineSuperiorityDie} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
+import {superiorityDice as superiorityDiceLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
 
 // CPR's 23 maneuvers are registered ONLY in the legacy registry, and premade lookup picks the pack
 // by the item's ruleset (`integrations/ddbi.js` maps 2014 -> legacy, 2024 -> modern), so a 2024-rules
@@ -51,6 +52,33 @@ async function useRiposte({workflow}) {
     await genericUtils.update(itemToUse, {'system.uses.spent': itemToUse.system.uses.spent + 1});
 }
 
+// Ally selection, on canvas where possible. Argon's own picker is what the player already uses to
+// choose an attack target, so picking the ally the same way is one less modality — but it only
+// exists while the HUD is running, and a sheet click has no picker at all (that gap is T79). The
+// dialog list stays as the fallback so the sheet path is never dead.
+async function pickAlly(workflow, candidates) {
+    let picker = game.modules.get('enhancedcombathud')?.active ? game.modules.get('enhancedcombathud').api?.runTargetPicker : null;
+    if (picker) {
+        let picked = await picker({
+            token: workflow.token,
+            targets: 1,
+            label: genericUtils.translate('CHRISPREMADES.Macros.Maneuvers.SelectAlly'),
+            item: workflow.item
+        });
+        let chosen = Array.from(picked ?? [])[0];
+        if (!chosen) return undefined;
+        // The picker targets any token — deliberately, since RAW leaves the choice to the player and
+        // Vittorio asked to trust them. Warn on a pick outside the see-or-hear ally set rather than
+        // refusing it, so an unusual-but-legal choice still goes through.
+        if (!candidates.some(c => c.id === chosen.id)) {
+            genericUtils.notify('CHRISPREMADES.Macros.Maneuvers.NotAnAlly', 'warn');
+        }
+        return chosen;
+    }
+    let picked = await dialogUtils.selectTargetDialog(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.SelectAlly', candidates);
+    return picked?.[0];
+}
+
 // 2024 PHB, Maneuvering Attack: "...choose a willing creature who can see or hear you. That creature
 // can use its Reaction to move up to half its Speed without provoking Opportunity Attacks from the
 // target of your attack."
@@ -81,8 +109,7 @@ async function useManeuveringAttack({workflow}) {
         await workflowUtils.updateTargets(workflow, []);
         return;
     }
-    let picked = await dialogUtils.selectTargetDialog(workflow.item.name, 'CHRISPREMADES.Generic.Target', candidates);
-    let ally = picked?.[0];
+    let ally = await pickAlly(workflow, candidates);
     if (!ally) {
         await workflowUtils.updateTargets(workflow, []);
         return;
@@ -170,4 +197,25 @@ export let maneuversManeuveringAttack = {
             }
         ]
     }
+};
+
+// ⚠️ THE DRIVER. Without this the three maneuvers above are inert on a 2024 sheet — nothing invokes
+// them. CPR does not activate maneuvers from the hotbar or the HUD: `superiorityDice` is an
+// ACTOR-level midi macro on `damageRollComplete`, so after any weapon attack's damage it asks
+// "perform a maneuver?", adds the superiority die to THAT attack's damage roll
+// (`workflowUtils.bonusDamage` — which is what 2024 RAW's "Add the Superiority Die to the attack's
+// damage roll" actually describes), runs the chosen maneuver item, and spends the die. Registered
+// legacy-only upstream, exactly like the maneuvers themselves.
+//
+// Reused verbatim: the helper is edition-agnostic (it reads
+// `actor.system.scale['battle-master']['combat-superiority-die']` and the actor's own maneuver
+// items). ⚠️ That scale key is the DDB parse's; a sheet built from the official PHB 2024 compendium
+// uses `battle-master.superiority.die` instead and would silently fall back to d6. Not a problem for
+// Xender (DDB-imported), but it is the thing to check first if a maneuver ever rolls a stray d6.
+export let superiorityDice = {
+    name: 'Superiority Dice',
+    aliases: ['Combat Superiority'],
+    version: '1.0.0',
+    rules: 'modern',
+    midi: superiorityDiceLegacy.midi
 };

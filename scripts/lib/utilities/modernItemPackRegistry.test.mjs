@@ -178,6 +178,37 @@ test('the three ported maneuvers are wired end to end', () => {
     }
 });
 
+test('the Superiority Dice driver is ported too', () => {
+    /*
+     * The maneuvers are inert without it. CPR does not activate a maneuver from the hotbar or the
+     * HUD — `superiorityDice` is an ACTOR-level midi macro on damageRollComplete that asks "perform
+     * a maneuver?" after a weapon attack's damage, adds the die to THAT damage roll, and runs the
+     * chosen maneuver item. Porting the maneuvers without the driver ships three items nothing calls.
+     */
+    const entry = classFeatureItems().find(i => i.data.flags?.['chris-premades']?.info?.identifier === 'superiorityDice');
+    assert.ok(entry, 'no cpr-class-features-2024 entry for the superiorityDice driver');
+    assert.equal(entry.data.flags['chris-premades'].info.rules, 'modern');
+    assert.ok(modernRegistryExports().has('superiorityDice'), 'scripts/macros.js does not export superiorityDice');
+});
+
+test('the ally picker degrades to the dialog when Argon is absent', () => {
+    const path = fileURLToPath(new URL('../../macros/2024/classFeatures/fighter/battleMaster/maneuvers.js', import.meta.url));
+    const source = readFileSync(path, 'utf8');
+    assert.match(source, /enhancedcombathud'\)\?\.active/, 'the picker must be gated on Argon being active');
+    assert.match(source, /selectTargetDialog/, 'the sheet path needs the dialog fallback');
+    assert.match(source, /label: genericUtils\.translate\('CHRISPREMADES\.Macros\.Maneuvers\.SelectAlly'\)/);
+});
+
+test('en and it both define the ally-picker strings', () => {
+    for (const lang of ['en', 'it']) {
+        const data = JSON.parse(readFileSync(fileURLToPath(new URL(`../../../lang/${lang}.json`, import.meta.url)), 'utf8'));
+        const block = data.CHRISPREMADES.Macros.Maneuvers;
+        for (const key of ['SelectAlly', 'NotAnAlly']) {
+            assert.ok(block[key], `${lang}.json is missing Maneuvers.${key}`);
+        }
+    }
+});
+
 test('no ported maneuver claims a bare-name alias', () => {
     // The Monster Manual ships an NPC feat called "Riposte"; a bare alias would put the Battle
     // Master automation in front of it. Aliases stay in the `Maneuver: X` form DDB produces.
