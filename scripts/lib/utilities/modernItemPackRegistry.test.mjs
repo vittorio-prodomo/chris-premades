@@ -213,14 +213,29 @@ test('the ally picker reads game.user.targets, not the picker\'s return value', 
     assert.ok(!/Array\.from\(picked/.test(source), 'the picker\'s resolved value is a boolean, not tokens');
 });
 
-test('en and it both define the ally-picker strings', () => {
+test('en and it both define the ally-picker and prompt strings', () => {
     for (const lang of ['en', 'it']) {
         const data = JSON.parse(readFileSync(fileURLToPath(new URL(`../../../lang/${lang}.json`, import.meta.url)), 'utf8'));
         const block = data.CHRISPREMADES.Macros.Maneuvers;
-        for (const key of ['SelectAlly', 'NotAnAlly']) {
+        for (const key of ['SelectAlly', 'NotAnAlly', 'ManeuveringTitle', 'ManeuveringPrompt', 'ManeuveringEffect']) {
             assert.ok(block[key], `${lang}.json is missing Maneuvers.${key}`);
         }
+        // The prompt has to name everyone involved — the ally being asked, who chose them, and the
+        // creature the exemption is against. A placeholder dropped in translation is silent.
+        assert.match(block.ManeuveringTitle, /\{name\}/, `${lang}: title must name the ally`);
+        for (const ph of ['{attacker}', '{enemy}']) {
+            assert.ok(block.ManeuveringPrompt.includes(ph), `${lang}: prompt is missing ${ph}`);
+            assert.ok(block.ManeuveringEffect.includes(ph), `${lang}: effect text is missing ${ph}`);
+        }
     }
+});
+
+test('the ally effect carries its own short description', () => {
+    // Without one, Visual Active Effects falls back to the origin item and shows the whole feature.
+    const path = fileURLToPath(new URL('../../macros/2024/classFeatures/fighter/battleMaster/maneuvers.js', import.meta.url));
+    const source = readFileSync(path, 'utf8');
+    assert.match(source, /description: genericUtils\.format\('CHRISPREMADES\.Macros\.Maneuvers\.ManeuveringEffect'/);
+    assert.match(source, /ManeuveringTitle', names\)/, 'the dialog title must be the name-carrying one');
 });
 
 test('no ported maneuver claims a bare-name alias', () => {

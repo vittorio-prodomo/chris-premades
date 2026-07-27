@@ -120,7 +120,24 @@ async function useManeuveringAttack({workflow}) {
         await workflowUtils.updateTargets(workflow, []);
         return;
     }
-    dialogUtils.confirm(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.Maneuvering', {userId: socketUtils.firstOwner(ally.actor, true)}).then(async choice => {
+    // The prompt is often read by someone holding several characters at once — the GM covering absent
+    // players, most of all — so it has to say WHO is being asked and WHY, not just "spend your
+    // reaction?". Title carries the ally's token name, mirroring the Alert feat's `Alert — {name}`
+    // ([[dnd5e-alert-initiative-swap]]); the body restates the whole situation, since the ally may not
+    // have been watching the attack that triggered it.
+    // ⚠️ Names are token names (falling back to actor names), which is what the players see on the
+    // board. A veiled NPC's true name would surface here — acceptable, since the ally is being told
+    // about a creature that just attacked in front of them, but it is the one leak worth knowing about.
+    let names = {
+        name: ally.name ?? ally.actor.name,
+        attacker: workflow.token.name ?? workflow.actor.name,
+        enemy: attackedToken?.name ?? game.i18n.localize('DND5E.Target')
+    };
+    dialogUtils.confirm(
+        genericUtils.format('CHRISPREMADES.Macros.Maneuvers.ManeuveringTitle', names),
+        genericUtils.format('CHRISPREMADES.Macros.Maneuvers.ManeuveringPrompt', names),
+        {userId: socketUtils.firstOwner(ally.actor, true)}
+    ).then(async choice => {
         if (!choice) return;
         actorUtils.setReactionUsed(ally.actor);
         if (!attackedToken || attackedToken.id === ally.id) return;
@@ -128,6 +145,10 @@ async function useManeuveringAttack({workflow}) {
             name: workflow.item.name,
             img: workflow.item.img,
             origin: workflow.item.uuid,
+            // Without an explicit description Visual Active Effects falls back to the origin item's,
+            // i.e. the entire feature text. The ally does not need the rules quotation — they need
+            // what they may do right now, and against whom.
+            description: genericUtils.format('CHRISPREMADES.Macros.Maneuvers.ManeuveringEffect', names),
             duration: {
                 rounds: 1
             },
