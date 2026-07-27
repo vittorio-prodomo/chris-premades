@@ -1674,7 +1674,8 @@
                 "CommandBonusAction": "Spendi la mia azione bonus",
                 "CommandForgoAttack": "Rinuncia a uno dei miei attacchi",
                 "CommandedBonus": "{name} ha comandato alla bestia di Colpire (azione bonus spesa).",
-                "CommandedForgo": "{name} ha comandato alla bestia di Colpire (rinunciando a uno dei suoi attacchi)."
+                "CommandedForgo": "{name} ha comandato alla bestia di Colpire (rinunciando a uno dei suoi attacchi).",
+                "DamageTypePrompt": "Che tipo di danno deve infliggere la tua bestia evocata?"
             },
             "PrimalKnowledge": {
                 "ReplacementAbility": "Caratteristica sostitutiva:"

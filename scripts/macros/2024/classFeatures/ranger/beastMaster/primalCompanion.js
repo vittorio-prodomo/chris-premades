@@ -465,7 +465,10 @@ async function use({workflow}) {
             errors.missingPackItem();
             return;
         }
-        let selection = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Dialog.DamageType', [
+        // T77: the shared 'Dialog.DamageType' key reads "What damage type?" with no subject — coming
+        // straight after the companion-type pick it doesn't say whose damage it means. Own key, same
+        // buttons (en + it).
+        let selection = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.PrimalCompanion.DamageTypePrompt', [
             ['DND5E.DamageBludgeoning', 'bludgeoning'],
             ['DND5E.DamagePiercing', 'piercing'],
             ['DND5E.DamageSlashing', 'slashing']
@@ -487,7 +490,7 @@ async function use({workflow}) {
             errors.missingPackItem();
             return;
         }
-        let selection = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Dialog.DamageType', [
+        let selection = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.PrimalCompanion.DamageTypePrompt', [ // T77
             ['DND5E.DamageBludgeoning', 'bludgeoning'],
             ['DND5E.DamagePiercing', 'piercing']
         ]);

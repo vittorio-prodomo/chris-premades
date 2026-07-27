@@ -2258,7 +2258,8 @@
                 "CommandBonusAction": "Spend my bonus action",
                 "CommandForgoAttack": "Forgo one of my attacks",
                 "CommandedBonus": "{name} commanded the beast to Strike (spent a bonus action).",
-                "CommandedForgo": "{name} commanded the beast to Strike (forwent one of their attacks)."
+                "CommandedForgo": "{name} commanded the beast to Strike (forwent one of their attacks).",
+                "DamageTypePrompt": "What damage type should your summoned beast deal?"
             },
             "PrimalKnowledge": {
                 "ReplacementAbilities": "Replacement Abilities",

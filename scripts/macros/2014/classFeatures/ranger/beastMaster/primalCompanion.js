@@ -161,7 +161,7 @@ async function use({workflow}) {
     });
 }
 async function earlySea({workflow}) {
-    let selection = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Dialog.DamageType', [
+    let selection = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.PrimalCompanion.DamageTypePrompt', [ // T77 (same prompt, legacy rules)
         ['DND5E.DamagePiercing', 'piercing'],
         ['DND5E.DamageBludgeoning', 'bludgeoning']
     ]);
