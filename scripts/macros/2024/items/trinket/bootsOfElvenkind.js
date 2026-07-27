@@ -4,7 +4,7 @@ import {bootsOfElvenkind as bootsOfElvenkindLegacy} from '../../../2014/items/tr
 // modern registration CPR's premade lookup can never match a 2024-rules pair of boots.
 export let bootsOfElvenkind = {
     name: 'Boots of Elvenkind',
-    version: '1.1.0',
+    version: '1.1.1',
     rules: 'modern',
     skill: bootsOfElvenkindLegacy.skill
 };

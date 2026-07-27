@@ -85,7 +85,7 @@
     "chris-premades": {
       "info": {
         "name": "Boots of Elvenkind",
-        "version": "1.1.0",
+        "version": "1.1.1",
         "identifier": "bootsOfElvenkind",
         "rules": "modern",
         "source": "chris-premades"
@@ -119,7 +119,33 @@
       }
     }
   },
-  "effects": [],
+  "effects": [
+    {
+      "_id": "cprBootsElvn24AE",
+      "name": "Boots of Elvenkind",
+      "img": "icons/equipment/feet/shoes-collared-leather-blue.webp",
+      "type": "base",
+      "system": {},
+      "changes": [],
+      "disabled": false,
+      "transfer": true,
+      "statuses": [],
+      "description": "<p>Your steps make no sound, regardless of the surface you are moving across. You have Advantage on Dexterity (Stealth) checks.</p>",
+      "duration": {
+        "startTime": null,
+        "seconds": null,
+        "combat": null,
+        "rounds": null,
+        "turns": null,
+        "startRound": null,
+        "startTurn": null
+      },
+      "tint": "#ffffff",
+      "sort": 0,
+      "flags": {},
+      "_key": "!items.effects!cprBootsElvenk24.cprBootsElvn24AE"
+    }
+  ],
   "img": "icons/equipment/feet/shoes-collared-leather-blue.webp",
   "folder": null,
   "_id": "cprBootsElvenk24",
