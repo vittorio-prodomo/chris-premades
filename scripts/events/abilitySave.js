@@ -2,6 +2,7 @@ import {DialogApp} from '../applications/dialog.js';
 import {custom} from './custom.js';
 import {actorUtils, effectUtils, genericUtils, itemUtils, macroUtils, regionUtils, templateUtils} from '../utils.js';
 import {heroicInspiration} from '../macros/2024/mechanics/heroicInspiration.js';
+import {isSettledConcentrationSave} from '../lib/utilities/settledConcentrationSave.mjs';
 function getMacroData(entity) {
     return entity.flags['chris-premades']?.macros?.save ?? [];
 }
@@ -328,7 +329,7 @@ async function rollSave(wrapped, config, dialog = {}, message = {}) {
             if (bonusRoll) returnData = CONFIG.Dice.D20Roll.fromRoll(bonusRoll);
         }
     }
-    if (genericUtils.getCPRSetting('heroicInspiration')) {
+    if (genericUtils.getCPRSetting('heroicInspiration') && !isSettledConcentrationSave(config, returnData)) {
         let heroicInspirationRoll = await heroicInspiration.saveSkillCheck(returnData, this, rollMode);
         if (heroicInspirationRoll) returnData = heroicInspirationRoll;
     }
