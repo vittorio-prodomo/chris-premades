@@ -279,6 +279,84 @@ test('modern Riposte does not reuse Brace\'s handler', () => {
     assert.match(source, /constants\.unarmedAttacks/, '2024 Riposte allows an Unarmed Strike');
 });
 
+/*
+ * T81 Batch A — the seven macro-free maneuvers. The failure these guard against is SILENT: an
+ * unported maneuver simply never appears in the driver's prompt, which is how all 23 went unnoticed.
+ */
+const batchA = [
+    ['maneuversAmbush', 'Maneuvers: Ambush'],
+    ['maneuversCommandingPresence', 'Maneuvers: Commanding Presence'],
+    ['maneuversDisarmingAttack', 'Maneuvers: Disarming Attack'],
+    ['maneuversEvasiveFootwork', 'Maneuvers: Evasive Footwork'],
+    ['maneuversMenacingAttack', 'Maneuvers: Menacing Attack'],
+    ['maneuversPrecisionAttack', 'Maneuvers: Precision Attack'],
+    ['maneuversTacticalAssessment', 'Maneuvers: Tactical Assessment']
+];
+
+test('every T81 Batch A maneuver is wired end to end', () => {
+    const exported = modernRegistryExports();
+    for (const [identifier, name] of batchA) {
+        const entry = classFeatureItems().find(i => i.data.flags?.['chris-premades']?.info?.identifier === identifier);
+        assert.ok(entry, `no cpr-class-features-2024 entry with identifier "${identifier}"`);
+        assert.equal(entry.data.name, name);
+        assert.equal(entry.data.flags['chris-premades'].info.rules, 'modern');
+        assert.equal(entry.data.system.source.rules, '2024', `${identifier} can never match a modern item`);
+        assert.ok(exported.has(identifier), `scripts/macros.js does not export ${identifier}`);
+        assert.ok(entry.data.system.description.value.length > 0, `${identifier} needs its 2024 description`);
+        // The info block is what the Medkit reads back; upstream shipped Commanding Presence's
+        // carrying the name "Maneuvers: Ambush".
+        assert.equal(entry.data.flags['chris-premades'].info.name, name, `${identifier}'s info.name disagrees with the item`);
+    }
+});
+
+test('every T81 Batch A maneuver declares the DDB-shaped alias', () => {
+    // Our DDB fork's enricher rewrites "Maneuver Options: X" to "Maneuver: X", so without this alias
+    // the port is unreachable from a real sheet. Upstream's legacy Ambush declares none at all.
+    const path = fileURLToPath(new URL('../../macros/2024/classFeatures/fighter/battleMaster/maneuvers.js', import.meta.url));
+    const source = readFileSync(path, 'utf8');
+    for (const [, name] of batchA) {
+        assert.ok(source.includes(`aliases: ['${name.replace('Maneuvers: ', 'Maneuver: ')}']`), `${name} is missing its "Maneuver: X" alias`);
+    }
+});
+
+test('only Evasive Footwork gets the consumption-repair passes', () => {
+    /*
+     * §T83: `correctActivityItemConsumption` writes `consumption.targets[0].target` unconditionally,
+     * so registering the `added` passes on a maneuver with no item-level target THROWS, while
+     * omitting them on one that has a target ships an item that can never spend its die. Both fail
+     * quietly. The packData is the source of truth for which is which.
+     */
+    const withTargets = [];
+    for (const [identifier] of batchA) {
+        const entry = classFeatureItems().find(i => i.data.flags?.['chris-premades']?.info?.identifier === identifier);
+        const activities = Object.values(entry.data.system.activities ?? {});
+        if (activities.some(a => (a.consumption?.targets ?? []).length)) withTargets.push(identifier);
+    }
+    assert.deepEqual(withTargets, ['maneuversEvasiveFootwork'], 'the set of maneuvers needing `added` changed');
+});
+
+test('Evasive Footwork carries its 2024 action economy and duration', () => {
+    // 2024 made it a Bonus Action lasting until the start of your next turn; 2014 was "when you move
+    // … until you stop moving". Both halves are encodable without a macro, so both are ported.
+    const entry = classFeatureItems().find(i => i.data.flags?.['chris-premades']?.info?.identifier === 'maneuversEvasiveFootwork');
+    const activities = Object.values(entry.data.system.activities);
+    assert.ok(activities.length, 'Evasive Footwork lost its activity');
+    for (const activity of activities) assert.equal(activity.activation.type, 'bonus', '2024 Evasive Footwork is a Bonus Action');
+    for (const effect of entry.data.effects) {
+        assert.deepEqual(effect.flags.dae.specialDuration, ['turnStartSource'], 'the AC bonus must expire at the start of your next turn');
+    }
+});
+
+test('Menacing Attack actually applies the Frightened condition', () => {
+    // The legacy effect is an inert marker with no statuses, so the save had no consequence. 2024:
+    // "or have the Frightened condition until the end of your next turn."
+    const entry = classFeatureItems().find(i => i.data.flags?.['chris-premades']?.info?.identifier === 'maneuversMenacingAttack');
+    const effect = entry.data.effects[0];
+    assert.ok(effect, 'Menacing Attack lost its effect');
+    assert.deepEqual(effect.statuses, ['frightened']);
+    assert.deepEqual(effect.flags.dae.specialDuration, ['turnEndSource']);
+});
+
 test('Maneuvering Attack sets the GPS opportunity-attack exemption', () => {
     const path = fileURLToPath(new URL('../../macros/2024/classFeatures/fighter/battleMaster/maneuvers.js', import.meta.url));
     const source = readFileSync(path, 'utf8');

@@ -1,0 +1,153 @@
+{
+  "name": "Maneuvers: Ambush",
+  "type": "feat",
+  "system": {
+    "description": {
+      "value": "<p>When you make a Dexterity (Stealth) check or an Initiative roll, you can expend one Superiority Die and add the die to the roll, unless you have the Incapacitated condition.</p>",
+      "chat": ""
+    },
+    "source": {
+      "custom": "",
+      "revision": 1,
+      "rules": "2024"
+    },
+    "uses": {
+      "max": "",
+      "spent": 0,
+      "recovery": []
+    },
+    "type": {
+      "value": "class",
+      "subtype": "maneuver"
+    },
+    "requirements": "",
+    "properties": [],
+    "prerequisites": {
+      "level": null
+    },
+    "activities": {},
+    "identifier": "maneuvers-ambush",
+    "enchant": {}
+  },
+  "flags": {
+    "midi-qol": {
+      "forceCEOff": true,
+      "effectActivation": false,
+      "rollAttackPerTarget": "default",
+      "itemCondition": "",
+      "effectCondition": "",
+      "AoETargetType": "any",
+      "AoETargetTypeIncludeSelf": true,
+      "autoTarget": "default",
+      "removeAttackDamageButtons": "default",
+      "reactionCondition": "",
+      "otherCondition": ""
+    },
+    "core": {},
+    "midiProperties": {
+      "nodam": false,
+      "fulldam": false,
+      "halfdam": false,
+      "autoFailFriendly": false,
+      "autoSaveFriendly": false,
+      "rollOther": false,
+      "critOther": false,
+      "offHandWeapon": false,
+      "magicdam": false,
+      "magiceffect": false,
+      "concentration": false,
+      "toggleEffect": false,
+      "ignoreTotalCover": false,
+      "confirmTargets": "default",
+      "noConcentrationCheck": false,
+      "idr": false,
+      "idi": false,
+      "idv": false,
+      "ida": false
+    },
+    "dnd5e": {
+      "riders": {
+        "activity": []
+      }
+    },
+    "chris-premades": {
+      "info": {
+        "name": "Maneuvers: Ambush",
+        "version": "1.0.0",
+        "identifier": "maneuversAmbush",
+        "source": "chris-premades",
+        "rules": "modern"
+      }
+    }
+  },
+  "effects": [
+    {
+      "changes": [
+        {
+          "key": "flags.midi-qol.optional.Ambush.label",
+          "mode": 0,
+          "value": "Ambush",
+          "priority": 20
+        },
+        {
+          "key": "flags.midi-qol.optional.Ambush.count",
+          "mode": 0,
+          "value": "ItemUses.Superiority Dice",
+          "priority": 20
+        },
+        {
+          "key": "flags.midi-qol.optional.Ambush.skill.ste",
+          "mode": 0,
+          "value": "@scale.battle-master.combat-superiority-die",
+          "priority": 20
+        }
+      ],
+      "duration": {
+        "turns": null,
+        "startTime": 4104,
+        "seconds": null,
+        "combat": null,
+        "rounds": null,
+        "startRound": 229,
+        "startTurn": 1
+      },
+      "tint": "#ffffff",
+      "transfer": true,
+      "disabled": false,
+      "flags": {
+        "dae": {
+          "transfer": false,
+          "stackable": "noneName",
+          "specialDuration": [],
+          "selfTarget": false,
+          "selfTargetAlways": false,
+          "durationExpression": "",
+          "macroRepeat": "none",
+          "disableCondition": "",
+          "disableIncapacitated": false,
+          "showIcon": false
+        },
+        "midi-qol": {
+          "forceCEOff": true
+        },
+        "core": {
+          "overlay": false
+        }
+      },
+      "_id": "WC8OVaoOdggDwAY7",
+      "origin": "Actor.9Ou1BXEjB1wW0cVu.Item.ZMBcvkeX6uxMAm0O",
+      "name": "Maneuvers: Ambush",
+      "description": "",
+      "statuses": [],
+      "img": "icons/skills/melee/weapons-crossed-swords-yellow.webp",
+      "type": "base",
+      "system": {},
+      "sort": 0,
+      "_key": "!items.effects!cprMnvAmbush2024.WC8OVaoOdggDwAY7"
+    }
+  ],
+  "img": "icons/skills/melee/weapons-crossed-swords-yellow.webp",
+  "folder": "aMstBUc2lUQZSNyK",
+  "_id": "cprMnvAmbush2024",
+  "_key": "!items!cprMnvAmbush2024"
+}

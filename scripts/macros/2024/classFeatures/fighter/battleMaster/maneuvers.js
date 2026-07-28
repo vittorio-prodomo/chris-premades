@@ -427,6 +427,119 @@ export let maneuversManeuveringAttack = {
     }
 };
 
+/*
+ * T81 BATCH A — the seven maneuvers that need no macro at all.
+ *
+ * Their whole automation lives in the item encoding (a midi `optional` bonus effect, or a save
+ * activity), so porting them forward is a modern registration plus a `cpr-class-features-2024`
+ * packData entry and nothing else. The driver below is still what invokes the on-hit ones.
+ *
+ * ⚠️ Only Evasive Footwork carries an item-level `consumption.targets`, so it is the ONLY one of the
+ * seven that gets the `added` repair passes — `correctActivityItemConsumption` writes
+ * `consumption.targets[0].target` unconditionally and would THROW on the empty array the other six
+ * have. The split is the §T83 distinction: an on-hit rider's die is spent by the driver, a directly
+ * used maneuver spends its own.
+ *
+ * ⚠️ Descriptions on the packData entries are the official 2024 PHB text
+ * (`dnd-players-handbook.classes`, `system.type.subtype === 'maneuver'`), read live rather than
+ * hand-copied. Three of the seven diverge from the 2014 encoding in ways a macro-free entry cannot
+ * express — see the notes on Ambush, Evasive Footwork and Precision Attack below. Those are
+ * deliberately left as Batch B work rather than guessed at here.
+ */
+
+export let maneuversAmbush = {
+    name: 'Maneuvers: Ambush',
+    // Upstream's legacy entry declares NO alias, which would have made this port unreachable: our
+    // DDB fork's enricher produces `Maneuver: Ambush`, and that is what a real 2024 sheet carries.
+    aliases: ['Maneuver: Ambush'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ⚠️ 2024 RAW is "a Dexterity (Stealth) check OR AN INITIATIVE ROLL"; the encoding implements
+    // only the Stealth half (`flags.midi-qol.optional.Ambush.skill.ste`). That gap is upstream's and
+    // exists identically in the legacy entry — it is NOT something this port introduced, and closing
+    // it needs a mechanism midi's `optional` vocabulary does not offer for initiative. Batch B.
+};
+export let maneuversCommandingPresence = {
+    name: 'Maneuvers: Commanding Presence',
+    aliases: ['Maneuver: Commanding Presence'],
+    version: '1.0.0',
+    rules: 'modern'
+    // Edition-stable: 2014 and 2024 both cover Intimidation, Performance and Persuasion, which is
+    // exactly what the effect grants (`skill.itm` / `skill.prf` / `skill.per`).
+    // ⚠️ The legacy packData entry's `info.name` reads "Maneuvers: Ambush" — an upstream copy-paste.
+    // Corrected on the 2024 entry.
+};
+export let maneuversDisarmingAttack = {
+    name: 'Maneuvers: Disarming Attack',
+    aliases: ['Maneuver: Disarming Attack'],
+    version: '1.0.0',
+    rules: 'modern'
+    // 2024 only sharpens the wording ("one object of your choice that it's holding, with the object
+    // landing in its space"); the mechanic — a Strength save or drop it — is unchanged.
+};
+export let maneuversEvasiveFootwork = {
+    name: 'Maneuvers: Evasive Footwork',
+    aliases: ['Maneuver: Evasive Footwork'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ⚠️ REAL 2024 DIFF, partly ported. 2014: "When you move… add the die to your AC until you stop
+    // moving." 2024: "AS A BONUS ACTION… and TAKE THE DISENGAGE ACTION. You also… add the number
+    // rolled to your AC UNTIL THE START OF YOUR NEXT TURN." The activation (special -> bonus) and the
+    // duration (-> `turnStartSource`) are encoded on the 2024 entry. **The Disengage half is NOT** —
+    // it needs a handler, which is Batch B's shape by definition, so it is flagged rather than
+    // half-built here.
+    //
+    // The only Batch A maneuver with its own `consumption.targets`, hence the §T83 repair passes:
+    // CPR ships the target as a compendium UUID placeholder that dnd5e cannot resolve on an actor.
+    item: [
+        {
+            pass: 'created',
+            macro: added,
+            priority: 55
+        },
+        {
+            pass: 'itemMedkit',
+            macro: added,
+            priority: 55
+        },
+        {
+            pass: 'actorMunch',
+            macro: added,
+            priority: 55
+        }
+    ]
+};
+export let maneuversMenacingAttack = {
+    name: 'Maneuvers: Menacing Attack',
+    aliases: ['Maneuver: Menacing Attack'],
+    version: '1.0.0',
+    rules: 'modern'
+    // Edition-stable wording. ⚠️ The legacy effect is an inert marker with no `statuses` — the target
+    // "must succeed on a Wisdom saving throw or have the Frightened condition", and nothing applied
+    // it. The 2024 entry carries `statuses: ['frightened']`, which is the printed rule and needs no
+    // macro. (Same shape as the Goaded marker, except Goaded's mechanic lives in a handler.)
+};
+export let maneuversPrecisionAttack = {
+    name: 'Maneuvers: Precision Attack',
+    aliases: ['Maneuver: Precision Attack'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ⚠️ REAL 2024 DIFF, NOT ported. 2014 let you add the die "before or after making the attack
+    // roll"; 2024 is miss-only — "When you MISS with an attack roll". The encoding is midi's
+    // `optional.PrecisionAttack.attack.mwak/rwak`, which offers on every attack, so it is currently
+    // more permissive than 2024 RAW. Left as-is on purpose: gating an offer on the outcome is
+    // precisely the T86 mechanism, and it is a handler change, i.e. Batch B. Porting it permissive is
+    // still strictly better than today, where it does not resolve on a 2024 sheet at all.
+};
+export let maneuversTacticalAssessment = {
+    name: 'Maneuvers: Tactical Assessment',
+    aliases: ['Maneuver: Tactical Assessment'],
+    version: '1.0.0',
+    rules: 'modern'
+    // Edition-stable: History, Investigation and Insight in both, matching `skill.his` / `skill.inv`
+    // / `skill.ins`.
+};
+
 // ⚠️ THE DRIVER. Without this the three maneuvers above are inert on a 2024 sheet — nothing invokes
 // them. CPR does not activate maneuvers from the hotbar or the HUD: `superiorityDice` is an
 // ACTOR-level midi macro on `damageRollComplete`, so after any weapon attack's damage it asks
