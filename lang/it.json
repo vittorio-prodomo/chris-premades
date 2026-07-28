@@ -2852,6 +2852,12 @@
                 "Hint": "Quando lancia incantesimi \"Evoca X\", il giocatore (non il DM) può selezionare le creature da evocare.",
                 "Name": "Giocatore Seleziona Evocazioni"
             },
+            "pushDirection": {
+                "Hint": "In che direzione le creature vengono spinte da un effetto ad area. Lontano Dalla Sorgente spinge ogni creatura in linea retta dal lanciatore, disperdendo il gruppo. Lungo Il Template spinge tutte le creature nella stessa direzione, quella del cono, della linea o del cubo, spostando il gruppo compatto. Le esplosioni (cerchi) spingono sempre lontano dalla sorgente.",
+                "Name": "Direzione della Spinta",
+                "parallel": "Lungo Il Template",
+                "radial": "Lontano Dalla Sorgente"
+            },
             "replaceStatusEffectIcons": {
                 "Hint": "Quando abilitato, le icone di stato verranno sostituite.",
                 "Name": "Sostituisci Icone di Stato"

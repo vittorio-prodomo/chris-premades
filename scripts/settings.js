@@ -422,6 +422,16 @@ export function registerSettings() {
         select: true
     });
     addSetting({
+        key: 'pushDirection',
+        type: String,
+        default: 'radial',
+        category: 'mechanics',
+        choices: {
+            radial: 'CHRISPREMADES.Settings.pushDirection.radial',
+            parallel: 'CHRISPREMADES.Settings.pushDirection.parallel'
+        }
+    });
+    addSetting({
         key: 'syncActorSizeToTokens',
         type: Boolean,
         default: false,
