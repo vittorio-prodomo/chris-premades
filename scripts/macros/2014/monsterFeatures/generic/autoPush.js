@@ -5,6 +5,7 @@ async function use({trigger, workflow}) {
     let activities = config.activities;
     if (activities?.length && !activities.includes(workflow.activity.id)) return;
     if (isNaN(Number(config.distance))) return;
+    let template = workflow.template;
     workflow.targets.forEach(token => {
         if (config.failed && !workflow.failedSaves.has(token)) return;
         if (config.hit && !workflow.hitTargets.has(token)) return;
@@ -14,7 +15,7 @@ async function use({trigger, workflow}) {
             let distanceBetween = tokenUtils.getDistance(workflow.token, token);
             distance = Math.max(distance, -distanceBetween);
         }
-        tokenUtils.pushToken(workflow.token, token, distance);
+        tokenUtils.pushToken(workflow.token, token, distance, {template});
     });
 }
 function actorSizes() {

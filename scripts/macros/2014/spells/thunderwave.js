@@ -5,7 +5,8 @@ async function use({trigger, workflow}) {
     let upcastDistance = Number(itemUtils.getConfig(workflow.item, 'upcastDistance')) || 0;
     let upcastLevels = Math.max(0, workflowUtils.getCastLevel(workflow) - (workflow.castData?.baseLevel ?? 1));
     distance += upcastDistance * upcastLevels;
-    await Promise.all(workflow.failedSaves.map(async i => await tokenUtils.pushToken(workflow.token, i, distance)));
+    let template = workflow.template;
+    await Promise.all(workflow.failedSaves.map(async i => await tokenUtils.pushToken(workflow.token, i, distance, {template})));
 }
 export let thunderwave = {
     name: 'Thunderwave',

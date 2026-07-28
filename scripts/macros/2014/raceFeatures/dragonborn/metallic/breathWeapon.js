@@ -17,8 +17,9 @@ async function use({workflow}) {
 }
 async function proneOnFailMacro({workflow}) {
     if (!workflow.failedSaves.size) return;
+    let template = workflow.template;
     await Promise.all(workflow.failedSaves.map(async i => {
-        await tokenUtils.pushToken(workflow.token, i, 20);
+        await tokenUtils.pushToken(workflow.token, i, 20, {template});
     }));
     await proneOnFail.midi.item[0].macro({workflow});
 }

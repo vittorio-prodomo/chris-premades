@@ -1,4 +1,5 @@
 import {actorUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, rollUtils, socketUtils, templateUtils, workflowUtils} from '../../utils.js';
+import {resolvePushAngle} from './pushDirection.mjs';
 function getDistance(sourceToken, targetToken, {wallsBlock, checkCover} = {}) {
     return MidiQOL.computeDistance(sourceToken, targetToken, {wallsBlock, includeCover: checkCover});
 }
@@ -63,7 +64,7 @@ async function moveTokenAlongRay(targetToken, origRay, distance) {
         y: newCenter.y
     });
 }
-async function pushToken(sourceToken, targetToken, distance) {
+async function pushToken(sourceToken, targetToken, distance, {template} = {}) {
     if (targetToken.actor) {
         let grappledEffects = effectUtils.getAllEffectsByIdentifier(targetToken.actor, 'grappled');
         let grapplingEffects = effectUtils.getAllEffectsByIdentifier(targetToken.actor, 'grappling');
@@ -73,7 +74,13 @@ async function pushToken(sourceToken, targetToken, distance) {
         // Wait for dependent grapples to be destroyed, in case Rideable is mounting tokens still
         await genericUtils.sleep(250);
     }
-    let ray = new foundry.canvas.geometry.Ray(sourceToken.center, targetToken.center);
+    // T57: with the push direction set to 'parallel', a directional template (cone, ray, or a
+    // cube — which is stored as a fat ray) shoves every creature the same way instead of fanning
+    // them out from the caster. Anything else keeps the stock caster-to-target ray.
+    let angle = resolvePushAngle({mode: genericUtils.getCPRSetting('pushDirection'), template});
+    let ray = angle === null
+        ? new foundry.canvas.geometry.Ray(sourceToken.center, targetToken.center)
+        : foundry.canvas.geometry.Ray.fromAngle(sourceToken.center.x, sourceToken.center.y, angle, canvas.dimensions.size);
     await moveTokenAlongRay(targetToken, ray, distance);
 }
 function findNearby(token, range, disposition, {includeIncapacitated = false, includeToken = false} = {}) {
