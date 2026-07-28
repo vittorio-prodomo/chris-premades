@@ -1,0 +1,153 @@
+{
+  "name": "Maneuvers: Precision Attack",
+  "type": "feat",
+  "system": {
+    "description": {
+      "value": "<p>When you miss with an attack roll, you can expend one Superiority Die, roll that die, and add it to the attack roll, potentially causing the attack to hit.</p>",
+      "chat": ""
+    },
+    "source": {
+      "custom": "",
+      "revision": 1,
+      "rules": "2024"
+    },
+    "uses": {
+      "max": "",
+      "spent": 0,
+      "recovery": []
+    },
+    "type": {
+      "value": "class",
+      "subtype": "maneuver"
+    },
+    "requirements": "",
+    "properties": [],
+    "prerequisites": {
+      "level": null
+    },
+    "activities": {},
+    "identifier": "maneuvers-precision-attack",
+    "enchant": {}
+  },
+  "flags": {
+    "core": {},
+    "midi-qol": {
+      "effectActivation": false,
+      "rollAttackPerTarget": "default",
+      "itemCondition": "",
+      "effectCondition": "",
+      "AoETargetType": "any",
+      "AoETargetTypeIncludeSelf": true,
+      "autoTarget": "default",
+      "removeAttackDamageButtons": "default",
+      "reactionCondition": "",
+      "otherCondition": ""
+    },
+    "midiProperties": {
+      "nodam": false,
+      "fulldam": false,
+      "halfdam": false,
+      "autoFailFriendly": false,
+      "autoSaveFriendly": false,
+      "rollOther": false,
+      "critOther": false,
+      "offHandWeapon": false,
+      "magicdam": false,
+      "magiceffect": false,
+      "concentration": false,
+      "toggleEffect": false,
+      "ignoreTotalCover": false,
+      "confirmTargets": "default",
+      "noConcentrationCheck": false,
+      "idr": false,
+      "idi": false,
+      "idv": false,
+      "ida": false
+    },
+    "dnd5e": {
+      "riders": {
+        "activity": []
+      }
+    },
+    "chris-premades": {
+      "info": {
+        "name": "Maneuvers: Precision Attack",
+        "version": "1.0.0",
+        "identifier": "maneuversPrecisionAttack",
+        "source": "chris-premades",
+        "rules": "modern"
+      }
+    }
+  },
+  "effects": [
+    {
+      "name": "Maneuvers: Precision Attack",
+      "origin": "Compendium.world.cpr-class-features.Item.KZmWxfvlO3vaSa9b",
+      "duration": {
+        "rounds": null,
+        "startTime": 1368,
+        "seconds": null,
+        "combat": null,
+        "turns": null,
+        "startRound": 229,
+        "startTurn": 1
+      },
+      "disabled": false,
+      "flags": {
+        "dnd5e": {},
+        "dae": {
+          "disableCondition": "",
+          "disableIncapacitated": false,
+          "stackable": "noneName",
+          "showIcon": false,
+          "durationExpression": "",
+          "macroRepeat": "none",
+          "specialDuration": []
+        },
+        "core": {
+          "overlay": false
+        }
+      },
+      "img": "icons/skills/melee/weapons-crossed-swords-yellow.webp",
+      "_id": "vZAWNv8IrkcveeE4",
+      "type": "base",
+      "system": {},
+      "changes": [
+        {
+          "key": "flags.midi-qol.optional.PrecisionAttack.label",
+          "mode": 0,
+          "value": "Precision Attack",
+          "priority": 20
+        },
+        {
+          "key": "flags.midi-qol.optional.PrecisionAttack.count",
+          "mode": 0,
+          "value": "ItemUses.Superiority Dice",
+          "priority": 20
+        },
+        {
+          "key": "flags.midi-qol.optional.PrecisionAttack.attack.mwak",
+          "mode": 0,
+          "value": "@scale.battle-master.combat-superiority-die",
+          "priority": 20
+        },
+        {
+          "key": "flags.midi-qol.optional.PrecisionAttack.attack.rwak",
+          "mode": 0,
+          "value": "@scale.battle-master.combat-superiority-die",
+          "priority": 20
+        }
+      ],
+      "description": "",
+      "tint": "#ffffff",
+      "transfer": true,
+      "statuses": [],
+      "sort": 0,
+      "_key": "!items.effects!cprMnvPrecis2024.vZAWNv8IrkcveeE4"
+    }
+  ],
+  "img": "icons/skills/melee/weapons-crossed-swords-yellow.webp",
+  "folder": "aMstBUc2lUQZSNyK",
+  "_id": "cprMnvPrecis2024",
+  "_key": "!items!cprMnvPrecis2024"
+}
