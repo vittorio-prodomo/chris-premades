@@ -82,7 +82,7 @@
     "chris-premades": {
       "info": {
         "name": "Superiority Dice",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "identifier": "superiorityDice",
         "source": "chris-premades",
         "rules": "modern"

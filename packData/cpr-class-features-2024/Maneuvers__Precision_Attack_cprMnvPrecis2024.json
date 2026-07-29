@@ -72,7 +72,7 @@
     "chris-premades": {
       "info": {
         "name": "Maneuvers: Precision Attack",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "identifier": "maneuversPrecisionAttack",
         "source": "chris-premades",
         "rules": "modern"
@@ -126,13 +126,13 @@
           "priority": 20
         },
         {
-          "key": "flags.midi-qol.optional.PrecisionAttack.attack.mwak",
+          "key": "flags.midi-qol.optional.PrecisionAttack.attack.fail.mwak",
           "mode": 0,
           "value": "@scale.battle-master.combat-superiority-die",
           "priority": 20
         },
         {
-          "key": "flags.midi-qol.optional.PrecisionAttack.attack.rwak",
+          "key": "flags.midi-qol.optional.PrecisionAttack.attack.fail.rwak",
           "mode": 0,
           "value": "@scale.battle-master.combat-superiority-die",
           "priority": 20

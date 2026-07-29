@@ -35,7 +35,23 @@ export async function determineSuperiorityDie(actor) {
     }
     return [itemToUse, superiorityDie];
 }
-export async function superiorityHelper(workflow) {
+/**
+ * The 2014 on-hit riders. 2024 drops Grappling Strike entirely, so the modern line passes its own
+ * list rather than editing this one — see `2024/…/maneuvers.js`. Kept module-level and COPIED at
+ * use (never mutated in place): the `mwak` branch below pushes Sweeping Attack, which on a shared
+ * array would grow it once per melee attack for the rest of the session.
+ */
+export const legacyTriggerManeuvers = [
+    'maneuversDisarmingAttack',
+    'maneuversDistractingStrike',
+    'maneuversGoadingAttack',
+    'maneuversGrapplingStrike',
+    'maneuversManeuveringAttack',
+    'maneuversMenacingAttack',
+    'maneuversPushingAttack',
+    'maneuversTripAttack'
+];
+export async function superiorityHelper(workflow, {triggerManeuvers = legacyTriggerManeuvers} = {}) {
     if (!workflowUtils.isAttackType(workflow, 'weaponAttack')) return;
     if (activityUtils.getIdentifier(workflow.activity) === 'sweepingAttackAttack') return;
     /**
@@ -54,18 +70,9 @@ export async function superiorityHelper(workflow) {
     if (workflow.workflowOptions?.maneuverAttack) return;
     let [itemToUse, superiorityDie] = await determineSuperiorityDie(workflow.actor);
     if (!itemToUse) return;
-    let triggerManeuvers = [
-        'maneuversDisarmingAttack',
-        'maneuversDistractingStrike',
-        'maneuversGoadingAttack',
-        'maneuversGrapplingStrike',
-        'maneuversManeuveringAttack',
-        'maneuversMenacingAttack',
-        'maneuversPushingAttack',
-        'maneuversTripAttack'
-    ];
-    if (workflowUtils.getActionType(workflow) === 'mwak') triggerManeuvers.push('maneuversSweepingAttack');
-    let validManeuvers = triggerManeuvers.map(i => itemUtils.getItemByIdentifier(workflow.actor, i)).filter(i => i);
+    let candidates = [...triggerManeuvers];
+    if (workflowUtils.getActionType(workflow) === 'mwak') candidates.push('maneuversSweepingAttack');
+    let validManeuvers = candidates.map(i => itemUtils.getItemByIdentifier(workflow.actor, i)).filter(i => i);
     if (!validManeuvers.length) return;
     let selected = await dialogUtils.selectDocumentDialog(itemToUse.name, 'CHRISPREMADES.Macros.Maneuvers.SelectManeuver', validManeuvers, {addNoneDocument: true});
     if (!selected) return;
