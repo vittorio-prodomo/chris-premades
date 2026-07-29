@@ -1,6 +1,6 @@
 import {actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 import {determineSuperiorityDie, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
-import {selectPendingDie} from '../../../../../lib/utilities/pendingSuperiorityDie.mjs';
+import {selectPendingDie, satisfiesMovementRequirement} from '../../../../../lib/utilities/pendingSuperiorityDie.mjs';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
 
 // CPR's 23 maneuvers are registered ONLY in the legacy registry, and premade lookup picks the pack
@@ -556,6 +556,65 @@ export let maneuversPrecisionAttack = {
     // ⚠️ The offer appearing IS the information "you missed" — which is correct here rather than a
     // leak, because 2024's trigger is literally the miss (Vittorio, 2026-07-29). Contrast T2/T86.
 };
+/**
+ * 2024 Lunging Attack: "As a Bonus Action, you can expend one Superiority Die and take the Dash
+ * action. If you move at least 5 feet in a straight line immediately before hitting with a melee
+ * attack as part of the Attack action on this turn, you can add the Superiority Die to the attack's
+ * damage roll."
+ *
+ * ⚠️ COMPLETE REWRITE vs 2014, which was simply "increase your reach for that attack by 5 feet" —
+ * immediate, self-contained, and nothing like this. Nothing of the legacy handler ports.
+ *
+ * ⚠️ **The Dash action is deliberately NOT automated**, for two reasons that point the same way.
+ * CPR's own `actions/dash.js` grants no movement either — its packData effect carries ZERO changes
+ * and the macro is purely a Sequencer animation — so automating it would add no mechanics, only
+ * visuals. And that animation routes through CPR's `Crosshairs`, which cannot render in headless
+ * Chromium (T72/T91), so wiring it would make this maneuver permanently un-verifiable solo. Taking
+ * the Dash is left to the player, exactly as CPR leaves it for the Dash action itself.
+ */
+async function useLungingAttack({workflow}) {
+    let [, superiorityDie] = await determineSuperiorityDie(workflow.actor);
+    if (!superiorityDie) return;
+    await bankSuperiorityDie(workflow, {
+        identifier: 'maneuversLungingAttack',
+        die: superiorityDie,
+        // No target reservation: 2024 Lunging pays out on ANY qualifying melee hit this turn.
+        requiresMelee: true,
+        requiresMovement: true
+    });
+}
+export let maneuversLungingAttack = {
+    name: 'Maneuvers: Lunging Attack',
+    aliases: ['Maneuver: Lunging Attack'],
+    version: '1.0.0',
+    rules: 'modern',
+    midi: {
+        item: [
+            {
+                pass: 'rollFinished',
+                macro: useLungingAttack,
+                priority: 50
+            }
+        ]
+    },
+    item: [
+        {
+            pass: 'created',
+            macro: added,
+            priority: 50
+        },
+        {
+            pass: 'itemMedkit',
+            macro: added,
+            priority: 50
+        },
+        {
+            pass: 'actorMunch',
+            macro: added,
+            priority: 50
+        }
+    ]
+};
 export let maneuversFeintingAttack = {
     name: 'Maneuvers: Feinting Attack',
     aliases: ['Maneuver: Feinting Attack'],
@@ -662,7 +721,7 @@ const PENDING_FLAG = 'superiorityDie';
  * @param {boolean} [options.requiresMelee] only a melee attack may consume it
  * @param {boolean} [options.grantAdvantage] also grant advantage against that target
  */
-async function bankSuperiorityDie(workflow, {identifier, die, targetToken, requiresMelee = false, grantAdvantage = false}) {
+async function bankSuperiorityDie(workflow, {identifier, die, targetToken, requiresMelee = false, requiresMovement = false, grantAdvantage = false}) {
     let changes = [];
     if (grantAdvantage && targetToken) {
         // The `vex()` idiom: a conditional midi advantage flag scoped to one token id. midi
@@ -696,7 +755,8 @@ async function bankSuperiorityDie(workflow, {identifier, die, targetToken, requi
                         name: workflow.item.name,
                         die,
                         targetId: targetToken?.id,
-                        requiresMelee
+                        requiresMelee,
+                        requiresMovement
                     }
                 }
             }
@@ -714,9 +774,18 @@ async function consumePendingSuperiorityDie(workflow) {
     let effects = actorUtils.getEffects(workflow.actor)
         .filter(i => i.flags['chris-premades']?.[PENDING_FLAG]?.pending);
     if (!effects.length) return false;
+    let combatant = workflow.token?.document?.combatant;
     let attack = {
         actionType: workflowUtils.getActionType(workflow),
-        hitTargetIds: [...(workflow.hitTargets ?? [])].map(i => i.id)
+        hitTargetIds: [...(workflow.hitTargets ?? [])].map(i => i.id),
+        // Core clears movementHistory at the start of each combatant's turn, so this is already
+        // scoped to "this turn" with no bookkeeping of ours -- but it only RECORDS for a combatant
+        // in a started combat, so mirror that gate rather than reading an always-empty array.
+        movedThisTurn: satisfiesMovementRequirement({
+            historyRecorded: !!combatant && combatant.parent?.started === true,
+            movementHistory: workflow.token?.document?.movementHistory,
+            minimumDistance: canvas?.grid?.distance
+        })
     };
     let byPending = new Map(effects.map(i => [i.flags['chris-premades'][PENDING_FLAG].pending, i]));
     let chosen = selectPendingDie([...byPending.keys()], attack);

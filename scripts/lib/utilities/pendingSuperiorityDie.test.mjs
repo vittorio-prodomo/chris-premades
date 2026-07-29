@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { shouldConsumePendingDie, selectPendingDie } from './pendingSuperiorityDie.mjs';
+import { shouldConsumePendingDie, selectPendingDie, movedFarEnough, satisfiesMovementRequirement } from './pendingSuperiorityDie.mjs';
 
 /*
  * T81 Batch B slice 2 — the "next attack this turn" tracker.
@@ -14,6 +14,8 @@ import { shouldConsumePendingDie, selectPendingDie } from './pendingSuperiorityD
 
 const FEINT = { identifier: 'maneuversFeintingAttack', name: 'Maneuvers: Feinting Attack', die: 'd8', targetId: 'tokenA' };
 const LUNGE = { identifier: 'maneuversLungingAttack', name: 'Maneuvers: Lunging Attack', die: 'd8', requiresMelee: true };
+// Slice 3 adds the movement clause; most tests below predate it and pass movedThisTurn implicitly.
+const LUNGE3 = { ...LUNGE, requiresMovement: true };
 
 test('a hit on the feinted target consumes the die', () => {
     assert.equal(shouldConsumePendingDie(FEINT, { actionType: 'mwak', hitTargetIds: ['tokenA'] }), true);
@@ -77,7 +79,95 @@ test('selectPendingDie returns null when nothing qualifies', () => {
     assert.equal(selectPendingDie(undefined, { actionType: 'mwak', hitTargetIds: ['tokenA'] }), null);
 });
 
+/* ---- slice 3: Lunging Attack's movement clause ---- */
+
+test('a movement-gated die needs the attacker to have moved', () => {
+    const moved = { actionType: 'mwak', hitTargetIds: ['tokenA'], movedThisTurn: true };
+    const still = { actionType: 'mwak', hitTargetIds: ['tokenA'], movedThisTurn: false };
+    assert.equal(shouldConsumePendingDie(LUNGE3, moved), true);
+    assert.equal(shouldConsumePendingDie(LUNGE3, still), false);
+});
+
+test('a missing movedThisTurn is treated as "did not move", not as unknown', () => {
+    // Fail closed: a die that quietly pays out without the movement would be plain wrong RAW.
+    assert.equal(shouldConsumePendingDie(LUNGE3, { actionType: 'mwak', hitTargetIds: ['tokenA'] }), false);
+});
+
+test('the movement clause does not affect maneuvers that do not declare it', () => {
+    // Feinting has no movement requirement -- standing still must not block it.
+    assert.equal(shouldConsumePendingDie(FEINT, { actionType: 'mwak', hitTargetIds: ['tokenA'], movedThisTurn: false }), true);
+});
+
+test('movedFarEnough sums waypoint costs against the grid distance', () => {
+    assert.equal(movedFarEnough([{ cost: 5 }], 5), true, 'one square is exactly the threshold');
+    assert.equal(movedFarEnough([{ cost: 5 }, { cost: 5 }], 5), true);
+    assert.equal(movedFarEnough([], 5), false, 'no movement recorded');
+    assert.equal(movedFarEnough([{ cost: 0 }], 5), false, 'a zero-cost waypoint is not movement');
+    assert.equal(movedFarEnough([{ cost: 2.5 }], 5), false, 'a sub-threshold gridless leg');
+});
+
+test('movedFarEnough ignores the Infinity core seeds for unpriceable waypoints', () => {
+    // token.mjs does `waypoint.cost ??= Infinity`; that must neither count as movement nor poison
+    // the sum into passing.
+    assert.equal(movedFarEnough([{ cost: Infinity }], 5), false);
+    assert.equal(movedFarEnough([{ cost: Infinity }, { cost: 5 }], 5), true);
+    assert.equal(movedFarEnough([{ cost: NaN }, { cost: null }], 5), false);
+});
+
+test('movedFarEnough tolerates junk input', () => {
+    assert.equal(movedFarEnough(undefined, 5), false);
+    assert.equal(movedFarEnough(null, 5), false);
+    assert.equal(movedFarEnough('nope', 5), false);
+    assert.equal(movedFarEnough([{}], 5), false);
+    // A missing/odd grid distance must not turn into "nothing ever qualifies".
+    assert.equal(movedFarEnough([{ cost: 5 }], undefined), true);
+});
+
 /* ---- wiring guards: the parts the pure predicate cannot see ---- */
+
+test('outside a started combat the movement requirement is WAIVED, not failed', () => {
+    /*
+     * Core records movement history only for a combatant in a started combat
+     * (TokenDocument#_shouldRecordMovementHistory). Proven live on 2026-07-29: a real walk out of
+     * combat left movementHistory empty. Reading it there would mean Lunging NEVER pays out --
+     * the die spent for nothing -- so the requirement is waived instead.
+     */
+    assert.equal(satisfiesMovementRequirement({ historyRecorded: false, movementHistory: [], minimumDistance: 5 }), true);
+    assert.equal(satisfiesMovementRequirement({ historyRecorded: false, movementHistory: undefined, minimumDistance: 5 }), true);
+});
+
+test('inside a started combat the movement requirement is actually enforced', () => {
+    assert.equal(satisfiesMovementRequirement({ historyRecorded: true, movementHistory: [], minimumDistance: 5 }), false);
+    assert.equal(satisfiesMovementRequirement({ historyRecorded: true, movementHistory: [{ cost: 5 }], minimumDistance: 5 }), true);
+});
+
+test('the driver mirrors core\'s own recording gate rather than reading a maybe-empty array', () => {
+    const source = readFileSync(modernManeuvers, 'utf8');
+    assert.match(source, /historyRecorded: !!combatant && combatant\.parent\?\.started === true/,
+        "must mirror TokenDocument#_shouldRecordMovementHistory (no combatant -> false; else combat.started)");
+    assert.match(source, /movementHistory: workflow\.token\?\.document\?\.movementHistory/);
+});
+
+test('Lunging Attack does NOT wire CPR\'s Dash macro', () => {
+    /*
+     * Deliberate: CPR's dash grants no mechanics (its packData effect has zero changes) and its
+     * macro is a Crosshairs animation -- and Crosshairs cannot render headless (T72/T91), so wiring
+     * it would make this maneuver permanently un-verifiable solo for no mechanical gain.
+     */
+    const source = readFileSync(modernManeuvers, 'utf8');
+    const entry = source.match(/export let maneuversLungingAttack = \{[\s\S]*?\n\};/)?.[0] ?? '';
+    assert.ok(entry, 'maneuversLungingAttack entry not found');
+    assert.ok(!/dash/i.test(entry), 'Lunging Attack must not route through the Dash macro');
+});
+
+test('Lunging Attack reserves no target -- any qualifying melee hit pays out', () => {
+    const source = readFileSync(modernManeuvers, 'utf8');
+    const fn = source.match(/async function useLungingAttack[\s\S]*?\n\}/)?.[0] ?? '';
+    assert.ok(fn, 'useLungingAttack not found');
+    assert.ok(!/targetToken/.test(fn), '2024 Lunging pays out on any melee hit, not a chosen target');
+    assert.match(fn, /requiresMelee: true/);
+    assert.match(fn, /requiresMovement: true/);
+});
 
 const modernManeuvers = fileURLToPath(new URL('../../macros/2024/classFeatures/fighter/battleMaster/maneuvers.js', import.meta.url));
 
