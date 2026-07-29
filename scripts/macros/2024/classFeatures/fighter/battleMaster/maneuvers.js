@@ -557,6 +557,27 @@ export let maneuversPrecisionAttack = {
     // leak, because 2024's trigger is literally the miss (Vittorio, 2026-07-29). Contrast T2/T86.
 };
 /**
+ * 2024 Pushing Attack's push: "If the target is Large or smaller, it must succeed on a Strength
+ * saving throw or be pushed up to 15 feet directly away from you."
+ *
+ * The official PHB item stops at the save — it rolls the die and offers the throw but never moves
+ * anybody — so this is the half that has to be ours. "Up to 15 feet" is a genuine choice (shoving a
+ * target the full distance can push it out of your reach, or into cover), so it prompts, exactly as
+ * the 2014 handler did.
+ *
+ * ⚠️ Reads `workflow.failedSaves`, so it must run after saves settle — hence `rollFinished`.
+ */
+async function pushOnFailedSave({workflow}) {
+    if (!workflow.failedSaves?.size) return;
+    let buttons = [5, 10, 15].map(i => [genericUtils.format('CHRISPREMADES.Distance.DistanceFeet', {distance: i}), i]);
+    let distance = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.PushDistance', buttons);
+    if (!distance) return;
+    for (let target of workflow.failedSaves) {
+        await tokenUtils.pushToken(workflow.token, target, distance);
+    }
+}
+
+/**
  * 2024 Lunging Attack: "As a Bonus Action, you can expend one Superiority Die and take the Dash
  * action. If you move at least 5 feet in a straight line immediately before hitting with a melee
  * attack as part of the Attack action on this turn, you can add the Superiority Die to the attack's
@@ -652,6 +673,87 @@ export let maneuversFeintingAttack = {
             priority: 50
         }
     ]
+};
+/*
+ * T81 BATCH B slice 4 — the ports that ride the official 2024 encoding.
+ *
+ * ⚠️ Their activities are taken WHOLESALE from `dnd-players-handbook.classes`, because WotC's own
+ * items already express the 2024 diffs correctly — including the `max(str, dex)` idiom we derived
+ * independently for the save DC. The only transform is the scale key: the PHB items read
+ * `@scale.battle-master.superiority.die` (a PHB-built sheet) and CPR items read the DDB parse's
+ * `@scale.battle-master.combat-superiority-die`.
+ */
+
+export let maneuversParry = {
+    name: 'Maneuvers: Parry',
+    aliases: ['Maneuver: Parry'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ✅ 2024 DIFF, and it is Vittorio's `max()` call landing a THIRD time: the reduction is now
+    // "the number you roll plus your Strength OR Dexterity modifier (your choice)". Encoded as a
+    // reaction Healing activity, `die + max(@abilities.str.mod, @abilities.dex.mod)` — i.e. damage
+    // reduction modelled as retroactive healing, which is what the official item does too.
+    //
+    // Macro-free on purpose. The legacy entry carries a `midi.actor` `promptParry` pass that OFFERS
+    // the reaction when you are damaged; that is reaction-shaped and a separate piece of work. It is
+    // also the one reaction that stays in CPR rather than moving to GPS, per the T95 carve-out (the
+    // superiority-die pool and driver are CPR's).
+    // ⚠️ Without that offer, Parry is used from the sheet like any other reaction.
+    //
+    // ⚠️ It spends its OWN die, so it needs the `added` re-pointer — the trap Batch A's Evasive
+    // Footwork fell into. Paired with `activityIdentifiers` in the packData entry.
+    item: [
+        {pass: 'created', macro: added, priority: 50},
+        {pass: 'itemMedkit', macro: added, priority: 50},
+        {pass: 'actorMunch', macro: added, priority: 50}
+    ]
+};
+export let maneuversRally = {
+    name: 'Maneuvers: Rally',
+    aliases: ['Maneuver: Rally'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ✅ REAL 2024 DIFF, expressed statically: temp HP is now "the Superiority Die roll plus half
+    // your Fighter level (round down)" — `die + (floor(@classes.fighter.levels/2))`. 2014 added the
+    // CHARISMA modifier instead, so porting the legacy encoding verbatim would have been wrong for
+    // every Fighter whose Charisma is not half their level.
+    //
+    // ⚠️ Spends its own die (Bonus Action), so it needs the `added` re-pointer too.
+    item: [
+        {pass: 'created', macro: added, priority: 50},
+        {pass: 'itemMedkit', macro: added, priority: 50},
+        {pass: 'actorMunch', macro: added, priority: 50}
+    ]
+};
+export let maneuversTripAttack = {
+    name: 'Maneuvers: Trip Attack',
+    aliases: ['Maneuver: Trip Attack'],
+    version: '1.0.0',
+    rules: 'modern',
+    // Macro-free: a save activity carrying the die as damage plus a `Tripped` effect whose
+    // `statuses: ['prone']` applies the condition on a failed save. The driver appends the die.
+    // ⚠️ The "Large or smaller" size gate is NOT enforced — a save activity cannot express it, and
+    // the official PHB item does not either. 2014 CPR gated it in a handler, so this is a deliberate
+    // permissive step in the same direction as leaving "immediately before" to the GM.
+};
+export let maneuversPushingAttack = {
+    name: 'Maneuvers: Pushing Attack',
+    aliases: ['Maneuver: Pushing Attack'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ⚠️ The ONE of the four that cannot be macro-free: the official item ships the save and the
+    // damage but never moves anybody, so a macro-free port would be a Pushing Attack that does not
+    // push. This pass reads the settled save and shoves the failures.
+    // ⚠️ Same unenforced size gate as Trip Attack, for the same reason.
+    midi: {
+        item: [
+            {
+                pass: 'rollFinished',
+                macro: pushOnFailedSave,
+                priority: 50
+            }
+        ]
+    }
 };
 export let maneuversTacticalAssessment = {
     name: 'Maneuvers: Tactical Assessment',

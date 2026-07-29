@@ -92,10 +92,10 @@ test('TRIPWIRE: the trigger identifiers still awaiting a Batch B port are exactl
      * real, so it wants live verification rather than a silent behaviour change. Delete the entry
      * from PENDING as each lands.
      */
+    // Slice 4 ported Pushing Attack and Trip Attack (2026-07-29), so both left this set and the
+    // driver now offers them for real. Distracting Strike is the last on-hit rider outstanding.
     const PENDING = new Set([
-        'maneuversDistractingStrike',
-        'maneuversPushingAttack',
-        'maneuversTripAttack'
+        'maneuversDistractingStrike'
     ]);
     const modern = arrayLiteral(readFileSync(modernManeuvers, 'utf8'), 'modernTriggerManeuvers');
     const exported = modernRegistryExports();
