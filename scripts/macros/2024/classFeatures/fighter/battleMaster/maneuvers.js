@@ -1,7 +1,6 @@
 import {actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
-import {determineSuperiorityDie} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
+import {determineSuperiorityDie, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
-import {superiorityDice as superiorityDiceLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
 
 // CPR's 23 maneuvers are registered ONLY in the legacy registry, and premade lookup picks the pack
 // by the item's ruleset (`integrations/ddbi.js` maps 2014 -> legacy, 2024 -> modern), so a 2024-rules
@@ -522,14 +521,30 @@ export let maneuversMenacingAttack = {
 export let maneuversPrecisionAttack = {
     name: 'Maneuvers: Precision Attack',
     aliases: ['Maneuver: Precision Attack'],
-    version: '1.0.0',
+    // 1.1.0 — the 2024 miss-only gate, via midi's own `attack.fail.*` channel. See below.
+    version: '1.1.0',
     rules: 'modern',
-    // ⚠️ REAL 2024 DIFF, NOT ported. 2014 let you add the die "before or after making the attack
-    // roll"; 2024 is miss-only — "When you MISS with an attack roll". The encoding is midi's
-    // `optional.PrecisionAttack.attack.mwak/rwak`, which offers on every attack, so it is currently
-    // more permissive than 2024 RAW. Left as-is on purpose: gating an offer on the outcome is
-    // precisely the T86 mechanism, and it is a handler change, i.e. Batch B. Porting it permissive is
-    // still strictly better than today, where it does not resolve on a 2024 sheet at all.
+    // ✅ 2024 DIFF NOW PORTED (Batch B slice 1). 2014 let you add the die "before or after making
+    // the attack roll"; 2024 is miss-only — "When you MISS with an attack roll, you can expend one
+    // Superiority Die… potentially causing the attack to hit."
+    //
+    // ⚠️ This needed NO macro and NO midi patch — midi already implements a miss-only optional-bonus
+    // channel and we were simply on the wrong one. `Workflow.processAttackRollBonusFlags` runs two
+    // passes: `optional.<flag>.attack.<actionType>` on EVERY attack, then — gated on `isMiss`,
+    // computed against the AC captured at roll time — `optional.<flag>.attack.fail.<actionType>`.
+    // So the whole 2024 gate is the packData effect keys moving from `.attack.mwak/rwak` to
+    // `.attack.fail.mwak/rwak`. This item stays macro-free.
+    //
+    // Re-resolution is midi's too: `AttackActivity.rollAttack` calls `processAttackRollBonusFlags()`
+    // and only afterwards does `WorkflowState_AttackRollComplete` run `checkHits()`, so a die added
+    // through the fail channel is on the roll before hits are decided. Nothing re-runs by hand.
+    //
+    // ⚠️ KNOWN LIMIT, upstream: midi guards the fail pass with `if (this.targets.size === 1)`, so on
+    // a multi-target attack the offer never appears. Single-target is the norm for Precision Attack,
+    // and widening it would be a midi source-fork change for a rare case — deliberately not taken.
+    //
+    // ⚠️ The offer appearing IS the information "you missed" — which is correct here rather than a
+    // leak, because 2024's trigger is literally the miss (Vittorio, 2026-07-29). Contrast T2/T86.
 };
 export let maneuversTacticalAssessment = {
     name: 'Maneuvers: Tactical Assessment',
@@ -553,10 +568,51 @@ export let maneuversTacticalAssessment = {
 // items). ⚠️ That scale key is the DDB parse's; a sheet built from the official PHB 2024 compendium
 // uses `battle-master.superiority.die` instead and would silently fall back to d6. Not a problem for
 // Xender (DDB-imported), but it is the thing to check first if a maneuver ever rolls a stray d6.
+/**
+ * The 2024 on-hit riders — the maneuvers whose die is spent on an attack you have just landed, so
+ * the driver can offer them at `damageRollComplete`.
+ *
+ * ⚠️ This exists as its OWN list rather than reusing the legacy one for a single reason: 2024 drops
+ * **Grappling Strike**, and the legacy array still legitimately serves the 2014 line where that
+ * maneuver exists. Deleting it there would break 2014; leaving it here would offer a maneuver the
+ * modern ruleset does not have. Everything else in the legacy list is still a correct 2024 on-hit
+ * rider — diffed one by one against `dnd-players-handbook.classes` on 2026-07-29.
+ *
+ * ⚠️ **Sweeping Attack is deliberately absent**: `superiorityHelper` appends it itself when the
+ * attack is `mwak`, matching 2024's "when you hit a creature with a MELEE attack roll".
+ *
+ * ⚠️ Not on-hit and therefore correctly NOT here: Precision Attack (miss-only in 2024, and it rides
+ * midi's `optional.…attack.fail.*` channel, not this driver), Riposte and Parry (Reactions),
+ * Ambush / Commanding Presence / Evasive Footwork / Tactical Assessment (no attack involved), and
+ * Feinting / Lunging (their die lands on a LATER attack — the pending-die tracker, Batch B slice 2).
+ */
+export const modernTriggerManeuvers = [
+    'maneuversDisarmingAttack',
+    'maneuversDistractingStrike',
+    'maneuversGoadingAttack',
+    'maneuversManeuveringAttack',
+    'maneuversMenacingAttack',
+    'maneuversPushingAttack',
+    'maneuversTripAttack'
+];
+async function modernHit({workflow}) {
+    await superiorityHelper(workflow, {triggerManeuvers: modernTriggerManeuvers});
+}
 export let superiorityDice = {
     name: 'Superiority Dice',
     aliases: ['Combat Superiority'],
-    version: '1.0.0',
+    // 1.1.0 — the modern line no longer borrows the legacy driver's midi passes wholesale; it runs
+    // the same helper with its own trigger list (see above). Behaviour is identical except that
+    // Grappling Strike is no longer offered on a 2024 sheet.
+    version: '1.1.0',
     rules: 'modern',
-    midi: superiorityDiceLegacy.midi
+    midi: {
+        actor: [
+            {
+                pass: 'damageRollComplete',
+                macro: modernHit,
+                priority: 50
+            }
+        ]
+    }
 };
