@@ -1,5 +1,6 @@
 import {actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 import {determineSuperiorityDie, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
+import {selectPendingDie} from '../../../../../lib/utilities/pendingSuperiorityDie.mjs';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
 
 // CPR's 23 maneuvers are registered ONLY in the legacy registry, and premade lookup picks the pack
@@ -479,7 +480,16 @@ export let maneuversDisarmingAttack = {
 export let maneuversEvasiveFootwork = {
     name: 'Maneuvers: Evasive Footwork',
     aliases: ['Maneuver: Evasive Footwork'],
-    version: '1.0.0',
+    // 1.0.1 — ⚠️ BUGFIX (found 2026-07-29 while building slice 2's Feinting Attack off this shape).
+    // This registers the `added` consumption re-pointer below, but its packData carried NO
+    // `flags.chris-premades.activityIdentifiers`, and that map is the ONLY thing
+    // `activityUtils.getActivityByIdentifier` reads. So `correctActivityItemConsumption(item,
+    // ['use'], …)` resolved nothing on every add, with two visible consequences: a warning toast
+    // ("Activity not found") via the `strict: true` path, and — the real damage — the consumption
+    // target left pointing at the COMPENDIUM Superiority Dice item, which is exactly the "0 of 1
+    // usage while Combat Superiority sits at 4/4" failure the re-pointer exists to prevent.
+    // Fixed by adding `activityIdentifiers: {use: 'dnd5eactivity000'}` to the packData entry.
+    version: '1.0.1',
     rules: 'modern',
     // ⚠️ REAL 2024 DIFF, partly ported. 2014: "When you move… add the die to your AC until you stop
     // moving." 2024: "AS A BONUS ACTION… and TAKE THE DISENGAGE ACTION. You also… add the number
@@ -546,6 +556,44 @@ export let maneuversPrecisionAttack = {
     // ⚠️ The offer appearing IS the information "you missed" — which is correct here rather than a
     // leak, because 2024's trigger is literally the miss (Vittorio, 2026-07-29). Contrast T2/T86.
 };
+export let maneuversFeintingAttack = {
+    name: 'Maneuvers: Feinting Attack',
+    aliases: ['Maneuver: Feinting Attack'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ⚠️ REAL 2024 DIFF vs 2014, and the reason this is Batch B rather than Batch A: 2014 Feinting
+    // Attack gave advantage on "your next attack roll against that creature THIS TURN" too, but CPR's
+    // legacy entry never modelled the deferred die at all. The payout rides the slice-2 tracker.
+    //
+    // ⚠️ It spends its OWN die (Bonus Action, up front) rather than being spent by the driver, so it
+    // needs the `added` consumption re-pointer — the §T83 distinction.
+    midi: {
+        item: [
+            {
+                pass: 'rollFinished',
+                macro: useFeintingAttack,
+                priority: 50
+            }
+        ]
+    },
+    item: [
+        {
+            pass: 'created',
+            macro: added,
+            priority: 50
+        },
+        {
+            pass: 'itemMedkit',
+            macro: added,
+            priority: 50
+        },
+        {
+            pass: 'actorMunch',
+            macro: added,
+            priority: 50
+        }
+    ]
+};
 export let maneuversTacticalAssessment = {
     name: 'Maneuvers: Tactical Assessment',
     aliases: ['Maneuver: Tactical Assessment'],
@@ -595,8 +643,123 @@ export const modernTriggerManeuvers = [
     'maneuversPushingAttack',
     'maneuversTripAttack'
 ];
+const PENDING_FLAG = 'superiorityDie';
+
+/**
+ * Bank a superiority die against a LATER attack this turn (Feinting Attack; Lunging Attack in
+ * slice 3). The die is spent by the maneuver's own consumption when it is used, so what lives here
+ * is only the promise to append it once a qualifying attack lands.
+ *
+ * ⚠️ Built at runtime rather than in packData because the advantage change has to name the chosen
+ * target's token id, which does not exist until the maneuver is used. Same reason `vex()` in
+ * `mechanics/masteries.js` builds its effect in code, and this deliberately copies that shape.
+ *
+ * @param {object} workflow the maneuver's own workflow
+ * @param {object} options
+ * @param {string} options.identifier   the maneuver's CPR identifier
+ * @param {string} options.die          e.g. "d8"
+ * @param {Token} [options.targetToken] reserve the die for this creature only
+ * @param {boolean} [options.requiresMelee] only a melee attack may consume it
+ * @param {boolean} [options.grantAdvantage] also grant advantage against that target
+ */
+async function bankSuperiorityDie(workflow, {identifier, die, targetToken, requiresMelee = false, grantAdvantage = false}) {
+    let changes = [];
+    if (grantAdvantage && targetToken) {
+        // The `vex()` idiom: a conditional midi advantage flag scoped to one token id. midi
+        // evaluates the expression with `workflow` in scope at attack time.
+        changes.push({
+            key: 'flags.midi-qol.advantage.attack.all',
+            mode: 2,
+            value: 'workflow.targets.first().id === "' + targetToken.id + '"',
+            priority: 20
+        });
+    }
+    let effectData = {
+        name: workflow.item.name,
+        img: workflow.item.img,
+        origin: workflow.item.uuid,
+        changes,
+        duration: {},
+        flags: {
+            dae: {
+                // "this turn" — the maneuver is a Bonus Action on your own turn, so the promise dies
+                // with that turn. (Contrast Evasive Footwork's `turnStartSource`, which is "until the
+                // START of your next turn".) `combatEnd` is the same belt-and-braces vex uses.
+                specialDuration: ['turnEndSource', 'combatEnd'],
+                stackable: 'multi',
+                showIcon: true
+            },
+            'chris-premades': {
+                [PENDING_FLAG]: {
+                    pending: {
+                        identifier,
+                        name: workflow.item.name,
+                        die,
+                        targetId: targetToken?.id,
+                        requiresMelee
+                    }
+                }
+            }
+        }
+    };
+    await effectUtils.createEffect(workflow.actor, effectData, {identifier});
+}
+
+/**
+ * Spend a banked die on the attack that just hit, if one qualifies.
+ * @returns {Promise<boolean>} true when a die was consumed — the caller must then NOT offer another
+ *                             maneuver, because RAW allows only one per attack.
+ */
+async function consumePendingSuperiorityDie(workflow) {
+    let effects = actorUtils.getEffects(workflow.actor)
+        .filter(i => i.flags['chris-premades']?.[PENDING_FLAG]?.pending);
+    if (!effects.length) return false;
+    let attack = {
+        actionType: workflowUtils.getActionType(workflow),
+        hitTargetIds: [...(workflow.hitTargets ?? [])].map(i => i.id)
+    };
+    let byPending = new Map(effects.map(i => [i.flags['chris-premades'][PENDING_FLAG].pending, i]));
+    let chosen = selectPendingDie([...byPending.keys()], attack);
+    if (!chosen) return false;
+    await workflowUtils.bonusDamage(workflow, chosen.die, {damageType: workflow.defaultDamageType});
+    // Same explanation the driver posts, so the damage ⓘ accounts for every die on the card.
+    await rollUtils.postRerollNote(workflow, {
+        source: chosen.name,
+        kind: 'superiorityDie',
+        die: chosen.die,
+        total: workflow.damageRolls.at(-1).total
+    });
+    await genericUtils.remove(byPending.get(chosen));
+    return true;
+}
+
 async function modernHit({workflow}) {
+    // A banked die IS this attack's maneuver — RAW caps it at one per attack, so a consumed die
+    // must suppress the driver's offer rather than stack with it.
+    if (await consumePendingSuperiorityDie(workflow)) return;
     await superiorityHelper(workflow, {triggerManeuvers: modernTriggerManeuvers});
+}
+
+/**
+ * 2024 Feinting Attack: "As a Bonus Action, you can expend one Superiority Die to feint, choosing
+ * one creature within 5 feet of yourself as your target. You have Advantage on your next attack roll
+ * against that target this turn. If that attack hits, add the Superiority Die to the attack's damage
+ * roll."
+ *
+ * ⚠️ We automate BOTH halves. The official PHB item says outright that it "does not automate the
+ * Advantage" and ships a Damage activity you fire by hand after the hit; riding the tracker means
+ * the die lands on the right attack automatically and cannot be spent twice.
+ */
+async function useFeintingAttack({workflow}) {
+    if (workflow.targets.size !== 1) return;
+    let [, superiorityDie] = await determineSuperiorityDie(workflow.actor);
+    if (!superiorityDie) return;
+    await bankSuperiorityDie(workflow, {
+        identifier: 'maneuversFeintingAttack',
+        die: superiorityDie,
+        targetToken: workflow.targets.first(),
+        grantAdvantage: true
+    });
 }
 export let superiorityDice = {
     name: 'Superiority Dice',

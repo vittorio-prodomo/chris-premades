@@ -1,9 +1,9 @@
 {
-  "name": "Maneuvers: Evasive Footwork",
+  "name": "Maneuvers: Feinting Attack",
   "type": "feat",
   "system": {
     "description": {
-      "value": "<p>As a Bonus Action, you can expend one Superiority Die and take the Disengage action. You also roll the die and add the number rolled to your AC until the start of your next turn.</p>",
+      "value": "<p>As a Bonus Action, you can expend one Superiority Die to feint, choosing one creature within 5 feet of yourself as your target. You have Advantage on your next attack roll against that target this turn. If that attack hits, add the Superiority Die to the attack's damage roll.</p>",
       "chat": ""
     },
     "source": {
@@ -57,18 +57,15 @@
         },
         "duration": {
           "concentration": false,
-          "value": "1",
-          "units": "turn",
+          "value": "",
+          "units": "inst",
           "special": "",
           "override": false
         },
-        "effects": [
-          {
-            "_id": "gg56h7BAPvCMEOs1"
-          }
-        ],
+        "effects": [],
         "range": {
-          "units": "self",
+          "units": "ft",
+          "value": "5",
           "special": "",
           "override": false
         },
@@ -83,8 +80,8 @@
             "units": "ft"
           },
           "affects": {
-            "count": "",
-            "type": "self",
+            "count": "1",
+            "type": "creature",
             "choice": false,
             "special": ""
           },
@@ -109,9 +106,7 @@
         "midiAutomationOnly": false,
         "name": "",
         "img": "",
-        "appliedEffects": [
-          "gg56h7BAPvCMEOs1"
-        ],
+        "appliedEffects": [],
         "useConditionReason": "",
         "macroData": {
           "name": "",
@@ -209,74 +204,27 @@
     },
     "chris-premades": {
       "info": {
-        "name": "Maneuvers: Evasive Footwork",
-        "version": "1.0.1",
-        "identifier": "maneuversEvasiveFootwork",
+        "name": "Maneuvers: Feinting Attack",
+        "version": "1.0.0",
+        "identifier": "maneuversFeintingAttack",
         "source": "chris-premades",
         "rules": "modern"
+      },
+      "macros": {
+        "midi": {
+          "item": [
+            "maneuversFeintingAttack"
+          ]
+        }
       },
       "activityIdentifiers": {
         "use": "dnd5eactivity000"
       }
     }
   },
-  "effects": [
-    {
-      "name": "Maneuvers: Evasive Footwork",
-      "origin": "Compendium.world.cpr-class-features.Item.1RNZzStWrEApafCO",
-      "duration": {
-        "rounds": null,
-        "startTime": null,
-        "seconds": null,
-        "combat": null,
-        "turns": null,
-        "startRound": null,
-        "startTurn": null
-      },
-      "disabled": false,
-      "flags": {
-        "dnd5e": {},
-        "dae": {
-          "enableCondition": "",
-          "disableCondition": "",
-          "disableIncapacitated": false,
-          "selfTarget": false,
-          "selfTargetAlways": false,
-          "dontApply": false,
-          "stackable": "noneName",
-          "showIcon": false,
-          "durationExpression": "",
-          "macroRepeat": "none",
-          "specialDuration": [
-            "turnStartSource"
-          ]
-        },
-        "core": {
-          "overlay": false
-        }
-      },
-      "img": "icons/skills/melee/weapons-crossed-swords-yellow.webp",
-      "_id": "gg56h7BAPvCMEOs1",
-      "type": "base",
-      "system": {},
-      "changes": [
-        {
-          "key": "system.attributes.ac.bonus",
-          "mode": 2,
-          "value": "[[@scale.battle-master.combat-superiority-die]]",
-          "priority": 20
-        }
-      ],
-      "description": "",
-      "tint": "#ffffff",
-      "transfer": false,
-      "statuses": [],
-      "sort": 0,
-      "_key": "!items.effects!cprMnvEvasive024.gg56h7BAPvCMEOs1"
-    }
-  ],
-  "img": "icons/skills/melee/weapons-crossed-swords-yellow.webp",
+  "effects": [],
+  "img": "icons/skills/melee/spear-tips-three-purple.webp",
   "folder": "aMstBUc2lUQZSNyK",
-  "_id": "cprMnvEvasive024",
-  "_key": "!items!cprMnvEvasive024"
+  "_id": "cprMnvFeintng024",
+  "_key": "!items!cprMnvFeintng024"
 }
