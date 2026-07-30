@@ -92,11 +92,12 @@ test('TRIPWIRE: the trigger identifiers still awaiting a Batch B port are exactl
      * real, so it wants live verification rather than a silent behaviour change. Delete the entry
      * from PENDING as each lands.
      */
-    // Slice 4 ported Pushing Attack and Trip Attack (2026-07-29), so both left this set and the
-    // driver now offers them for real. Distracting Strike is the last on-hit rider outstanding.
-    const PENDING = new Set([
-        'maneuversDistractingStrike'
-    ]);
+    // Slice 4a ported Pushing Attack and Trip Attack (2026-07-29); slice 4b ported Distracting
+    // Strike (2026-07-30), the last one. ⚠️ EMPTY IS NOW THE CORRECT STATE — every identifier the
+    // 2024 driver offers resolves to a real modern maneuver. If this set grows again, someone added
+    // a trigger identifier ahead of its port; that is still legitimate (see above), but it means the
+    // driver is offering something that silently does nothing until the port lands.
+    const PENDING = new Set([]);
     const modern = arrayLiteral(readFileSync(modernManeuvers, 'utf8'), 'modernTriggerManeuvers');
     const exported = modernRegistryExports();
     const stillPending = modern.filter(i => !exported.has(i)).sort();

@@ -507,7 +507,7 @@ export {secondWind} from './macros/2024/classFeatures/fighter/secondWind.js';
 export {tacticalMind} from './macros/2024/classFeatures/fighter/tacticalMind.js';
 export {heroicWarrior} from './macros/2024/classFeatures/fighter/heroicWarrior.js';
 export {studiedAttacks} from './macros/2024/classFeatures/fighter/studiedAttacks.js';
-export {maneuversAmbush, maneuversCommandingPresence, maneuversDisarmingAttack, maneuversEvasiveFootwork, maneuversFeintingAttack, maneuversGoadingAttack, maneuversLungingAttack, maneuversManeuveringAttack, maneuversMenacingAttack, maneuversParry, maneuversPrecisionAttack, maneuversPushingAttack, maneuversRally, maneuversRiposte, maneuversTacticalAssessment, maneuversTripAttack, superiorityDice} from './macros/2024/classFeatures/fighter/battleMaster/maneuvers.js';
+export {distractingStrikeEffect, maneuversAmbush, maneuversCommandingPresence, maneuversDisarmingAttack, maneuversDistractingStrike, maneuversEvasiveFootwork, maneuversFeintingAttack, maneuversGoadingAttack, maneuversLungingAttack, maneuversManeuveringAttack, maneuversMenacingAttack, maneuversParry, maneuversPrecisionAttack, maneuversPushingAttack, maneuversRally, maneuversRiposte, maneuversSweepingAttack, maneuversTacticalAssessment, maneuversTripAttack, superiorityDice} from './macros/2024/classFeatures/fighter/battleMaster/maneuvers.js';
 // Banneret
 export {groupRecovery} from './macros/2024/classFeatures/fighter/banneret/groupRecovery.js';
 export {knightlyEnvoy} from './macros/2024/classFeatures/fighter/banneret/knightlyEnvoy.js';

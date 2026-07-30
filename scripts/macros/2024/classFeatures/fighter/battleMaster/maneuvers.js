@@ -1,4 +1,4 @@
-import {actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
+import {activityUtils, actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 import {determineSuperiorityDie, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
 import {selectPendingDie, satisfiesMovementRequirement} from '../../../../../lib/utilities/pendingSuperiorityDie.mjs';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
@@ -762,6 +762,227 @@ export let maneuversTacticalAssessment = {
     rules: 'modern'
     // Edition-stable: History, Investigation and Insight in both, matching `skill.his` / `skill.inv`
     // / `skill.ins`.
+};
+
+/*
+ * T81 BATCH B slice 4b — the two ports that need a HANDLER rather than an encoding.
+ *
+ * Both are shape-stable between editions (2024 text read from `dnd-players-handbook.classes`), so
+ * unlike slice 4a there is no RAW diff to express. What keeps them out of Batch A is that the
+ * official items automate nothing interesting: Distracting Strike ships a `Distracted` marker with
+ * ZERO changes and says so in its own Foundry Note, and Sweeping Attack ships only a Damage
+ * activity — it never rolls the second attack at all. CPR's legacy handlers do model both.
+ *
+ * ⚠️ Two upstream defects are fixed rather than ported; see `useSweepingAttack`.
+ */
+
+/**
+ * 2024 Distracting Strike: "When you hit a creature with an attack roll, you can expend one
+ * Superiority Die to distract the target. Add the Superiority Die roll to the attack's damage roll.
+ * The next attack roll against the target by an attacker other than you has Advantage if the attack
+ * is made before the start of your next turn."
+ *
+ * The die is the driver's business (`superiorityHelper` appends it); this handler only plants the
+ * marker.
+ *
+ * ⚠️ THE EXCLUSION READS `targetActorUuid`, AND THAT IS NOT A TYPO. For a `grants.*` flag midi
+ * INVERTS the condition frame: `RollModifierTracker.ts` builds the data with `actor: grantsActor`
+ * (the defender, who holds the flag) and `target: tokenForActor(actor)` (the ATTACKER). So inside
+ * this condition `targetActorUuid` is the attacker's actor — which is exactly what RAW's "by an
+ * attacker other than you" needs to test. Verified against midi 13.0.63.
+ */
+async function useDistractingStrike({workflow}) {
+    if (workflow.targets.size !== 1) return;
+    let targetActor = workflow.targets.first()?.actor;
+    if (!targetActor) return;
+    let effectData = {
+        name: workflow.item.name,
+        img: workflow.item.img,
+        origin: workflow.item.uuid,
+        duration: {
+            rounds: 1
+        },
+        changes: [
+            {
+                key: 'flags.midi-qol.grants.advantage.attack.all',
+                mode: 0,
+                value: 'targetActorUuid !== "' + workflow.actor.uuid + '"',
+                priority: 20
+            }
+        ],
+        flags: {
+            dae: {
+                // "before the start of your next turn" — the SOURCE's turn, not the target's.
+                specialDuration: [
+                    'turnStartSource'
+                ]
+            }
+        }
+    };
+    effectUtils.addMacro(effectData, 'midi.actor', ['distractingStrikeEffect']);
+    /**
+     * ⚠️ `rules` IS LOAD-BEARING, AND ITS ABSENCE FAILS SILENTLY.
+     *
+     * `genericUtils.getRules(entity)` infers the ruleset from `system.source.rules` only for ITEMS;
+     * for an ActiveEffect it reads `flags.chris-premades.rules` and DEFAULTS TO 'legacy'. The macro
+     * above is carried by NAME, and `custom.getMacro(name, rules)` resolves
+     * `rules === 'modern' ? macros[name] : legacyMacros[name]`.
+     *
+     * So an unstamped effect created here would run the 2014 `distractingStrikeEffect` handler. It
+     * would even appear to work — the consume-on-first-attack logic is edition-stable — which is
+     * what makes it worth pinning: the coupling is invisible until someone tunes the legacy side,
+     * the same trap as Riposte silently sharing Brace's handler upstream.
+     */
+    await effectUtils.createEffect(targetActor, effectData, {rules: distractingStrikeEffect.rules});
+}
+
+/**
+ * Clear the marker once it has been used: "The NEXT attack roll against the target…".
+ *
+ * The fighter's own attacks must not consume it — they are the one attacker RAW excludes, so
+ * burning it on their follow-up swing would waste a die they already paid.
+ *
+ * ⚠️ `fromUuid` is guarded where the legacy handler dereferences blind. A marker can outlive its
+ * origin item (a DDB re-import deletes and recreates items), and an unguarded throw inside a midi
+ * pass takes out the rest of that pass's macros, not just this one.
+ */
+async function distractingStrikeEffectHit({trigger: {entity: effect}, workflow}) {
+    if (!workflow.targets.size) return;
+    if (!workflowUtils.isAttackType(workflow, 'attack')) return;
+    let originItem = await fromUuid(effect.origin);
+    if (originItem?.actor === workflow.actor) return;
+    await genericUtils.remove(effect);
+}
+
+/**
+ * 2024 Sweeping Attack: "When you hit a creature with a melee attack roll using a weapon or an
+ * Unarmed Strike, you can expend one Superiority Die to attempt to damage another creature. Choose
+ * another creature within 5 feet of the original target and within your reach. If the original
+ * attack roll would hit the second creature, it takes damage equal to the number you roll on your
+ * Superiority Die. The damage is of the same type dealt by the original attack."
+ *
+ * The driver stashes the first attack's roll/type/reach on this item
+ * (`superiorityHelper`'s `maneuversSweepingAttack` branch) instead of appending the die, because
+ * the die belongs to the SECOND creature's damage, not the first's.
+ *
+ * ⚠️ The superiority die is read straight off the scale rather than via `determineSuperiorityDie`,
+ * which would re-prompt for a pool the driver has already picked. `useSmallSuperiorityDie` is the
+ * driver's flag for "this use is a d6 pool" (Martial Adept / Superior Technique).
+ *
+ * ⚠️ TWO UPSTREAM DEFECTS FIXED, NOT PORTED:
+ *  1. The legacy gate is `if (!target?.length || !target[1]) return;` — but `selectTargetDialog`
+ *     returns `[result, skip]`, where `skip` is the "Skip Dead and Unconscious" CHECKBOX, not a
+ *     confirmation. Unchecking it made the whole maneuver a silent no-op with the die already
+ *     committed. Cancel is still caught by the first half: the dialog returns `false` on cancel and
+ *     `false?.length` is undefined.
+ *  2. The two branches returned different types — `target[0].document` (a TokenDocument) from the
+ *     dialog, a raw Token from the single-candidate path. Tokens are the house convention here
+ *     (cf. `useRiposte`, `useManeuveringAttack`), so both now yield a Token.
+ */
+async function useSweepingAttack({workflow}) {
+    if (!workflow.targets.size) return;
+    let superiorityDie = workflow.actor.system.scale?.['battle-master']?.['combat-superiority-die']?.die ?? 'd6';
+    let useSmall = genericUtils.getProperty(workflow.actor, 'flags.chris-premades.useSmallSuperiorityDie');
+    if (useSmall) superiorityDie = 'd6';
+    let {currAttackRoll, currDamageType, currRange} = workflow.item.flags['chris-premades']?.sweepingAttack ?? {};
+    if (!currAttackRoll) return;
+    let feature = activityUtils.getActivityByIdentifier(workflow.item, 'sweepingAttackAttack', {strict: true});
+    if (!feature) return;
+    // Both halves of "within 5 feet of the original target AND within your reach". The reach half is
+    // measured with the weapon's own range, which the driver stashed alongside the roll.
+    let nearbyTargets = tokenUtils.findNearby(workflow.targets.first(), 5, 'ally');
+    let realNearbyTargets = tokenUtils.findNearby(workflow.token, currRange, 'enemy').filter(i => nearbyTargets.includes(i));
+    if (!realNearbyTargets.length) return;
+    let target = realNearbyTargets[0];
+    if (realNearbyTargets.length > 1) {
+        let picked = await dialogUtils.selectTargetDialog(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.SelectTarget', realNearbyTargets);
+        if (!picked?.length || !picked[0]) return;
+        target = picked[0];
+    }
+    let activityData = activityUtils.withChangedDamage(feature, superiorityDie, [currDamageType]);
+    await workflowUtils.syntheticActivityDataRoll(activityData, workflow.item, workflow.actor, [target]);
+}
+
+/**
+ * "If the ORIGINAL attack roll would hit the second creature" — the same roll re-checked against a
+ * different AC, not a fresh one. Replacing the roll lets midi decide hit/miss normally.
+ *
+ * ⚠️ `criticalSuccess: Infinity` stops the replayed total from being re-read as a natural 20: the
+ * replacement is a flat number, and a 20 there is the first attack's total, not a die face.
+ */
+async function sweepingAttackAttack({workflow}) {
+    let currAttackRoll = workflow.item.flags['chris-premades']?.sweepingAttack?.currAttackRoll;
+    if (!currAttackRoll) return;
+    let replacementRoll = await new Roll(String(currAttackRoll), {}, {criticalSuccess: Infinity}).evaluate();
+    await workflow.setAttackRoll(replacementRoll);
+}
+
+export let maneuversDistractingStrike = {
+    name: 'Maneuvers: Distracting Strike',
+    aliases: ['Maneuver: Distracting Strike'],
+    version: '1.0.0',
+    rules: 'modern',
+    // Edition-stable mechanic. The only wording change is the trigger: 2014 said "hit with a WEAPON
+    // attack", 2024 says "hit with an attack roll". Not expressed here because the on-hit gate lives
+    // on the shared driver (`superiorityHelper` checks `isAttackType(workflow, 'weaponAttack')`) and
+    // applies to every rider — widening it is a driver-level change, not this maneuver's.
+    //
+    // Driver-spent, so NO `added` passes and no consumption target — the §T83 distinction.
+    midi: {
+        item: [
+            {
+                pass: 'rollFinished',
+                macro: useDistractingStrike,
+                priority: 50
+            }
+        ]
+    }
+};
+export let distractingStrikeEffect = {
+    name: 'Distracting Strike: Effect',
+    version: '1.0.0',
+    // ⚠️ Must be 'modern' AND exported from macros.js: the marker carries this macro by name, and an
+    // effect stamped `rules: 'modern'` is looked up in the modern registry only. See useDistractingStrike.
+    rules: 'modern',
+    midi: {
+        actor: [
+            {
+                pass: 'targetRollFinished',
+                macro: distractingStrikeEffectHit,
+                priority: 50
+            }
+        ]
+    }
+};
+export let maneuversSweepingAttack = {
+    name: 'Maneuvers: Sweeping Attack',
+    aliases: ['Maneuver: Sweeping Attack'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ⚠️ Deliberately NOT in `modernTriggerManeuvers`: `superiorityHelper` appends it itself, but
+    // only when the attack is `mwak`, which is what 2024's "with a melee attack roll" requires.
+    // Listing it here would offer it on ranged attacks too.
+    //
+    // Driver-spent (the helper decrements the die after `completeItemUse`), so no consumption target
+    // and no `added` passes — but it DOES need `activityIdentifiers`, for a different reason than
+    // Parry and Rally do: `getActivityByIdentifier(item, 'sweepingAttackAttack', {strict: true})` is
+    // the only way the handler reaches its own hidden attack activity.
+    midi: {
+        item: [
+            {
+                pass: 'rollFinished',
+                macro: useSweepingAttack,
+                priority: 50,
+                activities: ['maneuversSweepingAttack']
+            },
+            {
+                pass: 'postAttackRoll',
+                macro: sweepingAttackAttack,
+                priority: 50,
+                activities: ['sweepingAttackAttack']
+            }
+        ]
+    }
 };
 
 // ⚠️ THE DRIVER. Without this the three maneuvers above are inert on a 2024 sheet — nothing invokes
