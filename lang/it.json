@@ -1496,6 +1496,12 @@
                 "Shield": "Scudo come reazione?"
             },
             "Maneuvers": {
+                "AmbushBody": "<p><strong>{name}</strong> ha ottenuto <strong>{initiative}</strong> in Iniziativa.</p><p>Vuoi spendere un Dado di Superiorità e aggiungerlo al tiro? L'ordine di turno è ancora nascosto.</p>",
+                "AmbushDecline": "Tieni il tiro",
+                "AmbushFlavor": "{name}: Iniziativa {from} → {to}",
+                "AmbushSpend": "Spendi un dado ({die})",
+                "AmbushTimer": "<em>Rifiutata automaticamente tra {seconds}s.</em>",
+                "AmbushTitle": "Imboscata — {name}",
                 "BaitSwitchAC": "Chi riceve il bonus CA?",
                 "BaitSwitchIncapacitated": "Quella creatura ha la condizione Incapacitato e non può scambiarsi di posto con te.",
                 "BaitSwitchNoMovement": "Esca e Scambio richiede almeno 1,5 metri di movimento spesi in questo turno.",
@@ -2591,6 +2597,10 @@
             "addCompendiumButton": {
                 "Hint": "Quando abilitato, un pulsante verrà aggiunto all'intestazione dei compendi per copiare l'id.",
                 "Name": "Pulsante ID Compendio"
+            },
+            "ambushInitiativeTimeout": {
+                "Hint": "Secondi prima che un'offerta di Imboscata senza risposta venga rifiutata automaticamente. Finché l'offerta è aperta l'ordine di turno resta nascosto a quel giocatore, quindi questo valore limita anche l'attesa del carosello.",
+                "Name": "Timer Offerta Imboscata (secondi)"
             },
             "additionalCompendiums": {
                 "Hint": "Seleziona compendi aggiuntivi di oggetti da usare con il medkit e regola la loro priorità.",

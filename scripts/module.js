@@ -36,6 +36,7 @@ import {itemDirectory} from './applications/itemDirectory.js';
 import {activities} from './extensions/activities.js';
 import {migrate} from './migrations.js';
 import {initiative} from './extensions/initiative.js';
+import {ambushInitiative} from './extensions/ambushInitiative.js';
 import {EmbeddedMacros} from './applications/embeddedMacros.js';
 import {ui} from './extensions/ui.js';
 import {toolCheck} from './events/toolCheck.js';
@@ -106,6 +107,9 @@ Hooks.once('ready', () => {
     activities.patchCanUse();
     toolCheck.patch();
     if (utils.genericUtils.getCPRSetting('groupSummonsWithOwner')) initiative.patch(true);
+    // Fork-local: Ambush's initiative half. Unconditional — the offer gates itself on the actor
+    // actually carrying the maneuver, so a table without a Battle Master never sees it.
+    ambushInitiative.ready();
     rollResolver.patch(true);
     if (utils.genericUtils.getCPRSetting('manualRollsEnabled')) {
         rollResolver.registerFulfillmentMethod();

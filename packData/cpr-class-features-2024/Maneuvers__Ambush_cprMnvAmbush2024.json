@@ -123,8 +123,8 @@
           "selfTargetAlways": false,
           "durationExpression": "",
           "macroRepeat": "none",
-          "disableCondition": "",
-          "disableIncapacitated": false,
+          "disableCondition": "@statuses.incapacitated",
+          "disableIncapacitated": true,
           "showIcon": false
         },
         "midi-qol": {

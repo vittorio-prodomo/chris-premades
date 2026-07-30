@@ -432,6 +432,12 @@ export function registerSettings() {
         }
     });
     addSetting({
+        key: 'ambushInitiativeTimeout',
+        type: Number,
+        default: 30,
+        category: 'mechanics'
+    });
+    addSetting({
         key: 'syncActorSizeToTokens',
         type: Boolean,
         default: false,
