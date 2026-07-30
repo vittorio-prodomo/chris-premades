@@ -65,6 +65,9 @@
         "effects": [
           {
             "_id": "gg56h7BAPvCMEOs1"
+          },
+          {
+            "_id": "cprEvasiveDiseng"
           }
         ],
         "range": {
@@ -210,7 +213,7 @@
     "chris-premades": {
       "info": {
         "name": "Maneuvers: Evasive Footwork",
-        "version": "1.0.1",
+        "version": "1.1.0",
         "identifier": "maneuversEvasiveFootwork",
         "source": "chris-premades",
         "rules": "modern"
@@ -273,6 +276,59 @@
       "statuses": [],
       "sort": 0,
       "_key": "!items.effects!cprMnvEvasive024.gg56h7BAPvCMEOs1"
+    },
+    {
+      "name": "Disengage",
+      "origin": "Compendium.world.cpr-class-features.Item.1RNZzStWrEApafCO",
+      "duration": {
+        "rounds": null,
+        "startTime": null,
+        "seconds": null,
+        "combat": null,
+        "turns": null,
+        "startRound": null,
+        "startTurn": null
+      },
+      "disabled": false,
+      "flags": {
+        "dnd5e": {},
+        "dae": {
+          "enableCondition": "",
+          "disableCondition": "",
+          "disableIncapacitated": false,
+          "selfTarget": false,
+          "selfTargetAlways": false,
+          "dontApply": false,
+          "stackable": "noneName",
+          "showIcon": false,
+          "durationExpression": "",
+          "macroRepeat": "none",
+          "specialDuration": [
+            "turnEnd"
+          ]
+        },
+        "core": {
+          "overlay": false
+        }
+      },
+      "img": "icons/skills/movement/feet-winged-boots-blue.webp",
+      "_id": "cprEvasiveDiseng",
+      "type": "base",
+      "system": {},
+      "changes": [
+        {
+          "key": "flags.gambits-premades.oaImmunity",
+          "mode": 5,
+          "value": "1",
+          "priority": 20
+        }
+      ],
+      "description": "",
+      "tint": "#ffffff",
+      "transfer": false,
+      "statuses": [],
+      "sort": 0,
+      "_key": "!items.effects!cprMnvEvasive024.cprEvasiveDiseng"
     }
   ],
   "img": "icons/skills/melee/weapons-crossed-swords-yellow.webp",
