@@ -216,13 +216,18 @@
     "chris-premades": {
       "info": {
         "name": "Maneuvers: Rally",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "identifier": "maneuversRally",
         "source": "chris-premades",
         "rules": "modern"
       },
       "activityIdentifiers": {
         "use": "uyAnJsUHU2Aek9Lk"
+      },
+      "macros": {
+        "item": [
+          "maneuversRally"
+        ]
       }
     }
   },

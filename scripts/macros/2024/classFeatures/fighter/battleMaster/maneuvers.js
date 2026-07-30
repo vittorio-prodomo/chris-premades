@@ -158,9 +158,62 @@ async function offerRiposte({trigger, workflow}) {
     await workflowUtils.syntheticItemRoll(item, [workflow.token], {consumeResources: true});
 }
 
+const PARRY_FLAG = 'parryReduction';
+
 /**
- * The shared gate for a REACTION maneuver offered from the target side (Riposte now, Parry when
- * Batch B lands). Deliberately does NOT check hit/miss — that is the per-maneuver trigger.
+ * Remember what a Parry rolled, so the attacker's workflow can subtract it.
+ *
+ * ⚠️ **WE DO NOT OFFER PARRY OURSELVES, AND THAT IS DELIBERATE.** midi already does: its
+ * ReactionDialog lists the item, and `utils.ts:5508` defaults an unconditioned reaction to
+ * `reaction === "isHit"`. The packData narrows that to `isDamaged`, which is the trigger 2024
+ * actually names ("When another creature DAMAGES you with a melee attack roll") and the point at
+ * which the total is known. Adding a CPR prompt on top would mean two dialogs for one reaction.
+ *
+ * The roll and the damage live in DIFFERENT workflows — Parry's own use produces the number, the
+ * attacker's workflow owns the damage item — so the number is stashed here and consumed by
+ * `applyParryReduction` at `targetApplyDamage`. midi fires the `isDamaged` reaction inside
+ * `processDamageRoll`, and `preTargetDamageApplication` (which is what `targetApplyDamage` rides)
+ * runs after it, so the stash is always in place before the consumer looks.
+ *
+ * ⚠️ **THE ACTIVITY'S OWN ROLL IS THE NUMBER — do not roll again here.** A utility activity whose
+ * `roll.visible` is false rolls its formula automatically, so `workflow.utilityRoll` is already
+ * populated. Rolling a second time in code (as the legacy handler does, because its activity ships an
+ * empty formula) posts TWO identical cards for one parry — observed live before this was corrected.
+ *
+ * ⚠️ Consequence worth knowing: the formula reads `@scale.battle-master.combat-superiority-die`, so
+ * an alternate pool — Martial Adept or the Superior Technique fighting style, both flat d6 — rolls
+ * the Battle Master die instead. Every other 2024 maneuver that reads the scale key has the same
+ * limitation (Feinting, Lunging); fixing it belongs to all of them at once, not here.
+ */
+async function stashParryReduction({trigger: {entity: item}, workflow}) {
+    let reduction = workflow.utilityRoll?.total;
+    if (!reduction) return;
+    await genericUtils.setFlag(item.parent, 'chris-premades', PARRY_FLAG, reduction);
+}
+
+/**
+ * Subtract a parried amount from the damage about to be applied.
+ *
+ * `targetApplyDamage` is the last pass where `ditem` is still mutable, which is what "reduce the
+ * damage" needs. `modifyDamageAppliedFlat` clamps at `-hpDamage - tempDamage`, so an oversized roll
+ * can never turn into accidental healing.
+ *
+ * ⚠️ The stash is cleared unconditionally once read. Leaving it would quietly reduce the NEXT attack
+ * as well, which is the sort of thing that looks like a defence bonus nobody can account for.
+ */
+async function applyParryReduction({trigger: {entity: item}, workflow, ditem}) {
+    let reduction = item.parent?.flags['chris-premades']?.[PARRY_FLAG];
+    if (!reduction) return;
+    await genericUtils.setFlag(item.parent, 'chris-premades', PARRY_FLAG, null);
+    if (!ditem.isHit) return;
+    if (!workflowUtils.isAttackType(workflow, 'meleeAttack')) return;
+    workflowUtils.modifyDamageAppliedFlat(ditem, -reduction);
+}
+
+/**
+ * The shared gate for a REACTION maneuver offered from the target side (Riposte's own offer).
+ * Deliberately does NOT check hit/miss — that is the per-maneuver trigger.
+ * ⚠️ Parry does NOT use this: midi offers Parry, so CPR only applies the result.
  * @returns {Promise<boolean>}
  */
 async function canReactWithManeuver(item, workflow) {
@@ -341,9 +394,15 @@ export let maneuversRiposte = {
     // 1.0.3 — the counter-attack no longer re-asks for a reaction (notReaction, see useRiposte).
     // 1.0.4 — the superiority die is APPENDED as bonus damage instead of being folded into the
     //         weapon's own damage part, so Savage Attacker stops rerolling it (T93).
+    // 1.0.5 — ⚠️ BUGFIX: midi was ALSO offering Riposte, on a HIT. It ships no reaction condition, so
+    //         it inherited midi's `isHit` default (utils.ts:5508) — but 2024 Riposte triggers on a
+    //         MISS. Every hit therefore offered a Riposte the character was not entitled to. The
+    //         packData now sets `useConditionText: 'false'` to suppress midi's generic offer;
+    //         `offerRiposte` below is already correctly miss-gated, so re-pointing midi at isMissed
+    //         instead would merely have produced two prompts for the same legitimate trigger.
     // ⚠️ The version here is the MACRO registry stamp; `isUpToDate` reads it while the packData
     // carries its own. Bump BOTH or an already-deployed item never reports out-of-date.
-    version: '1.0.4',
+    version: '1.0.5',
     rules: 'modern',
     // Three passes, matching upstream's legacy registration: `created` covers a fresh add,
     // `itemMedkit` an item-level Medkit run, `actorMunch` a DDB (re-)import. An item already on a
@@ -490,7 +549,9 @@ export let maneuversEvasiveFootwork = {
     // usage while Combat Superiority sits at 4/4" failure the re-pointer exists to prevent.
     // Fixed by adding `activityIdentifiers: {use: 'dnd5eactivity000'}` to the packData entry.
     // 1.1.0 — the DISENGAGE half now ships too (slice 5). See below.
-    version: '1.1.0',
+    // 1.1.1 — ⚠️ BUGFIX: same as Rally's 1.0.1 — the `added` passes were registered but never
+    //         declared in packData, so the §T83 re-pointer had never actually run.
+    version: '1.1.1',
     rules: 'modern',
     // ✅ 2024 DIFF NOW FULLY PORTED. 2014: "When you move… add the die to your AC until you stop
     // moving." 2024: "AS A BONUS ACTION… and TAKE THE DISENGAGE ACTION. You also… add the number
@@ -621,7 +682,10 @@ async function useLungingAttack({workflow}) {
 export let maneuversLungingAttack = {
     name: 'Maneuvers: Lunging Attack',
     aliases: ['Maneuver: Lunging Attack'],
-    version: '1.0.0',
+    // 1.0.1 — ⚠️ BUGFIX: registered the §T83 `added` re-pointer but never declared
+    //         `macros.item` in packData, so the passes were never collected and the
+    //         consumption target stayed on the compendium placeholder. See Rally 1.0.1.
+    version: '1.0.1',
     rules: 'modern',
     midi: {
         item: [
@@ -653,7 +717,10 @@ export let maneuversLungingAttack = {
 export let maneuversFeintingAttack = {
     name: 'Maneuvers: Feinting Attack',
     aliases: ['Maneuver: Feinting Attack'],
-    version: '1.0.0',
+    // 1.0.1 — ⚠️ BUGFIX: registered the §T83 `added` re-pointer but never declared
+    //         `macros.item` in packData, so the passes were never collected and the
+    //         consumption target stayed on the compendium placeholder. See Rally 1.0.1.
+    version: '1.0.1',
     rules: 'modern',
     // ⚠️ REAL 2024 DIFF vs 2014, and the reason this is Batch B rather than Batch A: 2014 Feinting
     // Attack gave advantage on "your next attack roll against that creature THIS TURN" too, but CPR's
@@ -701,21 +768,42 @@ export let maneuversFeintingAttack = {
 export let maneuversParry = {
     name: 'Maneuvers: Parry',
     aliases: ['Maneuver: Parry'],
-    version: '1.0.0',
+    // 1.1.0 — the roll now REDUCES damage instead of healing it back, and midi's own reaction offer
+    // is narrowed from its `isHit` default to `isDamaged`, the trigger 2024 actually names.
+    version: '1.1.0',
     rules: 'modern',
     // ✅ 2024 DIFF, and it is Vittorio's `max()` call landing a THIRD time: the reduction is now
     // "the number you roll plus your Strength OR Dexterity modifier (your choice)". Encoded as a
     // reaction Healing activity, `die + max(@abilities.str.mod, @abilities.dex.mod)` — i.e. damage
     // reduction modelled as retroactive healing, which is what the official item does too.
     //
-    // Macro-free on purpose. The legacy entry carries a `midi.actor` `promptParry` pass that OFFERS
-    // the reaction when you are damaged; that is reaction-shaped and a separate piece of work. It is
-    // also the one reaction that stays in CPR rather than moving to GPS, per the T95 carve-out (the
-    // superiority-die pool and driver are CPR's).
-    // ⚠️ Without that offer, Parry is used from the sheet like any other reaction.
+    // ⚠️ CPR DOES NOT PROMPT FOR PARRY — midi already does, and its dialog is what the table sees.
+    // The legacy `promptParry` pass is deliberately NOT ported: it would be a second dialog for one
+    // reaction. All CPR contributes is the half midi cannot do — turning the rolled number into
+    // damage reduction (stashParryReduction -> applyParryReduction).
+    // Parry still stays in CPR rather than moving to the GPS fork despite being reaction-shaped:
+    // the T95 carve-out, because the superiority-die pool and the driver are CPR's.
     //
     // ⚠️ It spends its OWN die, so it needs the `added` re-pointer — the trap Batch A's Evasive
     // Footwork fell into. Paired with `activityIdentifiers` in the packData entry.
+    midi: {
+        // Own use: capture what the reaction rolled.
+        item: [
+            {
+                pass: 'rollFinished',
+                macro: stashParryReduction,
+                priority: 50
+            }
+        ],
+        // Attacker's workflow: subtract it while `ditem` is still mutable.
+        actor: [
+            {
+                pass: 'targetApplyDamage',
+                macro: applyParryReduction,
+                priority: 50
+            }
+        ]
+    },
     item: [
         {pass: 'created', macro: added, priority: 50},
         {pass: 'itemMedkit', macro: added, priority: 50},
@@ -725,7 +813,11 @@ export let maneuversParry = {
 export let maneuversRally = {
     name: 'Maneuvers: Rally',
     aliases: ['Maneuver: Rally'],
-    version: '1.0.0',
+    // 1.0.1 — ⚠️ BUGFIX: it registered the §T83 `added` re-pointer but its packData never declared
+    // `macros.item`, so `events/midi.js` never collected the passes and the re-pointer had NEVER
+    // run. Its consumption target therefore stayed on the compendium placeholder — the "0 of 1 usage
+    // while Combat Superiority sits at 4/4" failure. Same defect as Evasive Footwork's 1.1.1.
+    version: '1.0.1',
     rules: 'modern',
     // ✅ REAL 2024 DIFF, expressed statically: temp HP is now "the Superiority Die roll plus half
     // your Fighter level (round down)" — `die + (floor(@classes.fighter.levels/2))`. 2014 added the
