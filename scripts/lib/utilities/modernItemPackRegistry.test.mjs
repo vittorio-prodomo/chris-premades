@@ -338,13 +338,19 @@ test('only Evasive Footwork gets the consumption-repair passes', () => {
 test('Evasive Footwork carries its 2024 action economy and duration', () => {
     // 2024 made it a Bonus Action lasting until the start of your next turn; 2014 was "when you move
     // … until you stop moving". Both halves are encodable without a macro, so both are ported.
+    //
+    // ⚠️ Scoped to the AC effect since slice 5. This loop used to cover EVERY effect, which was safe
+    // while there was only one — then the Disengage half landed as a second effect that correctly
+    // expires at `turnEnd` instead, and this test fired. That was the guard working: the shape
+    // changed and wanted confirming. The two durations are pinned together, and the reason they must
+    // differ is spelled out, in evasiveFootworkDisengage.test.mjs.
     const entry = classFeatureItems().find(i => i.data.flags?.['chris-premades']?.info?.identifier === 'maneuversEvasiveFootwork');
     const activities = Object.values(entry.data.system.activities);
     assert.ok(activities.length, 'Evasive Footwork lost its activity');
     for (const activity of activities) assert.equal(activity.activation.type, 'bonus', '2024 Evasive Footwork is a Bonus Action');
-    for (const effect of entry.data.effects) {
-        assert.deepEqual(effect.flags.dae.specialDuration, ['turnStartSource'], 'the AC bonus must expire at the start of your next turn');
-    }
+    const acEffect = entry.data.effects.find(e => e.changes.some(c => c.key === 'system.attributes.ac.bonus'));
+    assert.ok(acEffect, 'Evasive Footwork lost its AC bonus');
+    assert.deepEqual(acEffect.flags.dae.specialDuration, ['turnStartSource'], 'the AC bonus must expire at the start of your next turn');
 });
 
 test('Menacing Attack actually applies the Frightened condition', () => {

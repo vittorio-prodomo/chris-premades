@@ -489,14 +489,28 @@ export let maneuversEvasiveFootwork = {
     // target left pointing at the COMPENDIUM Superiority Dice item, which is exactly the "0 of 1
     // usage while Combat Superiority sits at 4/4" failure the re-pointer exists to prevent.
     // Fixed by adding `activityIdentifiers: {use: 'dnd5eactivity000'}` to the packData entry.
-    version: '1.0.1',
+    // 1.1.0 — the DISENGAGE half now ships too (slice 5). See below.
+    version: '1.1.0',
     rules: 'modern',
-    // ⚠️ REAL 2024 DIFF, partly ported. 2014: "When you move… add the die to your AC until you stop
+    // ✅ 2024 DIFF NOW FULLY PORTED. 2014: "When you move… add the die to your AC until you stop
     // moving." 2024: "AS A BONUS ACTION… and TAKE THE DISENGAGE ACTION. You also… add the number
-    // rolled to your AC UNTIL THE START OF YOUR NEXT TURN." The activation (special -> bonus) and the
-    // duration (-> `turnStartSource`) are encoded on the 2024 entry. **The Disengage half is NOT** —
-    // it needs a handler, which is Batch B's shape by definition, so it is flagged rather than
-    // half-built here.
+    // rolled to your AC UNTIL THE START OF YOUR NEXT TURN."
+    //
+    // ⚠️ The Disengage half needed NO handler — Batch A assumed it would, which is why it was
+    // deferred. It is a SECOND EFFECT granting `flags.gambits-premades.oaImmunity`, the flag our GPS
+    // fork reads in `opportunityAttack.js` to suppress the offer against the moving token. Modelled
+    // on CPR's own Disengage action so the two are interchangeable, and named "Disengage" with DAE
+    // `noneName` so taking the real action as well cannot stack two markers.
+    //
+    // ⚠️ IT CANNOT BE FOLDED INTO THE AC EFFECT — the two halves expire at different moments.
+    // The AC bonus runs to `turnStartSource` ("until the start of your next turn"); Disengage only
+    // to `turnEnd` ("for the rest of the turn"). Sharing one effect would leave you immune to
+    // opportunity attacks through every other creature's turn — and you CAN be moved in that window
+    // by a reaction, which is precisely what Maneuvering Attack grants an ally.
+    //
+    // ⚠️ Contrast Lunging Attack's Dash, deliberately NOT automated in slice 3: CPR models Dash as
+    // pure animation with zero mechanical changes, so wiring it would have added nothing and made
+    // the maneuver un-verifiable headless. Disengage is the opposite — it carries a real flag.
     //
     // The only Batch A maneuver with its own `consumption.targets`, hence the §T83 repair passes:
     // CPR ships the target as a compendium UUID placeholder that dnd5e cannot resolve on an actor.
