@@ -205,7 +205,7 @@
     "chris-premades": {
       "info": {
         "name": "Maneuvers: Feinting Attack",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "identifier": "maneuversFeintingAttack",
         "source": "chris-premades",
         "rules": "modern"
@@ -215,7 +215,10 @@
           "item": [
             "maneuversFeintingAttack"
           ]
-        }
+        },
+        "item": [
+          "maneuversFeintingAttack"
+        ]
       },
       "activityIdentifiers": {
         "use": "dnd5eactivity000"

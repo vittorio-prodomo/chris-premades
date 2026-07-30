@@ -46,15 +46,23 @@ test('no 2024 maneuver reads the PHB scale key -- CPR items read the DDB parse\'
 });
 
 test('Parry reduces by die + the BETTER of Str/Dex, as a reaction', () => {
+    /*
+     * ⚠️ Rewritten when Parry's reduction landed. This originally pinned a `heal` activity with
+     * `types: ['healing']`, copied from the official PHB item — which heals only because a static
+     * encoding cannot reduce damage. Healing is wrong at the boundary (reducing 9 damage at 4 HP
+     * leaves you standing; healing drops you to −5 and back), so the activity is now a `utility`
+     * roll whose total `applyParryReduction` subtracts from the damage item. The `max(str, dex)`
+     * half is the durable part and is unchanged. Full reasoning in parryReduction2024.test.mjs.
+     */
     const { pack } = byIdentifier('maneuversParry');
     const act = soleActivity(pack);
-    assert.equal(act.type, 'heal');
+    assert.equal(act.type, 'utility');
     assert.equal(act.activation?.type, 'reaction');
-    const formula = act.healing?.custom?.formula ?? '';
+    const formula = act.roll?.formula ?? '';
     assert.match(formula, /max\(/, '2024 adds "your Strength or Dexterity modifier (your choice)"');
     assert.match(formula, /@abilities\.str\.mod/);
     assert.match(formula, /@abilities\.dex\.mod/);
-    assert.deepEqual(act.healing?.types, ['healing']);
+    assert.equal(act.healing, undefined, 'healing would apply on use AND double with the reduction');
 });
 
 test('Rally grants temp HP of die + HALF FIGHTER LEVEL, not Charisma', () => {
