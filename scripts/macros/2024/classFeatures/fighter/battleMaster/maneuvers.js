@@ -954,6 +954,317 @@ export let distractingStrikeEffect = {
         ]
     }
 };
+/*
+ * T81 BATCH B slice 4c — the last two, and the two that act on an ALLY.
+ *
+ * Both prompt the other creature's owner rather than deciding for them, which is the house pattern
+ * Maneuvering Attack already set: you do not spend someone else's Reaction, or move their character,
+ * without asking. Both also carry real 2024 diffs — see each handler.
+ */
+
+/**
+ * 2024 Commander's Strike: "When you take the Attack action on your turn, you can replace one of
+ * your attacks to direct one of your companions to strike. When you do so, choose a willing creature
+ * who can see or hear you and expend one Superiority Die. That creature can immediately use its
+ * Reaction to make one attack with a weapon or an Unarmed Strike, adding the Superiority Die to the
+ * attack's damage roll on a hit."
+ *
+ * ⚠️ **THE ACTION ECONOMY CHANGED** — 2014 was "as a bonus action"; 2024 replaces one of your
+ * attacks. That is expressed in the packData (no activation cost, the rule as an activation
+ * condition), exactly as the official item does it. Leaving `bonus` would charge a Bonus Action the
+ * player no longer spends.
+ *
+ * ⚠️ **"see or hear"** — the legacy handler checked sight only. `canSense(…, ['all'])` matches on any
+ * detection mode the world defines, which with vision-5e installed includes hearing, and with it
+ * absent still covers sight. Same correction Maneuvering Attack got.
+ *
+ * The ally is left to make their own attack, as the legacy handler does: we mark their Reaction used
+ * and hand them the die via a one-shot marker. Rolling their weapon at a target of our choosing
+ * would take two decisions away from another player, which is not ours to do.
+ */
+async function useCommandersStrike({workflow}) {
+    let [itemToUse, superiorityDie] = await determineSuperiorityDie(workflow.actor);
+    if (!itemToUse?.system.uses.value) return;
+    let candidates = workflow.token.scene.tokens.filter(t => {
+        if (!t.actor) return false;
+        if (t.id === workflow.token.id) return false;
+        if (t.disposition !== workflow.token.document.disposition) return false;
+        // No Reaction left means they cannot answer the call at all — filtering here keeps them out
+        // of the picker rather than letting the fighter pick someone who must then decline.
+        if (actorUtils.hasUsedReaction(t.actor)) return false;
+        return tokenUtils.canSense(t.object, workflow.token, ['all']);
+    }).map(t => t.object);
+    if (!candidates.length) {
+        genericUtils.notify('CHRISPREMADES.Macros.Maneuvers.NoNearby', 'info');
+        return;
+    }
+    let ally = await pickAlly(workflow, candidates);
+    if (!ally) return;
+    // "willing" — asked, never assumed. Framed like Maneuvering Attack's prompt: say who is being
+    // asked and by whom, since one person often answers for several characters.
+    let names = {
+        name: ally.name ?? ally.actor.name,
+        attacker: veiledName(workflow.token, ally)
+    };
+    let willUse = await dialogUtils.confirm(
+        genericUtils.format('CHRISPREMADES.Macros.Maneuvers.CommanderTitle', names),
+        genericUtils.format('CHRISPREMADES.Macros.Maneuvers.CommanderPrompt', names),
+        {userId: socketUtils.firstOwner(ally.actor, true)}
+    );
+    if (!willUse) return;
+    let effectData = {
+        name: workflow.item.name,
+        img: workflow.item.img,
+        origin: workflow.item.uuid,
+        duration: {
+            turns: 1
+        },
+        // No `changes` at all: the die is appended by the macro below. ⚠️ The legacy entry grants
+        // `system.bonuses.weapon.damage` here, which is the §T93 shape — see commandersStrikeAttack.
+        changes: [],
+        flags: {
+            dae: {
+                /**
+                 * ⚠️ NOT `1Attack`, AND THAT COST A CYCLE TO FIND. DAE deletes a `1Attack` effect
+                 * BEFORE midi reaches `damageRollComplete`, so the pass carried by this very effect
+                 * never runs: the marker vanishes, the Reaction and the die are both spent, and no
+                 * die is appended. Proven as a single-variable A/B in one code state — identical
+                 * marker, `1Attack` the only difference: with it the ally's damage was `1 + 1` and
+                 * the marker was gone; without it the die appended as its own roll.
+                 *
+                 * `commandersStrikeAttackHit` owns the lifecycle instead. These are the outer bound:
+                 * the ally reacts "immediately", so the offer must not outlive the fighter's turn.
+                 */
+                specialDuration: [
+                    'turnEndSource',
+                    'combatEnd'
+                ]
+            },
+            'chris-premades': {
+                commandersStrike: {die: superiorityDie}
+            }
+        }
+    };
+    effectUtils.addMacro(effectData, 'midi.actor', ['commandersStrikeAttack']);
+    // ⚠️ `rules` again, and here it is worse than in Distracting Strike: there is no LEGACY
+    // `commandersStrikeAttack` to fall through to, so an unstamped effect looks up undefined and the
+    // die silently never lands. See useDistractingStrike for the mechanism.
+    await effectUtils.createEffect(ally.actor, effectData, {rules: commandersStrikeAttack.rules});
+    await actorUtils.setReactionUsed(ally.actor);
+    // ⚠️ THE SPEND IS LAST, AND DELIBERATELY NOT THE ACTIVITY'S. See useBaitAndSwitch.
+    await genericUtils.update(itemToUse, {'system.uses.spent': itemToUse.system.uses.spent + 1});
+}
+
+/**
+ * Add the directed superiority die to the companion's attack.
+ *
+ * ⚠️ **WHY THIS IS A MACRO AND NOT AN ACTIVE EFFECT.** The legacy handler grants
+ * `system.bonuses.weapon.damage = <die>`, and dnd5e's `_processDamagePart` folds that global bonus
+ * into damage part **0**, where `BasicRoll.fromConfig` flattens the parts with `parts.join(' + ')`.
+ * Nothing in the finished roll can then tell the superiority die apart from the weapon's own dice —
+ * which is precisely the §T93 bug Savage Attacker exposed, and it would be *harder* to spot here
+ * because it lands on a different actor's card. `bonusDamage` appends a separate roll past
+ * `damage.parts.length`, outside every reroll window, and is also the shape RAW describes.
+ *
+ * ⚠️ This macro OWNS THE MARKER'S LIFECYCLE — see the `specialDuration` note in useCommandersStrike
+ * for why DAE cannot. "One attack" means the marker is spent by the attack whether or not it lands;
+ * "on a hit" governs only whether the die is appended. A miss that never reaches this pass at all
+ * (midi can skip the damage roll) is caught by the turn-end backstop.
+ */
+async function commandersStrikeAttackHit({trigger: {entity: effect}, workflow}) {
+    let die = effect.flags['chris-premades']?.commandersStrike?.die;
+    if (!die) return;
+    if (!workflowUtils.isAttackType(workflow, 'weaponAttack')) return;
+    if (workflow.hitTargets?.size) {
+        await workflowUtils.bonusDamage(workflow, die, {damageType: workflow.defaultDamageType});
+        await rollUtils.postRerollNote(workflow, {
+            source: effect.name,
+            kind: 'superiorityDie',
+            die,
+            total: workflow.damageRolls.at(-1).total
+        });
+    }
+    await genericUtils.remove(effect);
+}
+
+/**
+ * 2024 Bait and Switch: "When you're within 5 feet of a creature on your turn, you can expend one
+ * Superiority Die and switch places with that creature, provided you spend at least 5 feet of
+ * movement and the creature is willing and doesn't have the Incapacitated condition. This movement
+ * doesn't provoke Opportunity Attacks. Roll the Superiority Die. Until the start of your next turn,
+ * you or the other creature (your choice) gains a bonus to AC equal to the number rolled."
+ *
+ * ⚠️ **THREE REAL 2024 REQUIREMENTS THE LEGACY HANDLER DOES NOT IMPLEMENT:**
+ *  1. **"spend at least 5 feet of movement"** — reuses slice 3's `satisfiesMovementRequirement`,
+ *     which already carries the trap that core records movement history ONLY for a combatant in a
+ *     STARTED combat (so the requirement is waived outside combat rather than silently always false).
+ *  2. **"doesn't have the Incapacitated condition"**.
+ *  3. **"until the start of your next turn"** — the legacy effect is a bare `rounds: 1`, which
+ *     expires on a round boundary instead of on the fighter's own turn. Same correction Evasive
+ *     Footwork needed.
+ *
+ * ⚠️ The swap is written as a **displacement**, not a walk: RAW says it "doesn't provoke Opportunity
+ * Attacks", and under v13's movement pipeline a plain x/y update is a real move that region and OA
+ * watchers see.
+ *
+ * ⚠️ The official item ships **twelve** pre-baked "Baited AC +N" effects, one per die value, because
+ * a static encoding cannot express "equal to the number rolled". Rolling it here is both simpler and
+ * correct for a d10/d12 Battle Master.
+ */
+async function useBaitAndSwitch({workflow}) {
+    if (workflow.targets.size !== 1) return;
+    let targetToken = workflow.targets.first();
+    if (targetToken.id === workflow.token.id) return;
+    if (targetToken.document.disposition * workflow.token.document.disposition < 0) return;
+    let [itemToUse, superiorityDie] = await determineSuperiorityDie(workflow.actor);
+    if (!itemToUse?.system.uses.value) return;
+    if (tokenUtils.checkIncapacitated(targetToken)) {
+        genericUtils.notify('CHRISPREMADES.Macros.Maneuvers.BaitSwitchIncapacitated', 'info');
+        return;
+    }
+    let combatant = workflow.token?.document?.combatant;
+    if (!satisfiesMovementRequirement({
+        historyRecorded: !!combatant && combatant.parent?.started === true,
+        movementHistory: workflow.token?.document?.movementHistory,
+        minimumDistance: canvas?.grid?.distance
+    })) {
+        genericUtils.notify('CHRISPREMADES.Macros.Maneuvers.BaitSwitchNoMovement', 'info');
+        return;
+    }
+    // "the creature is willing" — asked, not inferred from disposition. Swapping moves someone
+    // else's character, which is not a decision to make for them.
+    let names = {
+        name: targetToken.name ?? targetToken.actor.name,
+        attacker: veiledName(workflow.token, targetToken)
+    };
+    let willing = await dialogUtils.confirm(
+        genericUtils.format('CHRISPREMADES.Macros.Maneuvers.BaitSwitchTitle', names),
+        genericUtils.format('CHRISPREMADES.Macros.Maneuvers.BaitSwitchPrompt', names),
+        {userId: socketUtils.firstOwner(targetToken.actor, true)}
+    );
+    if (!willing) return;
+    let superiorityRoll = await new Roll(superiorityDie, workflow.actor.getRollData()).evaluate();
+    await superiorityRoll.toMessage({
+        rollType: 'roll',
+        speaker: ChatMessage.implementation.getSpeaker({token: workflow.token}),
+        flavor: workflow.item.name
+    });
+    let toTarget = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.BaitSwitchAC', [
+        ['CHRISPREMADES.Generic.You', false],
+        ['DND5E.Target', true]
+    ]);
+    let effectData = {
+        name: workflow.item.name,
+        img: workflow.item.img,
+        origin: workflow.item.uuid,
+        duration: {
+            rounds: 1
+        },
+        changes: [
+            {
+                key: 'system.attributes.ac.bonus',
+                mode: 2,
+                value: superiorityRoll.total,
+                priority: 20
+            }
+        ],
+        flags: {
+            dae: {
+                specialDuration: [
+                    'turnStartSource'
+                ]
+            }
+        }
+    };
+    await genericUtils.updateEmbeddedDocuments(workflow.token.scene, 'Token', [
+        {_id: workflow.token.document.id, x: targetToken.document.x, y: targetToken.document.y},
+        {_id: targetToken.document.id, x: workflow.token.document.x, y: workflow.token.document.y}
+    ], {teleport: true, forced: true, action: 'displace'});
+    await effectUtils.createEffect(toTarget ? targetToken.actor : workflow.actor, effectData);
+    /**
+     * ⚠️ THE DIE IS SPENT HERE, LAST — NOT BY THE ACTIVITY'S CONSUMPTION TARGET, AND THAT IS THE
+     * THIRD SPENDING PATTERN IN THIS FILE.
+     *
+     * The on-hit riders are spent by the driver; Parry, Rally, Feinting and Lunging are spent by
+     * their activity's own consumption. Neither works here: these two are the only maneuvers whose
+     * gates can legitimately REFUSE after the use has started — the movement and Incapacitated
+     * checks above, and the other creature answering "no". An activity-level target fires before
+     * any of that, so a refusal cost a die and did nothing. Observed live: the movement gate
+     * declined correctly and Combat Superiority still went 3 -> 2.
+     *
+     * Deferring makes a refusal zero-footprint, which is the principle already locked for
+     * [[informed-reroll-design]] — defer consequences, never apply-then-reverse. Refunding the die
+     * would have been exactly the shape that principle rejects.
+     *
+     * ⚠️ Consequence to know: with no consumption target these items must NOT register the §T83
+     * `added` re-pointer, because `correctActivityItemConsumption` writes `consumption.targets[0]`
+     * unconditionally and throws on an empty array.
+     *
+     * Residual cosmetic: a refused use still posts its chat card, because midi builds that inside
+     * `MidiActivityMixin.use()` before any pass runs. Harmless here — the activation costs no
+     * action, so the card is the only trace.
+     */
+    await genericUtils.update(itemToUse, {'system.uses.spent': itemToUse.system.uses.spent + 1});
+}
+
+export let maneuversCommandersStrike = {
+    name: 'Maneuvers: Commander\'s Strike',
+    aliases: ['Maneuver: Commander\'s Strike'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ✅ REAL 2024 DIFF, and the biggest one in Batch B: this REPLACES ONE OF YOUR ATTACKS (2014 was
+    // a Bonus Action). Encoded in the packData as no activation cost plus the rule as an activation
+    // condition, which is how the official item expresses it.
+    //
+    // ⚠️ Spends its die IN THE HANDLER, last, so it registers NO `added` passes and declares no
+    // consumption target — see useBaitAndSwitch for why deferring is load-bearing here.
+    midi: {
+        item: [
+            {
+                pass: 'rollFinished',
+                macro: useCommandersStrike,
+                priority: 50
+            }
+        ]
+    },
+};
+export let commandersStrikeAttack = {
+    name: 'Commander\'s Strike: Directed Attack',
+    version: '1.0.0',
+    // ⚠️ Must be 'modern' AND exported from macros.js — and unlike Distracting Strike's marker there
+    // is no legacy entry of this name to fall through to, so getting it wrong means the die simply
+    // never lands. See useCommandersStrike.
+    rules: 'modern',
+    midi: {
+        actor: [
+            {
+                pass: 'damageRollComplete',
+                macro: commandersStrikeAttackHit,
+                priority: 50
+            }
+        ]
+    }
+};
+export let maneuversBaitAndSwitch = {
+    name: 'Maneuvers: Bait and Switch',
+    aliases: ['Maneuver: Bait and Switch'],
+    version: '1.0.0',
+    rules: 'modern',
+    // ✅ THREE REAL 2024 REQUIREMENTS the legacy handler never implemented — the movement spend, the
+    // Incapacitated exclusion, and "until the start of your next turn". See useBaitAndSwitch.
+    //
+    // ⚠️ Spends its die IN THE HANDLER, last, so it registers NO `added` passes and declares no
+    // consumption target — see useBaitAndSwitch for why deferring is load-bearing here.
+    midi: {
+        item: [
+            {
+                pass: 'rollFinished',
+                macro: useBaitAndSwitch,
+                priority: 50
+            }
+        ]
+    },
+};
 export let maneuversSweepingAttack = {
     name: 'Maneuvers: Sweeping Attack',
     aliases: ['Maneuver: Sweeping Attack'],
