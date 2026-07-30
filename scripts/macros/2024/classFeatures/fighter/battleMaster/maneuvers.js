@@ -159,8 +159,65 @@ async function offerRiposte({trigger, workflow}) {
 }
 
 /**
- * The shared gate for a REACTION maneuver offered from the target side (Riposte now, Parry when
- * Batch B lands). Deliberately does NOT check hit/miss — that is the per-maneuver trigger.
+ * Offer Parry when another creature HITS this actor with a melee attack.
+ *
+ * The mirror image of `offerRiposte`: same shared gate, opposite outcome check, so a single attack
+ * can only ever raise one of the two. Until this landed, Riposte offered itself and Parry did not —
+ * one reaction was automatic and its sibling had to be remembered off the sheet.
+ *
+ * ⚠️ **THIS REDUCES THE DAMAGE; IT DOES NOT HEAL IT BACK.** 2024 RAW: "…expend one Superiority Die
+ * to REDUCE THE DAMAGE by the number you roll plus your Strength or Dexterity modifier". Slice 4a
+ * encoded that as retroactive healing because the official PHB item does — but the official item does
+ * it only because a static encoding *cannot* reduce damage. The difference bites at the boundary:
+ * at 4 HP taking 9 with a 7-point parry, reducing leaves you standing at 2, whereas healing drops you
+ * to −5 first — applying 0 HP, Unconscious and the whole dying cluster — and then lifts you back out.
+ * `modifyDamageAppliedFlat` also clamps at the damage actually dealt, so a large roll can never
+ * become healing by accident.
+ *
+ * ⚠️ **`targetApplyDamage` is the only pass that can do this** — it is where the damage item is still
+ * mutable. Upstream's legacy entry uses it for the same reason.
+ *
+ * ⚠️ The confirmation deliberately comes BEFORE the activity is invoked, so declining costs nothing
+ * (the slice-4c rule). Because the activity keeps its own consumption target, accepting spends the
+ * die exactly once — so this handler must NOT decrement by hand as well.
+ */
+async function offerParry({trigger, workflow, ditem}) {
+    if (!ditem.isHit) return;
+    let item = trigger.entity;
+    if (!await canReactWithManeuver(item, workflow)) return;
+    if (!await dialogUtils.confirmUseItem(item, {userId: socketUtils.firstOwner(item.parent, true)})) return;
+    /**
+     * ⚠️ The formula is overridden at runtime even though the activity ships one, because
+     * `determineSuperiorityDie` may resolve a DIFFERENT pool — Martial Adept or the Superior
+     * Technique fighting style both grant a flat d6 that the `@scale.battle-master` key cannot
+     * express. The shipped formula is what the sheet displays; this is what actually rolls.
+     *
+     * ⚠️ `max(str, dex)` is Vittorio's call at its FOURTH site. The legacy handler pins this to
+     * Dexterity, so porting it verbatim would have quietly undone the other three.
+     */
+    let [, superiorityDie] = await determineSuperiorityDie(item.parent);
+    let activity = activityUtils.getActivityByIdentifier(item, 'use', {strict: true});
+    if (!activity) return;
+    let activityData = activity.toObject();
+    activityData.roll.formula = superiorityDie + ' + max(@abilities.str.mod, @abilities.dex.mod)';
+    /**
+     * ⚠️ `syntheticActivityDataRoll`, NOT `syntheticItemDataRoll` — the latter's signature is
+     * `(itemData, actor, targets, {options, config, killAnim})` and accepts **no** `consumeResources`,
+     * so passing one is silently dropped and the die is never spent. That is precisely why the legacy
+     * handler decrements by hand afterwards. Using the helper that honours the option keeps
+     * consumption where it belongs — the activity's own target, re-pointed by `added` (§T83) — so
+     * there is exactly one spend, on one path, whether Parry is offered or clicked from the sheet.
+     */
+    let reduction = (await workflowUtils.syntheticActivityDataRoll(activityData, item, item.parent, [], {consumeResources: true}))?.utilityRoll?.total;
+    if (!reduction) return;
+    await actorUtils.setReactionUsed(item.parent);
+    workflowUtils.modifyDamageAppliedFlat(ditem, -reduction);
+}
+
+/**
+ * The shared gate for a REACTION maneuver offered from the target side — Riposte and Parry.
+ * Deliberately does NOT check hit/miss: that is the per-maneuver trigger, and it is the ONLY thing
+ * separating the two (Riposte on a miss, Parry on a hit).
  * @returns {Promise<boolean>}
  */
 async function canReactWithManeuver(item, workflow) {
@@ -701,21 +758,35 @@ export let maneuversFeintingAttack = {
 export let maneuversParry = {
     name: 'Maneuvers: Parry',
     aliases: ['Maneuver: Parry'],
-    version: '1.0.0',
+    // 1.1.0 — the OFFER now exists, and the damage model changed from retroactive healing to real
+    // reduction. See offerParry for why healing was wrong at the boundary.
+    version: '1.1.0',
     rules: 'modern',
     // ✅ 2024 DIFF, and it is Vittorio's `max()` call landing a THIRD time: the reduction is now
     // "the number you roll plus your Strength OR Dexterity modifier (your choice)". Encoded as a
     // reaction Healing activity, `die + max(@abilities.str.mod, @abilities.dex.mod)` — i.e. damage
     // reduction modelled as retroactive healing, which is what the official item does too.
     //
-    // Macro-free on purpose. The legacy entry carries a `midi.actor` `promptParry` pass that OFFERS
-    // the reaction when you are damaged; that is reaction-shaped and a separate piece of work. It is
-    // also the one reaction that stays in CPR rather than moving to GPS, per the T95 carve-out (the
-    // superiority-die pool and driver are CPR's).
-    // ⚠️ Without that offer, Parry is used from the sheet like any other reaction.
+    // ✅ THE OFFER NOW EXISTS (see offerParry). Parry stays in CPR rather than moving to the GPS fork
+    // despite being reaction-shaped — the T95 carve-out, because the superiority-die pool and the
+    // driver are CPR's.
+    // ⚠️ The activity is a UTILITY roll, not a heal: it rolls the reduction amount and the handler
+    // applies it. A heal activity would mean the sheet button healed while the offer reduced — two
+    // different maneuvers under one name.
     //
     // ⚠️ It spends its OWN die, so it needs the `added` re-pointer — the trap Batch A's Evasive
     // Footwork fell into. Paired with `activityIdentifiers` in the packData entry.
+    midi: {
+        // Target-side: fires on THIS actor when someone hits them, so the reaction is offered rather
+        // than remembered. `targetApplyDamage` is the last pass where the damage is still mutable.
+        actor: [
+            {
+                pass: 'targetApplyDamage',
+                macro: offerParry,
+                priority: 50
+            }
+        ]
+    },
     item: [
         {pass: 'created', macro: added, priority: 50},
         {pass: 'itemMedkit', macro: added, priority: 50},
