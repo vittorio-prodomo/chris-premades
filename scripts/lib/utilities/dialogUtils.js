@@ -2,6 +2,7 @@ import {DialogApp} from '../../applications/dialog.js';
 import {constants, tokenUtils, genericUtils, itemUtils} from '../../utils.js';
 import {socket, sockets} from '../sockets.js';
 import {resolveDamageLabel} from './damageTypeLabels.mjs';
+import {hasSelectableDie} from './rerollableDice.mjs';
 async function buttonDialog(title, content, buttons, {displayAsRows = true, userId = game.user.id} = {}) {
     let inputs = [
         ['button', [], {displayAsRows: displayAsRows}]
@@ -337,6 +338,11 @@ async function queuedConfirmDialog(title, content, {actor, reason, userId} = {})
     return selection;
 }
 async function selectDie(rolls = [], title, content, {max = 1, userId = game.user.id, buttons = 'okCancel'} = {}) {
+    // T97: with no non-deterministic term anywhere in these rolls the checkbox list below is
+    // empty, so the dialog asks to spend a resource on nothing — and accepting it THROWS, since
+    // this returns an empty array (truthy) whose [0] every caller then `.split()`s. A flat-damage
+    // attack (a 2024 Unarmed Strike is `1 + @mod`) is exactly that case. Never offer at all.
+    if (!hasSelectableDie(rolls)) return;
     let dice = [];
     for (let i = 0; i < rolls.length; i++) {
         for (let j = 0; j < rolls[i].terms.length; j++) {

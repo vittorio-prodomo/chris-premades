@@ -1,9 +1,14 @@
 import {DialogApp} from '../../../applications/dialog.js';
 import {combatUtils, constants, genericUtils, rollUtils, workflowUtils} from '../../../utils.js';
+import {hasSelectableDie} from '../../../lib/utilities/rerollableDice.mjs';
 async function damageReroll({trigger: {entity: item}, workflow}) {
     if (workflow.hitTargets.size !== 1 || !workflow.damageRoll || !workflowUtils.isAttackType(workflow, 'attack')) return;
     if (!workflowUtils.getDamageTypes(workflow.damageRolls).has('piercing')) return;
     if (!combatUtils.perTurnCheck(item, 'piercer')) return;
+    // T97: a piercing attack whose damage carries no dice (a 2024 Unarmed Strike is `1 + @mod`)
+    // gives Piercer nothing to substitute — the loop below would build an empty checkbox list
+    // and the dialog would ask to reroll nothing. Don't offer at all.
+    if (!hasSelectableDie(workflow.damageRolls)) return;
     let newDamageRolls = workflow.damageRolls;
     let lowest = [];
     for (let a = 0; a < newDamageRolls.length; a++) {
