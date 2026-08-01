@@ -423,8 +423,12 @@ export function registerSettings() {
     });
     addSetting({
         key: 'pushDirection',
+        // BG3-style parallel pushes are Vittorio's table default as of 2026-08-01. This is only the
+        // REGISTERED default, so it reaches a world that has never stored a value for this key --
+        // a world where the setting was ever explicitly set keeps its stored value and must be
+        // flipped in its own settings UI.
         type: String,
-        default: 'radial',
+        default: 'parallel',
         category: 'mechanics',
         choices: {
             radial: 'CHRISPREMADES.Settings.pushDirection.radial',
