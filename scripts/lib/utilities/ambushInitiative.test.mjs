@@ -6,6 +6,8 @@ import {
     DEFAULT_OFFER_TIMEOUT_SECONDS,
     applyAmbushDie,
     isEligibleForAmbushOffer,
+    MAX_SETTLE_WAIT_MS,
+    ambushRevealHoldMs,
     normaliseOfferTimeout,
     selectAmbushPrompter,
     superiorityDieFormula
@@ -175,4 +177,74 @@ test('every path out of the offer releases the hold', () => {
     // A hold that is never released blanks the carousel until its expiry — the safety net exists,
     // but relying on it would stall the table for the full timeout on every decline.
     assert.ok(source.includes('finally'), 'the resolve path must release in a finally block');
+});
+
+/*
+ * T106 (Vittorio, 2026-08-02) — three fixes to the prompt shipped under T81:
+ * (a) it appeared too soon, (b) re-skin it to the GPS countdown, (c) address the player directly.
+ */
+
+test('the reveal hold outlasts BOTH the settle wait and the offer timer', () => {
+    // The whole point of the hold is that the turn order stays hidden for as long as the dialog can
+    // possibly be open. Settling delays the prompt, so the hold has to grow by the same amount.
+    assert.ok(ambushRevealHoldMs(30) > 30 * 1000 + MAX_SETTLE_WAIT_MS);
+    assert.equal(ambushRevealHoldMs(30), (30 + 5) * 1000 + MAX_SETTLE_WAIT_MS);
+});
+
+test('a longer offer timer lengthens the hold with it', () => {
+    assert.ok(ambushRevealHoldMs(300) > ambushRevealHoldMs(30));
+});
+
+test('an unusable offer timer falls back to the default rather than a zero-length hold', () => {
+    // A hold of 0 would drop the veil instantly — fail safe, not open.
+    assert.equal(ambushRevealHoldMs(undefined), ambushRevealHoldMs(DEFAULT_OFFER_TIMEOUT_SECONDS));
+    assert.equal(ambushRevealHoldMs('nonsense'), ambushRevealHoldMs(DEFAULT_OFFER_TIMEOUT_SECONDS));
+});
+
+test('the dialog addresses the player in the second person, in both shipped locales', () => {
+    for (const locale of ['en', 'it']) {
+        const lang = JSON.parse(readFileSync(
+            fileURLToPath(new URL(`../../../lang/${locale}.json`, import.meta.url)),
+            'utf8'
+        ));
+        const strings = lang.CHRISPREMADES.Macros.Maneuvers;
+        assert.ok(
+            !strings.AmbushBody.includes('{name}'),
+            `${locale}: the body is addressed to its reader, so it must not name them`
+        );
+        assert.ok(
+            !strings.AmbushTitle.includes('{name}'),
+            `${locale}: the title must not name them either`
+        );
+        // ⚠️ Also closes the veil hole by construction: with no {name} there is no creature name to
+        // bake in GM-side, so the standing npc-name-veil trap cannot apply to this dialog.
+    }
+});
+
+test('the PUBLIC chat flavor stays third person — it is not addressed to the roller', () => {
+    for (const locale of ['en', 'it']) {
+        const lang = JSON.parse(readFileSync(
+            fileURLToPath(new URL(`../../../lang/${locale}.json`, import.meta.url)),
+            'utf8'
+        ));
+        assert.ok(lang.CHRISPREMADES.Macros.Maneuvers.AmbushFlavor.includes('{name}'));
+    }
+});
+
+test('the offer waits for the dice before prompting, but takes the reveal hold immediately', () => {
+    const source = readFileSync(fileURLToPath(new URL('../../extensions/ambushInitiative.js', import.meta.url)), 'utf8');
+    // ⚠️ The ordering IS the feature: an await before the hold races CCT's own settle timer and
+    // leaks the turn order to the very player being asked.
+    const holdAt = source.indexOf('holdInitiativeReveal');
+    const settleAt = source.indexOf('whenDiceSettle');
+    assert.ok(holdAt > -1 && settleAt > -1);
+    assert.ok(source.includes('diceSoNiceRollComplete'), 'must track DSN animations to know when to prompt');
+});
+
+test('the countdown chrome is read off game.gps at CALL time, never cached', () => {
+    const source = readFileSync(fileURLToPath(new URL('../../extensions/ambushInitiative.js', import.meta.url)), 'utf8');
+    // ⚠️ `game.gps` is reassigned WHOLESALE at GPS's own ready hook, so a reference captured at our
+    // ready would go stale — the same trap [[dnd5e-rest-fixups]] hit in §T98.
+    assert.ok(source.includes('game.gps?.attachCountdownChrome'));
+    assert.ok(!/const\s+\w+\s*=\s*game\.gps\s*;/.test(source), 'must not hoist game.gps into a module-level const');
 });

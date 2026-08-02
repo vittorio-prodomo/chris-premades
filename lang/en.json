@@ -2059,12 +2059,12 @@
                 "MagnificentFeast": "Magnificent Feast"
             },
             "Maneuvers": {
-                "AmbushBody": "<p><strong>{name}</strong> rolled <strong>{initiative}</strong> for Initiative.</p><p>Spend one Superiority Die and add it to the roll? The rest of the turn order is still hidden.</p>",
+                "AmbushBody": "<p>You rolled <strong>{initiative}</strong> for Initiative.</p><p>Spend one Superiority Die and add it to the roll? The rest of the turn order is still hidden.</p>",
                 "AmbushDecline": "Keep the roll",
                 "AmbushFlavor": "{name}: Initiative {from} → {to}",
                 "AmbushSpend": "Spend a die ({die})",
                 "AmbushTimer": "<em>Declines automatically in {seconds}s.</em>",
-                "AmbushTitle": "Ambush — {name}",
+                "AmbushTitle": "Ambush",
                 "BaitSwitchAC": "Who gets the AC bonus?",
                 "BaitSwitchIncapacitated": "That creature has the Incapacitated condition and cannot switch places with you.",
                 "BaitSwitchNoMovement": "Bait and Switch needs at least 5 feet of movement spent this turn.",

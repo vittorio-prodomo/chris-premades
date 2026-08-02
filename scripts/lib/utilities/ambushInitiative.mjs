@@ -123,3 +123,33 @@ export function normaliseOfferTimeout(seconds) {
     if (!Number.isFinite(value)) return DEFAULT_OFFER_TIMEOUT_SECONDS;
     return Math.min(MAX_OFFER_TIMEOUT_SECONDS, Math.max(MIN_OFFER_TIMEOUT_SECONDS, Math.round(value)));
 }
+
+/**
+ * How long the offer can wait for the 3D dice to stop tumbling before it gives up and prompts anyway
+ * (T106a, Vittorio 2026-08-02: "it appears too soon — hold it until the roll has settled").
+ *
+ * Same shape as [[dnd5e-alert-initiative-swap]]'s: a short debounce that also coalesces a "Roll All"
+ * batch, and a hard ceiling so a leaked Dice So Nice counter — or DSN simply switched off — can never
+ * strand the offer forever.
+ */
+export const SETTLE_DEBOUNCE_MS = 500;
+export const MAX_SETTLE_WAIT_MS = 8000;
+
+/**
+ * How long CCT must keep the turn order hidden.
+ *
+ * ⚠️ Load-bearing, and the reason this is a named function with tests rather than an inline sum: the
+ * hold is what stops the carousel leaking the field to the very player being asked, so it must
+ * outlast BOTH the settle wait and the offer timer. Sizing it to the offer alone — which is what the
+ * pre-T106 code did, because there was no settle wait — would drop the veil while the dialog is
+ * still open the moment dice-settling delays the prompt at all.
+ *
+ * The extra 5 s is slack for the round trip between the timer expiring and the dialog resolving.
+ *
+ * @param {number} offerSeconds  already normalised by `normaliseOfferTimeout`
+ * @returns {number} milliseconds
+ */
+export function ambushRevealHoldMs(offerSeconds) {
+    const offer = Number.isFinite(Number(offerSeconds)) ? Number(offerSeconds) : DEFAULT_OFFER_TIMEOUT_SECONDS;
+    return (offer + 5) * 1000 + MAX_SETTLE_WAIT_MS;
+}

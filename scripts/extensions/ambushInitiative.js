@@ -1,6 +1,9 @@
 import {genericUtils, itemUtils} from '../utils.js';
 import {determineSuperiorityDie} from '../macros/2014/classFeatures/fighter/battleMaster/superiorityDice.js';
 import {
+    MAX_SETTLE_WAIT_MS,
+    SETTLE_DEBOUNCE_MS,
+    ambushRevealHoldMs,
     applyAmbushDie,
     isEligibleForAmbushOffer,
     normaliseOfferTimeout,
@@ -57,28 +60,75 @@ function offerTimeoutSeconds() {
 const cctApi = () => game.modules.get('combat-tracker-dock')?.api;
 
 /**
+ * The GPS countdown chrome, if the fork that owns it is installed.
+ *
+ * ⚠️ Resolved at CALL time on purpose. `game.gps` is rebuilt WHOLESALE at GPS's own `ready` hook
+ * (`game.gps = {...helpers, ...}`), so a reference captured at our ready would go stale — the same
+ * trap [[dnd5e-rest-fixups]] hit in §T98.
+ */
+const gpsChrome = () => game.gps?.attachCountdownChrome;
+
+// T106a — the dice have to stop before we ask. Counters, not a fixed sleep: a d20 that rolls long
+// should hold the prompt longer, and a table with Dice So Nice off should not wait at all.
+let activeAnimations = 0;
+
+/**
+ * Resolve once the 3D dice have settled, or once the ceiling is hit — whichever comes first.
+ *
+ * ⚠️ Never rejects and never hangs. If DSN is absent the counter simply stays 0 and this costs one
+ * debounce; if a `diceSoNiceRollComplete` is ever dropped, `MAX_SETTLE_WAIT_MS` is what stops a
+ * leaked counter from swallowing the offer entirely.
+ */
+function whenDiceSettle() {
+    return new Promise(resolve => {
+        const deadline = Date.now() + MAX_SETTLE_WAIT_MS;
+        const check = () => {
+            if (activeAnimations <= 0 || Date.now() >= deadline) return resolve();
+            setTimeout(check, SETTLE_DEBOUNCE_MS);
+        };
+        setTimeout(check, SETTLE_DEBOUNCE_MS);
+    });
+}
+
+/**
  * Ask the owner, with a countdown that declines for them.
  *
  * Always LOCAL: the responsible client is the one that got here, so no socket round-trip and no
  * remote dialog to close on timeout. Built on DialogV2 rather than CPR's `DialogApp` because that
  * has no countdown, and adding one would widen the upstream diff for a fork-local feature.
+ *
+ * T106b: the countdown is GPS's title-bar bar — the house style for a timed offer — borrowed through
+ * `game.gps.attachCountdownChrome`. ⚠️ It owns its own expiry (it calls `dialog.close()`), which is
+ * why the local `closeTimer` is armed ONLY on the fallback path; arming both would double-close.
+ *
+ * ⚠️ Addressed to its reader in the second person (T106c), so nothing here interpolates a creature
+ * name. That is also what keeps the standing npc-name-veil trap out of this dialog by construction.
  */
-async function promptAmbushOffer({name, initiative, die, seconds}) {
+async function promptAmbushOffer({initiative, die, seconds}) {
     const DialogV2 = foundry.applications.api.DialogV2;
     let countdownTimer = null;
     let closeTimer = null;
     const label = (key, data) => game.i18n.format(`CHRISPREMADES.Macros.Maneuvers.Ambush${key}`, data ?? {});
-    const content = `
-        <p>${label('Body', {name, initiative: String(initiative), die})}</p>
-        <p class="cpr-ambush-timer">${label('Timer', {seconds: `<span class="cpr-ambush-countdown">${seconds}</span>`})}</p>`;
+    const chrome = gpsChrome();
+    const title = label('Title');
+    // ⚠️ No `<p>` wrapper: the localized Body already ships as two `<p>`s, and nesting them made the
+    // browser auto-close the outer one into a stray empty paragraph. Pre-existing since T81.
+    // The chrome puts the remaining seconds in the title bar, so the in-body line would duplicate it.
+    const content = `${label('Body', {initiative: String(initiative), die})}` + (chrome
+        ? ''
+        : `<p class="cpr-ambush-timer">${label('Timer', {seconds: `<span class="cpr-ambush-countdown">${seconds}</span>`})}</p>`);
     const choice = await DialogV2.wait({
-        window: {title: label('Title', {name})},
+        window: {title},
         content,
         buttons: [
             {action: 'spend', label: label('Spend', {die}), icon: 'fa-solid fa-dice-d20', default: true, callback: () => 'spend'},
             {action: 'decline', label: label('Decline'), icon: 'fa-solid fa-xmark', callback: () => 'decline'}
         ],
         render: (event, dialog) => {
+            if (chrome) {
+                chrome(dialog, {dialogTitle: title, initialTimeLeft: seconds});
+                return;
+            }
             let remaining = seconds;
             const readout = dialog.element.querySelector('.cpr-ambush-countdown');
             countdownTimer = setInterval(() => {
@@ -87,6 +137,8 @@ async function promptAmbushOffer({name, initiative, die, seconds}) {
             }, 1000);
             closeTimer = setTimeout(() => dialog.close(), seconds * 1000);
         },
+        // Releases the chrome's rAF/interval pair. Idempotent, and harmless when it never attached.
+        close: (event, dialog) => game.gps?.detachCountdownChrome?.(dialog),
         rejectClose: false
     }).catch(() => null);
     clearInterval(countdownTimer);
@@ -98,9 +150,12 @@ async function promptAmbushOffer({name, initiative, die, seconds}) {
 async function resolveOffer(combatant, actor, ambushItem) {
     const seconds = offerTimeoutSeconds();
     try {
+        // ⚠️ T106a. The hold was already taken synchronously by the caller — only the PROMPT waits
+        // here. Reading the initiative after the wait rather than before is deliberate: a reroll
+        // landing during the settle window should be the number we quote.
+        await whenDiceSettle();
         const initiative = combatant.initiative;
         const spend = await promptAmbushOffer({
-            name: combatant.token?.name ?? actor.name,
             initiative,
             die: actor.system.scale?.['battle-master']?.['combat-superiority-die']?.die ?? 'd8',
             seconds
@@ -166,7 +221,8 @@ function onUpdateCombatant(combatant, changes) {
     );
     if (prompter !== game.user.id) return;
     offered.add(key);
-    cctApi()?.holdInitiativeReveal(combatant.id, {timeoutMs: (offerTimeoutSeconds() + 5) * 1000});
+    // ⚠️ Still synchronous, and now sized to cover the settle wait as well — see `ambushRevealHoldMs`.
+    cctApi()?.holdInitiativeReveal(combatant.id, {timeoutMs: ambushRevealHoldMs(offerTimeoutSeconds())});
     resolveOffer(combatant, actor, ambushItem);
 }
 
@@ -177,6 +233,10 @@ function onDeleteCombat(combat) {
 function ready() {
     Hooks.on('updateCombatant', onUpdateCombatant);
     Hooks.on('deleteCombat', onDeleteCombat);
+    // Hold the prompt while the 3D dice are still animating (T106a). Absent DSN these never fire and
+    // the counter stays 0, which is exactly the "don't wait" behaviour we want.
+    Hooks.on('diceSoNiceRollStart', () => { activeAnimations++; });
+    Hooks.on('diceSoNiceRollComplete', () => { activeAnimations = Math.max(0, activeAnimations - 1); });
 }
 
 export let ambushInitiative = {

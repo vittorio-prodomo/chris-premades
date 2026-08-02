@@ -1496,12 +1496,12 @@
                 "Shield": "Scudo come reazione?"
             },
             "Maneuvers": {
-                "AmbushBody": "<p><strong>{name}</strong> ha ottenuto <strong>{initiative}</strong> in Iniziativa.</p><p>Vuoi spendere un Dado di Superiorità e aggiungerlo al tiro? L'ordine di turno è ancora nascosto.</p>",
+                "AmbushBody": "<p>Hai ottenuto <strong>{initiative}</strong> in Iniziativa.</p><p>Vuoi spendere un Dado di Superiorità e aggiungerlo al tiro? L'ordine di turno è ancora nascosto.</p>",
                 "AmbushDecline": "Tieni il tiro",
                 "AmbushFlavor": "{name}: Iniziativa {from} → {to}",
                 "AmbushSpend": "Spendi un dado ({die})",
                 "AmbushTimer": "<em>Rifiutata automaticamente tra {seconds}s.</em>",
-                "AmbushTitle": "Imboscata — {name}",
+                "AmbushTitle": "Imboscata",
                 "BaitSwitchAC": "Chi riceve il bonus CA?",
                 "BaitSwitchIncapacitated": "Quella creatura ha la condizione Incapacitato e non può scambiarsi di posto con te.",
                 "BaitSwitchNoMovement": "Esca e Scambio richiede almeno 1,5 metri di movimento spesi in questo turno.",
