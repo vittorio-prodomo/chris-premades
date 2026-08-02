@@ -1,0 +1,128 @@
+{
+  "name": "Fey Ancestry",
+  "type": "feat",
+  "effects": [
+    {
+      "name": "Fey Ancestry",
+      "statuses": [],
+      "changes": [
+        {
+          "key": "flags.chris-premades.CR.charmed",
+          "value": "1",
+          "mode": 5,
+          "priority": 20
+        }
+      ],
+      "duration": {
+        "seconds": null,
+        "startTime": null,
+        "rounds": null,
+        "turns": null,
+        "startRound": null,
+        "startTurn": null,
+        "combat": null
+      },
+      "tint": "#ffffff",
+      "transfer": true,
+      "disabled": false,
+      "flags": {
+        "dae": {
+          "transfer": true,
+          "stackable": "noneName",
+          "showIcon": false,
+          "disableCondition": "",
+          "disableIncapacitated": false,
+          "durationExpression": "",
+          "macroRepeat": "none",
+          "specialDuration": []
+        },
+        "midi-qol": {
+          "forceCEOff": true
+        },
+        "core": {
+          "overlay": false
+        },
+        "dnd5e": {}
+      },
+      "description": "",
+      "img": "icons/magic/nature/vines-thorned-curled-glow-teal.webp",
+      "_id": "N2DuNxM1wsaMB2um",
+      "type": "base",
+      "system": {},
+      "origin": null,
+      "sort": 0,
+      "_key": "!items.effects!GLrZ9WX4A0vGhS6x.N2DuNxM1wsaMB2um"
+    }
+  ],
+  "system": {
+    "activities": {},
+    "uses": {
+      "spent": 0,
+      "recovery": []
+    },
+    "advancement": [],
+    "description": {
+      "value": "<p>You have Advantage on saving throws you make to avoid or end the Charmed condition.</p>",
+      "chat": ""
+    },
+    "identifier": "fey-ancestry",
+    "source": {
+      "book": "PHB 2024",
+      "page": "",
+      "license": "",
+      "custom": "",
+      "rules": "2024",
+      "revision": 1
+    },
+    "crewed": false,
+    "enchant": {},
+    "prerequisites": {
+      "items": [],
+      "repeatable": false
+    },
+    "properties": [],
+    "requirements": "",
+    "type": {
+      "value": "race",
+      "subtype": ""
+    }
+  },
+  "flags": {
+    "species": {
+      "fullRaceName": "Elf",
+      "baseRaceName": "Elf",
+      "groupName": "Elf",
+      "isLineage": false
+    },
+    "dae": {
+      "alwaysActive": false,
+      "activeEquipped": false
+    },
+    "midi-qol": {
+      "removeAttackDamageButtons": "default",
+      "forceCEOff": true
+    },
+    "midiProperties": {
+      "confirmTargets": "default"
+    },
+    "dnd5e": {
+      "riders": {
+        "activity": [],
+        "effect": []
+      }
+    },
+    "chris-premades": {
+      "info": {
+        "identifier": "feyAncestry",
+        "name": "Fey Ancestry",
+        "rules": "modern",
+        "source": "chris-premades",
+        "version": "1.1.0"
+      }
+    }
+  },
+  "img": "icons/magic/nature/vines-thorned-curled-glow-teal.webp",
+  "folder": "fF2vfpzJHmviwi2J",
+  "_id": "GLrZ9WX4A0vGhS6x",
+  "_key": "!items!GLrZ9WX4A0vGhS6x"
+}

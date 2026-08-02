@@ -268,6 +268,8 @@ export {sangromanticInitiate} from './macros/2024/feats/sangromanticInitiate.js'
 export {healingHands} from './macros/2024/speciesFeatures/aasimar/healingHands.js';
 export {celestialRevelation, celestialRevelationInnerRadiance, celestialRevelationHeavenlyWings, celestialRevelationNecroticShroud} from './macros/2024/speciesFeatures/aasimar/celestialRevelation.js';
 export {celestialResistance} from './macros/2024/speciesFeatures/aasimar/celestialResistance.js';
+// Elf
+export {feyAncestry} from './macros/2024/speciesFeatures/elf/feyAncestry.js';
 // Orc
 export {relentlessEndurance} from './macros/2024/speciesFeatures/orc/relentlessEndurance.js';
 // Class Features
