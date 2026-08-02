@@ -160,9 +160,10 @@ test('Fey Ancestry grants the Charmed condition-resistance flag, and transfers',
 test('Fey Ancestry does NOT claim immunity to magical sleep', () => {
     /*
      * 2014 Fey Ancestry was "advantage on saves against being charmed, AND magic can't put you to
-     * sleep". 2024 keeps only the Charmed clause — the sleep half moved into the Sleep spell's own
-     * text ("Creatures that don't sleep, such as elves … automatically succeed"). Encoding a sleep
-     * immunity here would both double that rule and misstate 2024 RAW.
+     * sleep". 2024 keeps only the Charmed clause. The sleep half is owned by TWO other things: the
+     * Elf's separate Trance feature ("You don't need to sleep, and magic can't put you to sleep" —
+     * verified on both elves' live sheets) and the Sleep spell's own auto-success for creatures that
+     * don't sleep. Encoding it here would misstate 2024 RAW and triple-count the rule.
      */
     const entry = packItems().find(i => i.data.flags?.['chris-premades']?.info?.identifier === 'feyAncestry');
     const serialised = JSON.stringify(entry.data.effects);
