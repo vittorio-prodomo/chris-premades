@@ -1,4 +1,5 @@
 import {activityUtils, dialogUtils, effectUtils, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
+import {buildArcaneWardEffectData} from '../../../../../lib/utilities/arcaneWardEffect.mjs';
 
 // The ward's current HP lives on a single Active Effect (identifier 'arcaneWard') whose presence IS the
 // ward: it exists once created and lasts until a long rest deletes it, carries the HP in a flag, and
@@ -56,12 +57,17 @@ async function late({trigger: {entity: item}, workflow}) {
     let effect = effectUtils.getEffectByIdentifier(actor, 'arcaneWard');
     if (!effect) {
         // First abjuration spell (level 1+) of the day → create the ward at full HP (RAW "simultaneously").
-        await effectUtils.createEffect(actor, {
+        // origin = the Arcane Ward feature, so the sheet's Source column names it (T109).
+        // `item` here is the feature itself: for a midi.actor pass CPR sets the trigger
+        // entity to the actor item carrying the macro, not to the spell being cast.
+        await effectUtils.createEffect(actor, buildArcaneWardEffectData({
             name: wardName(maxHP),
             description: wardDescription(),
             img: item.img,
-            flags: {'chris-premades': {arcaneWard: {hp: maxHP, max: maxHP}}}
-        }, {identifier: 'arcaneWard'});
+            originUuid: item.uuid,
+            hp: maxHP,
+            max: maxHP
+        }), {identifier: 'arcaneWard'});
     } else {
         // Ward already up → recharge by 2 x the spell's level, capped at the (recomputed) max.
         let hp = effect.flags['chris-premades']?.arcaneWard?.hp ?? 0;
