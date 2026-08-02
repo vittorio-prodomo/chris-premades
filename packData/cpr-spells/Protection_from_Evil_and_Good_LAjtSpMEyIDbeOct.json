@@ -24,8 +24,8 @@
     "target": {
       "affects": {
         "choice": false,
-        "count": "",
-        "type": ""
+        "count": "1",
+        "type": "willing"
       },
       "template": {
         "units": "ft",
@@ -92,8 +92,7 @@
           }
         ],
         "range": {
-          "override": false,
-          "units": "self"
+          "override": false
         },
         "target": {
           "prompt": true,
