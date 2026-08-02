@@ -130,6 +130,7 @@ export {deathArmor, deathArmorEffect} from './macros/2024/spells/deathArmor.js';
 export {deathWard} from './macros/2024/spells/deathWard.js';
 export {destructiveWave} from './macros/2024/spells/destructiveWave.js';
 export {detectMagic} from './macros/2024/spells/detectMagic.js';
+export {detectThoughts} from './macros/2024/spells/detectThoughts.js';
 export {disintegrate} from './macros/2024/spells/disintegrate.js';
 export {divineSmite} from './macros/2024/spells/divineSmite.js';
 export {dragonsBreath} from './macros/2024/spells/dragonsBreath.js';

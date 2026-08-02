@@ -39,6 +39,12 @@ async function late({workflow}) {
 async function early({dialog}) {
     dialog.configure = false;
 }
+/*
+ * Named exports so the 2024 port (T123) can reuse these passes by REFERENCE. It must not reach them
+ * through `detectThoughts.midi.item[n].macro` or by matching `macro.name`: this module is bundled by
+ * webpack and minified, so function names are mangled, and array position is upstream's to change.
+ */
+export {late as detectThoughtsLate, early as detectThoughtsEarly};
 export let detectThoughts = {
     name: 'Detect Thoughts',
     version: '1.2.28',
