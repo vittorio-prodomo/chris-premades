@@ -182,6 +182,12 @@
           "mode": 0,
           "value": "['aberration', 'celestial', 'elemental', 'fey', 'fiend', 'undead'].includes(actor.raceOrType)",
           "priority": 20
+        },
+        {
+          "key": "flags.midi-qol.onUseMacroName",
+          "mode": 0,
+          "value": "function.chrisPremades.macros.protectionFromEvilAndGood.preTargetSave,preTargetSave",
+          "priority": 20
         }
       ],
       "transfer": false,
@@ -289,7 +295,7 @@
         "identifier": "protectionFromEvilAndGood",
         "source": "chris-premades",
         "rules": "modern",
-        "version": "1.3.138"
+        "version": "1.3.139"
       }
     }
   },
