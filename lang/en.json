@@ -2953,6 +2953,10 @@
                 "Rest": "Did you spend the day only doing light activity?",
                 "StressDuration": "Stress Duration Formula:"
             },
+            "WitchBolt": {
+                "NotActive": "Witch Bolt is not currently active.",
+                "NoTarget": "Witch Bolt has no target."
+            },
             "WitherAndBloom": {
                 "Heal": "Wither And Bloom: Heal",
                 "SelectHitDie": "Select how many Hit Dice to roll.",

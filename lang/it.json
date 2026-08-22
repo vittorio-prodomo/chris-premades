@@ -2220,6 +2220,10 @@
                 "Rest": "Hai trascorso la giornata svolgendo solo attività leggere?",
                 "StressDuration": "Formula Durata Stress:"
             },
+            "WitchBolt": {
+                "NotActive": "Fulmine Stregato non è attivo.",
+                "NoTarget": "Fulmine Stregato non ha un bersaglio."
+            },
             "WitherAndBloom": {
                 "Heal": "Appassire e Fiorire: Cura",
                 "SelectHitDie": "Seleziona quanti Dadi Vita tirare.",
