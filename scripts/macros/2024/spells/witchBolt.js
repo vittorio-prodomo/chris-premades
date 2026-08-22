@@ -67,21 +67,25 @@ async function use({workflow}) {
  *    range or gained Total Cover was only noticed when the CASTER moved or at her next turn start.
  *    It also showed no visible link at the table, which reads as "the spell didn't work".
  *
- * 2. Nothing in this stack makes an activity-applied effect a dependent of the caster's concentration.
- *    DAE's `doActivityEffects` sets `origin` only, and midi's `dependentOn` wiring sits in the
- *    Convenient-Effects branch, which is OFF in this world. dnd5e's `getDependents()` is
- *    `dependentOn`-driven (the legacy `dependents` flag plus `dnd5e.registry.dependents`, which is
- *    populated from `flags.dnd5e.dependentOn` at prepareData), so without an explicit link a
- *    concentration-SIDE end — a failed concentration save, the caster dropping to 0 HP, another
- *    concentration spell, a long rest, a manual end — orphans the target's effect. Same conclusion and
- *    same fix as GPS's `entangle2024.js`.
+ * 2. The concentration link. dnd5e's `getDependents()` is `dependentOn`-driven (the legacy
+ *    `dependents` flag plus `dnd5e.registry.dependents`, populated from `flags.dnd5e.dependentOn` at
+ *    prepareData), so an applied effect that lacks that flag is orphaned by a concentration-SIDE end —
+ *    a failed concentration save, the caster dropping to 0 HP, another concentration spell, a long
+ *    rest, a manual end.
+ *    ⚠️ MEASURED, not assumed (2026-08-22): on the HIT path the flag is already there. DAE mirrors
+ *    `origin` into it for dnd5e (`dae/module/GMAction.js:487`, fork source `GMAction.ts:495`) and midi
+ *    stamps `origin` with the caster's concentration effect, so the cascade already works — verified by
+ *    neutering `MidiQOL.addConcentrationDependent` for one cast and watching the target's effect still
+ *    die with the concentration. The repair below is therefore GUARDED: a no-op write in the normal
+ *    case, and a real repair only if either of those two third-party behaviours changes. The MISS path
+ *    below gets the same link from `createEffect`'s own `concentrationItem` handling.
  */
 async function bindTargetEffect(workflow, target) {
     if (!target?.actor) return;
     let applied = effectUtils.getEffectByIdentifier(target.actor, 'witchBoltTarget');
     if (applied) {
-        // The hit path: midi/DAE already applied it, so only the concentration link is missing.
-        await MidiQOL.addConcentrationDependent(workflow.actor, applied, workflow.item);
+        // The hit path: midi/DAE applied it. Only repair the link if it is genuinely absent.
+        if (!applied.flags?.dnd5e?.dependentOn) await MidiQOL.addConcentrationDependent(workflow.actor, applied, workflow.item);
         return;
     }
     // The miss path. Build from the item's OWN effect so the packData flags come along untouched —
