@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {evaluateEndCondition, shouldOfferSustain} from './witchBoltRules.mjs';
 
 test('in range, no conditions -> spell continues', () => {
@@ -61,4 +62,20 @@ test('no offer when the effect is gone', () => {
 
 test('no offer when an end condition already holds', () => {
     assert.equal(shouldOfferSustain({effectPresent: true, bonusActionUsed: false, endReason: 'cover'}), false);
+});
+
+test('the caster effect watches movement and the target effect watches movement + new conditions', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+    // The caster effect gets its watcher at cast time, through createEffect's macros option.
+    assert.match(source, /type:\s*'movement',\s*macros:\s*\['witchBoltSource'\]/);
+    // The target effect's watchers ship in packData; the macro only has to export them.
+    assert.match(source, /export let witchBoltTarget/);
+    assert.match(source, /pass:\s*'actorCreated'/);
+    assert.match(source, /pass:\s*'moved'/);
+});
+
+test('half and three-quarters cover are never treated as total (regression on the RAW reading)', () => {
+    const source = readFileSync(new URL('./witchBoltRules.mjs', import.meta.url), 'utf8');
+    assert.ok(!source.includes('coverHalf'));
+    assert.ok(!source.includes('coverThreeQuarters'));
 });
