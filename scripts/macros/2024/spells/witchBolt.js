@@ -1,4 +1,4 @@
-import {activityUtils, effectUtils, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../utils.js';
+import {activityUtils, actorUtils, effectUtils, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../utils.js';
 import {evaluateEndCondition, shouldOfferSustain} from '../../../lib/utilities/witchBoltRules.mjs';
 
 async function use({workflow}) {
@@ -14,6 +14,11 @@ async function use({workflow}) {
         flags: {
             'chris-premades': {
                 witchBolt: {
+                    // ⚠️ The effect's own `origin` is NOT this item — `effectUtils.createEffect` overwrites
+                    // it with the concentration effect's uuid whenever `concentrationItem` is passed
+                    // (`effectUtils.js:37`), and Witch Bolt always concentrates. Stash the real item uuid
+                    // here so `offerSustain` can resolve the sustain activity without going through `origin`.
+                    itemUuid: workflow.item.uuid,
                     targetUuid: target.document.uuid,
                     castLevel: workflowUtils.getCastLevel(workflow),
                     maxDistance: itemUtils.getConfig(workflow.item, 'maxDistance') ?? 60
@@ -139,14 +144,18 @@ async function offerSustain({trigger}) {
     await endIfConditionMet(sourceEffect);
     if (!actor.effects.get(sourceEffect.id)) return;
 
-    let bonusActionUsed = !!actor.effects.find(i => i.id === 'dnd5ebonusaction');
+    let bonusActionUsed = actorUtils.hasUsedBonusAction(actor);
     if (!shouldOfferSustain({effectPresent: true, bonusActionUsed, endReason: null})) return;
 
-    let item = await fromUuid(sourceEffect.origin);
+    // ⚠️ Do NOT resolve the item from `sourceEffect.origin` — `createEffect` overwrote that with the
+    // concentration effect's uuid (see the comment in `use`), so `fromUuid` would return an ActiveEffect
+    // and `getActivityByIdentifier`'s unguarded `item.system.activities.find(...)` would throw. Use the
+    // item uuid stashed on the effect's own flags at cast time instead.
+    let item = await fromUuid(sourceEffect.flags['chris-premades']?.witchBolt?.itemUuid);
     let sustain = item ? activityUtils.getActivityByIdentifier(item, 'witchBoltSustain', {strict: true}) : undefined;
     if (!sustain) return;
 
-    let casterToken = actor.getActiveTokens()[0];
+    let casterToken = trigger.token ?? actor.getActiveTokens()[0];
     if (!casterToken) return;
     let userId = socketUtils.firstOwner(actor, true) ?? socketUtils.gmID();
     let selection = await askSustain({title: item.name, casterToken, userId, seconds: SUSTAIN_TIMEOUT});

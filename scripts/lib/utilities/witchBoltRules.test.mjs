@@ -95,3 +95,32 @@ test('the sustain offer runs at turnStart on the caster effect', () => {
     const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
     assert.match(source, /pass:\s*'turnStart'/);
 });
+
+test('the sustain offer resolves the item off the stashed itemUuid flag, never off the effect origin', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+    // `effectUtils.createEffect` overwrites `effectData.origin` with the concentration effect's uuid
+    // whenever `concentrationItem` is passed (effectUtils.js:37), and Witch Bolt always concentrates.
+    // `fromUuid(sourceEffect.origin)` would therefore resolve an ActiveEffect, not the item, and
+    // `getActivityByIdentifier`'s unguarded `.system.activities.find` would throw at the table with
+    // no visible error (swallowed by combat.js's executeMacro try/catch) — the whole offer silently
+    // never fires. Guard both ends of the fix: the flag is stashed at cast time, and read back at
+    // offer time instead of `origin`.
+    assert.ok(!/fromUuid\(sourceEffect\.origin\)/.test(source), 'must not resolve the sustain item off sourceEffect.origin');
+    assert.ok(source.includes("itemUuid: workflow.item.uuid"), 'the cast-time effect data must stash the item uuid');
+    assert.ok(source.includes("fromUuid(sourceEffect.flags['chris-premades']?.witchBolt?.itemUuid)"),
+        'the offer must resolve the item off the stashed itemUuid flag');
+});
+
+test('the bonus-action gate uses the canonical MidiQOL helper, not a hand-rolled marker check', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+    // `actorUtils.hasUsedBonusAction` wraps MidiQOL's counter-vs-max check; a hand-rolled
+    // `actor.effects.find(i => i.id === 'dnd5ebonusaction')` only tests presence and diverges the
+    // moment anything grants a second bonus action.
+    assert.ok(source.includes('actorUtils.hasUsedBonusAction(actor)'));
+    assert.ok(!source.includes("dnd5ebonusaction"), 'must not hand-roll the bonus-action marker check');
+});
+
+test('the offer prefers the dispatching trigger token over re-deriving one from the actor', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+    assert.ok(source.includes('trigger.token ?? actor.getActiveTokens()[0]'));
+});
