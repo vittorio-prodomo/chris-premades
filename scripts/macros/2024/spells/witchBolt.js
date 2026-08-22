@@ -288,7 +288,7 @@ async function askSustain({title, casterToken, userId, seconds}) {
 
 export let witchBolt = {
     name: 'Witch Bolt',
-    version: '1.0.0',
+    version: '1.1.0',
     rules: 'modern',
     midi: {
         item: [

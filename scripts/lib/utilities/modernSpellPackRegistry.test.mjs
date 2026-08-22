@@ -257,6 +257,25 @@ test('Witch Bolt ships a modern pack entry wired to the witchBolt macro', () => 
     assert.equal(effect.flags['chris-premades'].info.identifier, 'witchBoltTarget');
 });
 
+test('the Witch Bolt macro and packData versions agree', () => {
+    /*
+     * ⚠️ Not cosmetic. `itemUtils.isUpToDate` compares a `chris-premades`-sourced item against the
+     * MACRO's version (`custom.getMacro(identifier, rules).version`), so a sheet copy already swapped
+     * at the same version reports "Up to Date" and the Medkit's Update button never appears — a
+     * packData-only fix then never reaches anyone's sheet. Bumping the macro version is what makes a
+     * pack change deliverable; the pack's own `info.version` is what the swap then stamps back, so the
+     * two must move together.
+     */
+    const macro = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+    const doc = JSON.parse(readFileSync(
+        new URL('../../../packData/cpr-spells-2024/Witch_Bolt_witchBolt2024CPR.json', import.meta.url),
+        'utf8'
+    ));
+    const macroVersion = macro.match(/name: 'Witch Bolt',\n\s*version: '([^']+)'/)?.[1];
+    assert.ok(macroVersion, 'the Witch Bolt macro declares no version');
+    assert.equal(doc.flags['chris-premades'].info.version, macroVersion);
+});
+
 test('the Witch Bolt macro binds the target effect to concentration and covers the miss case', () => {
     const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
 
