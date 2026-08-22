@@ -24,7 +24,7 @@ function asSet(statuses) {
  */
 export function evaluateEndCondition({distance, maxRange, targetStatuses, targetPresent}) {
     if (!targetPresent) return 'missing';
-    let statuses = asSet(targetStatuses);
+    const statuses = asSet(targetStatuses);
     if (statuses.has(DEAD)) return 'dead';
     if (statuses.has(COVER_TOTAL)) return 'cover';
     if (typeof distance === 'number' && distance >= 0 && distance > maxRange) return 'range';

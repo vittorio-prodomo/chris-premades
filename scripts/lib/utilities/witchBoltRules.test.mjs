@@ -120,7 +120,13 @@ test('the bonus-action gate uses the canonical MidiQOL helper, not a hand-rolled
     assert.ok(!source.includes("dnd5ebonusaction"), 'must not hand-roll the bonus-action marker check');
 });
 
-test('the offer prefers the dispatching trigger token over re-deriving one from the actor', () => {
+test('the offer prefers the dispatching trigger token, then the uuid stashed at cast time', () => {
     const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
-    assert.ok(source.includes('trigger.token ?? actor.getActiveTokens()[0]'));
+    // The dispatcher hands us the token whose turn it is — always prefer it.
+    assert.ok(source.includes('let casterToken = trigger.token;'));
+    // ⚠️ `actor.getActiveTokens()[0]` is the LAST resort, not the first fallback: for a linked actor
+    // with several tokens on the scene it measures range from an arbitrary body. The uuid captured at
+    // cast time comes first, the way Warding Bond stores `bondUuid`.
+    assert.ok(source.includes('casterTokenUuid'));
+    assert.match(source, /let stashed = data\?\.casterTokenUuid \? await fromUuid\(data\.casterTokenUuid\) : undefined;/);
 });

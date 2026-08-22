@@ -196,6 +196,23 @@ test('Witch Bolt ships a modern pack entry wired to the witchBolt macro', () => 
         witchBoltSustain: 'witchBoltSus0000'
     });
 
+    /*
+     * ⚠️ `effects.js` unhideActivities/rehideActivities BOTH bail at their `hiddenActivities` read
+     * (`extensions/effects.js:99`, `:124`) — before the favourites loop — so without this key the
+     * macro's `unhideActivities` + `favorite: true` block is dead code, the Sustain activity is
+     * permanently visible on the sheet, and it is never favourited on cast nor un-favourited when the
+     * spell ends. Call Lightning, the model this feature followed, declares `['stormBolt']`.
+     */
+    assert.deepEqual(cp.hiddenActivities, ['witchBoltSustain']);
+
+    /*
+     * ⚠️ `workflowUtils.isSustainedRoll` reads `spellActivities`; absent, it returns false for the
+     * sustain and every "when you cast a spell" consumer (hide.js, beguilingMagic, blessedHealer,
+     * improvedBlessedStrikes, sanctuary, arcaneWard) re-fires on each bonus-action sustain. RAW,
+     * sustaining is not casting. Same shape as Detect Thoughts' `probeDeeper`.
+     */
+    assert.deepEqual(cp.spellActivities, ['witchBoltSustain']);
+
     const attack = doc.system.activities.witchBoltAtk0000;
     const sustain = doc.system.activities.witchBoltSus0000;
 
@@ -230,4 +247,56 @@ test('Witch Bolt ships a modern pack entry wired to the witchBolt macro', () => 
         movement: ['witchBoltTarget'],
         effect: ['witchBoltTarget']
     });
+
+    /*
+     * The macro has to find this effect on the target from BOTH routes — the one midi applies on a hit
+     * and the one the macro applies itself after a miss — to link it to concentration exactly once.
+     * An identifier on the packData effect is what makes `effectUtils.getEffectByIdentifier` work for
+     * both, and is the established shape (100 packData effects declare `info.identifier`).
+     */
+    assert.equal(effect.flags['chris-premades'].info.identifier, 'witchBoltTarget');
+});
+
+test('the Witch Bolt macro binds the target effect to concentration and covers the miss case', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+
+    // Finding 4: DAE sets only `origin`; dnd5e's getDependents() is dependentOn-driven, so the link
+    // to the caster's concentration has to be made explicitly or a concentration-side end orphans the
+    // target's effect. Same fix as GPS's entangle2024.js.
+    assert.match(source, /MidiQOL\.addConcentrationDependent\(/);
+
+    // Finding 6: midi applies an attack activity's effects to hitTargets only, but the sustain works
+    // "even if the first attack missed" — so the miss path must apply the target effect itself, built
+    // from the item's own effect so the packData flags survive.
+    assert.match(source, /getEffectByIdentifier\(target\.actor, 'witchBoltTarget'\)/);
+    assert.match(source, /applicableEffects/);
+    assert.match(source, /witchBoltEff0000/);
+});
+
+test('the sustain offer degrades gracefully when gambits-premades is absent', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+
+    // Finding 5: GPS is not in module.json's relationships.requires, and an undefined socket result
+    // reads as a decline — indistinguishable from the player saying no. Fall back to CPR's own remote
+    // -capable confirm, and say so out loud so "no offer appeared" is diagnosable.
+    assert.match(source, /dialogUtils\.confirm\(title, 'CHRISPREMADES\.Macros\.WitchBolt\.Sustain', \{userId\}\)/);
+    assert.match(source, /console\.warn\(/);
+});
+
+test('the caster token is resolved from the uuid stashed at cast time, not re-derived', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+
+    // `getActiveTokens()[0]` picks an arbitrary token for a linked actor with several on the scene,
+    // which measures range from the wrong body. Warding Bond stashes `bondUuid` for the same reason.
+    assert.match(source, /casterTokenUuid: workflow\.token\?\.document\.uuid/);
+    // Exactly one remaining getActiveTokens CALL (comments explaining why it is a last resort do not
+    // count): the fallback inside resolveCasterToken, reached only when neither the dispatcher nor the
+    // stashed uuid yields a token.
+    const calls = source
+        .split('\n')
+        .filter((line) => !line.trimStart().startsWith('//') && !line.trimStart().startsWith('*'))
+        .filter((line) => line.includes('getActiveTokens'));
+    assert.deepEqual(calls.map((l) => l.trim()), [
+        'return stashed?.object ?? sourceEffect.parent?.getActiveTokens?.()[0];'
+    ]);
 });

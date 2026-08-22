@@ -94,6 +94,9 @@
         },
         "chris-premades": {
           "rules": "modern",
+          "info": {
+            "identifier": "witchBoltTarget"
+          },
           "macros": {
             "movement": ["witchBoltTarget"],
             "effect": ["witchBoltTarget"]
@@ -119,7 +122,9 @@
       "activityIdentifiers": {
         "witchBolt": "witchBoltAtk0000",
         "witchBoltSustain": "witchBoltSus0000"
-      }
+      },
+      "hiddenActivities": ["witchBoltSustain"],
+      "spellActivities": ["witchBoltSustain"]
     },
     "midiProperties": {
       "confirmTargets": "default",
