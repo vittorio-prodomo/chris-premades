@@ -41,18 +41,20 @@ async function use({workflow}) {
     });
 }
 
-async function early({actor, workflow, config, dialog}) {
+async function early({actor, dialog}) {
     dialog.configure = false;
     let effect = effectUtils.getEffectByIdentifier(actor, 'witchBolt');
+    // ⚠️ CPR's preTargeting dispatcher cancels on a TRUTHY return (events/midi.js:233: 'if (result) return false;').
+    // Returning false here would notify and then let the use proceed anyway. Same polarity as callLightning.js:43.
     if (!effect) {
         genericUtils.notify('CHRISPREMADES.Macros.WitchBolt.NotActive', 'info');
-        return false;
+        return true;
     }
     let targetUuid = effect.flags['chris-premades']?.witchBolt?.targetUuid;
     let targetToken = targetUuid ? (await fromUuid(targetUuid))?.object : undefined;
     if (!targetToken) {
         genericUtils.notify('CHRISPREMADES.Macros.WitchBolt.NoTarget', 'info');
-        return false;
+        return true;
     }
     await genericUtils.updateTargets([targetToken]);
 }
