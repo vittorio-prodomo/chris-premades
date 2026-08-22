@@ -2220,6 +2220,12 @@
                 "Rest": "Hai trascorso la giornata svolgendo solo attività leggere?",
                 "StressDuration": "Formula Durata Stress:"
             },
+            "WitchBolt": {
+                "NotActive": "Fulmine Stregato non è attivo.",
+                "NoTarget": "Fulmine Stregato non ha un bersaglio.",
+                "Sustain": "Usare l'azione bonus per mantenere Fulmine Stregato e infliggere 1d12 danni da fulmine?",
+                "MaxDistance": "Distanza massima"
+            },
             "WitherAndBloom": {
                 "Heal": "Appassire e Fiorire: Cura",
                 "SelectHitDie": "Seleziona quanti Dadi Vita tirare.",

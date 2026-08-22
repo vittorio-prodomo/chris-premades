@@ -204,6 +204,7 @@ export {vampiricTouch} from './macros/2024/spells/vampiricTouch.js';
 export {vitriolicSphere} from './macros/2024/spells/vitriolicSphere.js';
 export {wallOfFire} from './macros/2024/spells/wallOfFire.js';
 export {wardingBond} from './macros/2024/spells/wardingBond.js';
+export {witchBolt, witchBoltSource, witchBoltTarget} from './macros/2024/spells/witchBolt.js';
 export {wish, wishStress, wishImmunity} from './macros/2024/spells/wish.js';
 export {wrathfulSmite} from './macros/2024/spells/wrathfulSmite.js';
 export {zoneOfTruth} from './macros/2024/spells/zoneOfTruth.js';

@@ -172,3 +172,150 @@ test('every cpr-spells-2024 _key matches its own _id', () => {
         }
     }
 });
+
+test('Witch Bolt ships a modern pack entry wired to the witchBolt macro', () => {
+    const raw = readFileSync(
+        new URL('../../../packData/cpr-spells-2024/Witch_Bolt_witchBolt2024CPR.json', import.meta.url),
+        'utf8'
+    );
+    const doc = JSON.parse(raw);
+    const cp = doc.flags['chris-premades'];
+
+    assert.equal(doc.name, 'Witch Bolt');
+    assert.equal(doc._id, 'witchBolt2024CPR');
+    assert.equal(doc._key, '!items!witchBolt2024CPR');
+    assert.equal(cp.info.rules, 'modern');
+    assert.equal(cp.info.source, 'chris-premades');
+
+    // ⚠️ A CPR pass is silently inert unless the item declares its KIND (T83).
+    assert.deepEqual(cp.macros.midi.item, ['witchBolt']);
+
+    // ⚠️ Identifiers live on the ITEM, not the activity — getActivityByIdentifier reads only this map.
+    assert.deepEqual(cp.activityIdentifiers, {
+        witchBolt: 'witchBoltAtk0000',
+        witchBoltSustain: 'witchBoltSus0000'
+    });
+
+    /*
+     * ⚠️ `effects.js` unhideActivities/rehideActivities BOTH bail at their `hiddenActivities` read
+     * (`extensions/effects.js:99`, `:124`) — before the favourites loop — so without this key the
+     * macro's `unhideActivities` + `favorite: true` block is dead code, the Sustain activity is
+     * permanently visible on the sheet, and it is never favourited on cast nor un-favourited when the
+     * spell ends. Call Lightning, the model this feature followed, declares `['stormBolt']`.
+     */
+    assert.deepEqual(cp.hiddenActivities, ['witchBoltSustain']);
+
+    /*
+     * ⚠️ `workflowUtils.isSustainedRoll` reads `spellActivities`; absent, it returns false for the
+     * sustain and every "when you cast a spell" consumer (hide.js, beguilingMagic, blessedHealer,
+     * improvedBlessedStrikes, sanctuary, arcaneWard) re-fires on each bonus-action sustain. RAW,
+     * sustaining is not casting. Same shape as Detect Thoughts' `probeDeeper`.
+     */
+    assert.deepEqual(cp.spellActivities, ['witchBoltSustain']);
+
+    const attack = doc.system.activities.witchBoltAtk0000;
+    const sustain = doc.system.activities.witchBoltSus0000;
+
+    // Defect 1: an empty string means "auto-detect", which adopts the sustain activity as Other Damage.
+    assert.equal(attack.otherActivityId, 'none');
+    assert.equal(attack.type, 'attack');
+    assert.deepEqual(attack.damage.parts[0].scaling, {mode: 'whole', number: 1, formula: ''});
+    assert.equal(attack.damage.parts[0].number, 2);
+    assert.equal(attack.damage.parts[0].denomination, 12);
+    assert.deepEqual(attack.effects, [{_id: 'witchBoltEff0000'}]);
+
+    assert.equal(sustain.type, 'damage');
+    assert.equal(sustain.activation.type, 'bonus');
+    assert.equal(sustain.consumption.spellSlot, false);
+    assert.equal(sustain.damage.parts[0].number, 1);
+    assert.equal(sustain.damage.parts[0].denomination, 12);
+    // RAW: only the INITIAL damage scales with slot level.
+    assert.equal(sustain.damage.parts[0].scaling.mode, '');
+
+    // Defect 2: rounds:1 expires one round in, and its deletion takes the concentration with it.
+    const effect = doc.effects.find((e) => e._id === 'witchBoltEff0000');
+    assert.equal(effect.name, 'Sustained Lightning');
+    assert.equal(effect.duration.rounds, null);
+    assert.equal(effect.duration.turns, null);
+    assert.equal(effect.duration.seconds, 60);
+    assert.equal(effect._key, '!items.effects!witchBolt2024CPR.witchBoltEff0000');
+
+    // The target-side watchers ride on the applied effect, declared here rather than stamped at
+    // runtime. ⚠️ getRules defaults to 'legacy' for effects, so the rules key is not optional.
+    assert.equal(effect.flags['chris-premades'].rules, 'modern');
+    assert.deepEqual(effect.flags['chris-premades'].macros, {
+        movement: ['witchBoltTarget'],
+        effect: ['witchBoltTarget']
+    });
+
+    /*
+     * The macro has to find this effect on the target from BOTH routes — the one midi applies on a hit
+     * and the one the macro applies itself after a miss — to link it to concentration exactly once.
+     * An identifier on the packData effect is what makes `effectUtils.getEffectByIdentifier` work for
+     * both, and is the established shape (100 packData effects declare `info.identifier`).
+     */
+    assert.equal(effect.flags['chris-premades'].info.identifier, 'witchBoltTarget');
+});
+
+test('the Witch Bolt macro and packData versions agree', () => {
+    /*
+     * ⚠️ Not cosmetic. `itemUtils.isUpToDate` compares a `chris-premades`-sourced item against the
+     * MACRO's version (`custom.getMacro(identifier, rules).version`), so a sheet copy already swapped
+     * at the same version reports "Up to Date" and the Medkit's Update button never appears — a
+     * packData-only fix then never reaches anyone's sheet. Bumping the macro version is what makes a
+     * pack change deliverable; the pack's own `info.version` is what the swap then stamps back, so the
+     * two must move together.
+     */
+    const macro = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+    const doc = JSON.parse(readFileSync(
+        new URL('../../../packData/cpr-spells-2024/Witch_Bolt_witchBolt2024CPR.json', import.meta.url),
+        'utf8'
+    ));
+    const macroVersion = macro.match(/name: 'Witch Bolt',\n\s*version: '([^']+)'/)?.[1];
+    assert.ok(macroVersion, 'the Witch Bolt macro declares no version');
+    assert.equal(doc.flags['chris-premades'].info.version, macroVersion);
+});
+
+test('the Witch Bolt macro binds the target effect to concentration and covers the miss case', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+
+    // Finding 4: DAE sets only `origin`; dnd5e's getDependents() is dependentOn-driven, so the link
+    // to the caster's concentration has to be made explicitly or a concentration-side end orphans the
+    // target's effect. Same fix as GPS's entangle2024.js.
+    assert.match(source, /MidiQOL\.addConcentrationDependent\(/);
+
+    // Finding 6: midi applies an attack activity's effects to hitTargets only, but the sustain works
+    // "even if the first attack missed" — so the miss path must apply the target effect itself, built
+    // from the item's own effect so the packData flags survive.
+    assert.match(source, /getEffectByIdentifier\(target\.actor, 'witchBoltTarget'\)/);
+    assert.match(source, /applicableEffects/);
+    assert.match(source, /witchBoltEff0000/);
+});
+
+test('the sustain offer degrades gracefully when gambits-premades is absent', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+
+    // Finding 5: GPS is not in module.json's relationships.requires, and an undefined socket result
+    // reads as a decline — indistinguishable from the player saying no. Fall back to CPR's own remote
+    // -capable confirm, and say so out loud so "no offer appeared" is diagnosable.
+    assert.match(source, /dialogUtils\.confirm\(title, 'CHRISPREMADES\.Macros\.WitchBolt\.Sustain', \{userId\}\)/);
+    assert.match(source, /console\.warn\(/);
+});
+
+test('the caster token is resolved from the uuid stashed at cast time, not re-derived', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+
+    // `getActiveTokens()[0]` picks an arbitrary token for a linked actor with several on the scene,
+    // which measures range from the wrong body. Warding Bond stashes `bondUuid` for the same reason.
+    assert.match(source, /casterTokenUuid: workflow\.token\?\.document\.uuid/);
+    // Exactly one remaining getActiveTokens CALL (comments explaining why it is a last resort do not
+    // count): the fallback inside resolveCasterToken, reached only when neither the dispatcher nor the
+    // stashed uuid yields a token.
+    const calls = source
+        .split('\n')
+        .filter((line) => !line.trimStart().startsWith('//') && !line.trimStart().startsWith('*'))
+        .filter((line) => line.includes('getActiveTokens'));
+    assert.deepEqual(calls.map((l) => l.trim()), [
+        'return stashed?.object ?? sourceEffect.parent?.getActiveTokens?.()[0];'
+    ]);
+});

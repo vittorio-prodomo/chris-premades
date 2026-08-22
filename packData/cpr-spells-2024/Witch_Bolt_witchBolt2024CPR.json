@@ -1,0 +1,135 @@
+{
+  "name": "Witch Bolt",
+  "type": "spell",
+  "img": "icons/magic/lightning/bolt-strike-blue-white.webp",
+  "folder": null,
+  "_id": "witchBolt2024CPR",
+  "_key": "!items!witchBolt2024CPR",
+  "system": {
+    "identifier": "witchBolt",
+    "level": 1,
+    "school": "evo",
+    "properties": ["vocal", "somatic", "material", "concentration"],
+    "materials": {"value": "a twig struck by lightning", "consumed": false, "cost": 0, "supply": 0},
+    "preparation": {"mode": "prepared", "prepared": false},
+    "activation": {"type": "action", "value": 1, "condition": ""},
+    "duration": {"value": "1", "units": "minute"},
+    "range": {"value": 60, "units": "ft"},
+    "target": {"affects": {"count": "1", "type": "creature", "choice": false, "special": ""}, "template": {}},
+    "description": {"value": "<p>A beam of crackling blue energy lances toward a creature within range, forming a sustained arc of lightning between you and the target. Make a ranged spell attack against it. On a hit, the target takes 2d12 Lightning damage.</p><p>On each of your subsequent turns, you can take a Bonus Action to deal 1d12 Lightning damage to the target automatically, even if the first attack missed.</p><p>The spell ends if the target is ever outside the spell's range or if it has Total Cover from you.</p><p><strong>Using a Higher-Level Spell Slot.</strong> The initial damage increases by 1d12 for each spell slot level above 1.</p>", "chat": ""},
+    "source": {"book": "", "page": "", "license": "", "custom": "PHB 2024", "rules": "2024", "revision": 1},
+    "uses": {"spent": null, "max": "", "recovery": []},
+    "sourceClass": "",
+    "activities": {
+      "witchBoltAtk0000": {
+        "type": "attack",
+        "_id": "witchBoltAtk0000",
+        "sort": 0,
+        "name": "",
+        "activation": {"type": "action", "value": null, "override": false, "condition": ""},
+        "consumption": {"scaling": {"allowed": false, "max": ""}, "spellSlot": true, "targets": []},
+        "duration": {"units": "inst", "concentration": false, "override": false},
+        "range": {"override": false, "units": "self"},
+        "target": {"prompt": true, "override": false, "affects": {"choice": false}, "template": {"contiguous": false, "units": "ft", "stationary": false}},
+        "attack": {"ability": "", "bonus": "", "critical": {"threshold": null}, "flat": false, "type": {"value": "ranged", "classification": "spell"}},
+        "damage": {
+          "critical": {"bonus": ""},
+          "includeBase": true,
+          "parts": [{"number": 2, "denomination": 12, "bonus": "", "types": ["lightning"], "custom": {"enabled": false, "formula": ""}, "scaling": {"mode": "whole", "number": 1, "formula": ""}}]
+        },
+        "effects": [{"_id": "witchBoltEff0000"}],
+        "otherActivityId": "none",
+        "useConditionText": "",
+        "effectConditionText": ""
+      },
+      "witchBoltSus0000": {
+        "type": "damage",
+        "_id": "witchBoltSus0000",
+        "sort": 100000,
+        "name": "Sustain",
+        "activation": {"type": "bonus", "value": null, "override": true, "condition": ""},
+        "consumption": {"scaling": {"allowed": false}, "spellSlot": false, "targets": []},
+        "duration": {"units": "inst", "concentration": false, "override": true},
+        "range": {"override": false, "units": "self"},
+        "target": {"prompt": false, "override": false, "affects": {"choice": false}, "template": {"contiguous": false, "units": "ft", "stationary": false}},
+        "damage": {
+          "critical": {"allow": false},
+          "parts": [{"number": 1, "denomination": 12, "bonus": "", "types": ["lightning"], "custom": {"enabled": false, "formula": ""}, "scaling": {"mode": "", "number": 1}}]
+        },
+        "effects": [],
+        "otherActivityId": "none",
+        "useConditionText": "",
+        "effectConditionText": ""
+      }
+    }
+  },
+  "effects": [
+    {
+      "name": "Sustained Lightning",
+      "_id": "witchBoltEff0000",
+      "_key": "!items.effects!witchBolt2024CPR.witchBoltEff0000",
+      "type": "base",
+      "img": "icons/magic/lightning/bolt-strike-blue-white.webp",
+      "changes": [],
+      "disabled": false,
+      "transfer": false,
+      "origin": null,
+      "tint": "#ffffff",
+      "statuses": [],
+      "sort": 0,
+      "system": {},
+      "description": "<p>An arc of lightning links you to this creature. On each of your turns you can take a Bonus Action to deal 1d12 Lightning damage automatically. The spell ends if the target leaves the spell's range or gains Total Cover from you.</p>",
+      "duration": {"startTime": null, "seconds": 60, "combat": null, "rounds": null, "turns": null, "startRound": null, "startTurn": null},
+      "flags": {
+        "dae": {
+          "disableIncapacitated": false,
+          "selfTarget": false,
+          "selfTargetAlways": false,
+          "dontApply": false,
+          "stackable": "noneName",
+          "showIcon": true,
+          "durationExpression": "",
+          "macroRepeat": "none",
+          "specialDuration": []
+        },
+        "chris-premades": {
+          "rules": "modern",
+          "info": {
+            "identifier": "witchBoltTarget"
+          },
+          "macros": {
+            "movement": ["witchBoltTarget"],
+            "effect": ["witchBoltTarget"]
+          }
+        }
+      }
+    }
+  ],
+  "flags": {
+    "chris-premades": {
+      "info": {
+        "name": "Witch Bolt",
+        "version": "1.1.0",
+        "identifier": "witchBolt",
+        "source": "chris-premades",
+        "rules": "modern"
+      },
+      "macros": {
+        "midi": {
+          "item": ["witchBolt"]
+        }
+      },
+      "activityIdentifiers": {
+        "witchBolt": "witchBoltAtk0000",
+        "witchBoltSustain": "witchBoltSus0000"
+      },
+      "hiddenActivities": ["witchBoltSustain"],
+      "spellActivities": ["witchBoltSustain"]
+    },
+    "midiProperties": {
+      "confirmTargets": "default",
+      "magicdam": true,
+      "magiceffect": true
+    }
+  }
+}
