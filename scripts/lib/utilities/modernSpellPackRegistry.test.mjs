@@ -172,3 +172,62 @@ test('every cpr-spells-2024 _key matches its own _id', () => {
         }
     }
 });
+
+test('Witch Bolt ships a modern pack entry wired to the witchBolt macro', () => {
+    const raw = readFileSync(
+        new URL('../../../packData/cpr-spells-2024/Witch_Bolt_witchBolt2024CPR.json', import.meta.url),
+        'utf8'
+    );
+    const doc = JSON.parse(raw);
+    const cp = doc.flags['chris-premades'];
+
+    assert.equal(doc.name, 'Witch Bolt');
+    assert.equal(doc._id, 'witchBolt2024CPR');
+    assert.equal(doc._key, '!items!witchBolt2024CPR');
+    assert.equal(cp.info.rules, 'modern');
+    assert.equal(cp.info.source, 'chris-premades');
+
+    // ⚠️ A CPR pass is silently inert unless the item declares its KIND (T83).
+    assert.deepEqual(cp.macros.midi.item, ['witchBolt']);
+
+    // ⚠️ Identifiers live on the ITEM, not the activity — getActivityByIdentifier reads only this map.
+    assert.deepEqual(cp.activityIdentifiers, {
+        witchBolt: 'witchBoltAtk0000',
+        witchBoltSustain: 'witchBoltSus0000'
+    });
+
+    const attack = doc.system.activities.witchBoltAtk0000;
+    const sustain = doc.system.activities.witchBoltSus0000;
+
+    // Defect 1: an empty string means "auto-detect", which adopts the sustain activity as Other Damage.
+    assert.equal(attack.otherActivityId, 'none');
+    assert.equal(attack.type, 'attack');
+    assert.deepEqual(attack.damage.parts[0].scaling, {mode: 'whole', number: 1, formula: ''});
+    assert.equal(attack.damage.parts[0].number, 2);
+    assert.equal(attack.damage.parts[0].denomination, 12);
+    assert.deepEqual(attack.effects, [{_id: 'witchBoltEff0000'}]);
+
+    assert.equal(sustain.type, 'damage');
+    assert.equal(sustain.activation.type, 'bonus');
+    assert.equal(sustain.consumption.spellSlot, false);
+    assert.equal(sustain.damage.parts[0].number, 1);
+    assert.equal(sustain.damage.parts[0].denomination, 12);
+    // RAW: only the INITIAL damage scales with slot level.
+    assert.equal(sustain.damage.parts[0].scaling.mode, '');
+
+    // Defect 2: rounds:1 expires one round in, and its deletion takes the concentration with it.
+    const effect = doc.effects.find((e) => e._id === 'witchBoltEff0000');
+    assert.equal(effect.name, 'Sustained Lightning');
+    assert.equal(effect.duration.rounds, null);
+    assert.equal(effect.duration.turns, null);
+    assert.equal(effect.duration.seconds, 60);
+    assert.equal(effect._key, '!items.effects!witchBolt2024CPR.witchBoltEff0000');
+
+    // The target-side watchers ride on the applied effect, declared here rather than stamped at
+    // runtime. ⚠️ getRules defaults to 'legacy' for effects, so the rules key is not optional.
+    assert.equal(effect.flags['chris-premades'].rules, 'modern');
+    assert.deepEqual(effect.flags['chris-premades'].macros, {
+        movement: ['witchBoltTarget'],
+        effect: ['witchBoltTarget']
+    });
+});
