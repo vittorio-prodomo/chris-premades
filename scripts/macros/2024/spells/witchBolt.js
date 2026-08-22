@@ -1,5 +1,5 @@
-import {activityUtils, effectUtils, genericUtils, itemUtils, tokenUtils, workflowUtils} from '../../../utils.js';
-import {evaluateEndCondition} from '../../../lib/utilities/witchBoltRules.mjs';
+import {activityUtils, effectUtils, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../utils.js';
+import {evaluateEndCondition, shouldOfferSustain} from '../../../lib/utilities/witchBoltRules.mjs';
 
 async function use({workflow}) {
     let target = workflow.targets.first();
@@ -27,7 +27,10 @@ async function use({workflow}) {
         identifier: 'witchBolt',
         // ⚠️ getRules defaults to 'legacy' for effects — a 2024 macro must say so explicitly.
         rules: 'modern',
-        macros: [{type: 'movement', macros: ['witchBoltSource']}],
+        macros: [
+            {type: 'movement', macros: ['witchBoltSource']},
+            {type: 'combat', macros: ['witchBoltSource']}
+        ],
         vae: [{
             type: 'use',
             name: sustain.name,
@@ -129,6 +132,70 @@ async function conditionApplied({trigger}) {
     await movedTarget({trigger});
 }
 
+async function offerSustain({trigger}) {
+    let sourceEffect = trigger.entity;
+    let actor = sourceEffect.parent;
+    // End conditions win over the offer — re-check before asking.
+    await endIfConditionMet(sourceEffect);
+    if (!actor.effects.get(sourceEffect.id)) return;
+
+    let bonusActionUsed = !!actor.effects.find(i => i.id === 'dnd5ebonusaction');
+    if (!shouldOfferSustain({effectPresent: true, bonusActionUsed, endReason: null})) return;
+
+    let item = await fromUuid(sourceEffect.origin);
+    let sustain = item ? activityUtils.getActivityByIdentifier(item, 'witchBoltSustain', {strict: true}) : undefined;
+    if (!sustain) return;
+
+    let casterToken = actor.getActiveTokens()[0];
+    if (!casterToken) return;
+    let userId = socketUtils.firstOwner(actor, true) ?? socketUtils.gmID();
+    let selection = await askSustain({title: item.name, casterToken, userId, seconds: SUSTAIN_TIMEOUT});
+    // ⚠️ The chrome expires a dialog by closing it, and a closed dialog is a DECLINED one. RAW,
+    // declining does NOT end the spell — it just skips this turn's bonus action.
+    if (!selection) return;
+    await workflowUtils.completeActivityUse(sustain);
+}
+
+const SUSTAIN_TIMEOUT = 30;
+
+/**
+ * Ask the caster's owner whether to sustain, wearing the GPS countdown.
+ *
+ * ⚠️ Why not `dialogUtils.confirm({userId})`: `attachCountdownChrome` mutates a dialog INSTANCE
+ * (it prepends a progress bar into `dialog.element` and installs timers on the object), so only the
+ * client that BUILDS the dialog can dress it. CPR's socket dialog constructs a `DialogApp` on the
+ * recipient's client and returns just the answer — no handle ever reaches us, so there is nothing
+ * to dress. GPS avoids this by shipping the whole dialog FUNCTION across the socket instead:
+ * `process3rdPartyReactionDialog` is registered as a socketlib op (`gambits-premades/scripts/module.js:70`),
+ * so it runs on the recipient's client and attaches the chrome there. Same reason a player already
+ * sees a countdown on GPS reaction offers.
+ *
+ * ⚠️ The name is misleading — it is a general timed Yes/No. It builds its own localized buttons, takes
+ * `dialogContent` as arbitrary HTML, and every reaction-specific hook inside (item select, weapon
+ * image, enemy-token checkboxes, damage list) is a null-guarded lookup that simply does not wire when
+ * the content has no such elements.
+ *
+ * ⚠️ Pass `type: 'singleDialog'`. `'multiDialog'` makes it coordinate closing a paired GM dialog we
+ * are not opening, via `closeDialogById` round-trips.
+ *
+ * ⚠️ Returns `{userDecision, programmaticallyClosed, ...}`. A timeout, an X, or No all give a falsy
+ * `userDecision` — which is exactly the decline semantics we want, since RAW declining does not end
+ * the spell.
+ */
+async function askSustain({title, casterToken, userId, seconds}) {
+    let content = `<p>${game.i18n.localize('CHRISPREMADES.Macros.WitchBolt.Sustain')}</p>`;
+    let result = await game.gps?.socket?.executeAsUser('process3rdPartyReactionDialog', userId, {
+        dialogTitle: title,
+        dialogContent: content,
+        dialogId: `witch-bolt-${casterToken.id}`,
+        initialTimeLeft: seconds,
+        validTokenPrimaryUuid: casterToken.document.uuid,
+        source: 'user',
+        type: 'singleDialog'
+    });
+    return !!result?.userDecision;
+}
+
 export let witchBolt = {
     name: 'Witch Bolt',
     version: '1.0.0',
@@ -148,7 +215,17 @@ export let witchBolt = {
                 activities: ['witchBoltSustain']
             }
         ]
-    }
+    },
+    config: [
+        {
+            value: 'maxDistance',
+            label: 'CHRISPREMADES.Macros.WitchBolt.MaxDistance',
+            type: 'text',
+            default: 60,
+            category: 'homebrew',
+            homebrew: true
+        }
+    ]
 };
 
 export let witchBoltSource = {
@@ -159,6 +236,13 @@ export let witchBoltSource = {
         {
             pass: 'moved',
             macro: movedSource,
+            priority: 50
+        }
+    ],
+    combat: [
+        {
+            pass: 'turnStart',
+            macro: offerSustain,
             priority: 50
         }
     ]

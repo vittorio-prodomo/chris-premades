@@ -2955,7 +2955,9 @@
             },
             "WitchBolt": {
                 "NotActive": "Witch Bolt is not currently active.",
-                "NoTarget": "Witch Bolt has no target."
+                "NoTarget": "Witch Bolt has no target.",
+                "Sustain": "Use your Bonus Action to sustain Witch Bolt for 1d12 Lightning damage?",
+                "MaxDistance": "Maximum distance"
             },
             "WitherAndBloom": {
                 "Heal": "Wither And Bloom: Heal",

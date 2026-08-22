@@ -79,3 +79,19 @@ test('half and three-quarters cover are never treated as total (regression on th
     assert.ok(!source.includes('coverHalf'));
     assert.ok(!source.includes('coverThreeQuarters'));
 });
+
+test('the offer is raised through the GPS socket op, read off game.gps at CALL time', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+    // The dialog must be BUILT on the recipient's client, otherwise the countdown chrome — which
+    // mutates a live dialog instance — cannot be attached for a player-owned caster.
+    assert.ok(source.includes("executeAsUser('process3rdPartyReactionDialog'"));
+    assert.match(source, /type:\s*'singleDialog'/);
+    // ⚠️ game.gps is reassigned WHOLESALE at GPS's ready hook, so a hoisted reference goes stale.
+    assert.ok(source.includes('game.gps?.socket'));
+    assert.ok(!/const\s+\w+\s*=\s*game\.gps\s*;/.test(source), 'must not hoist game.gps into a module-level const');
+});
+
+test('the sustain offer runs at turnStart on the caster effect', () => {
+    const source = readFileSync(new URL('../../macros/2024/spells/witchBolt.js', import.meta.url), 'utf8');
+    assert.match(source, /pass:\s*'turnStart'/);
+});
