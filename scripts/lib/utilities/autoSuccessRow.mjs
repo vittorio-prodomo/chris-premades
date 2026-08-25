@@ -30,8 +30,14 @@ export function paintAutoSuccessRow(row, {label, reason} = {}) {
     if (label !== undefined) row.rollTotal = label;
     if (reason !== undefined) {
         const escaped = escapeHtml(reason);
-        row.attributionTooltip = row.attributionTooltip ? `${row.attributionTooltip}<br>${escaped}` : escaped;
-        row.hasAttribution = true;
+        // T129/T174 dedup: with forced saves, midi's attribution tooltip already carries the
+        // reason as the succeed() display name (the green AutoSuccess row) — appending it again
+        // showed the sentence twice. Never append text the tooltip already contains; the append
+        // remains for the belt paths where no attribution was recorded.
+        if (!row.attributionTooltip?.includes(escaped)) {
+            row.attributionTooltip = row.attributionTooltip ? `${row.attributionTooltip}<br>${escaped}` : escaped;
+            row.hasAttribution = true;
+        }
     }
     return row;
 }

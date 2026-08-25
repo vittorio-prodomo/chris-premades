@@ -229,3 +229,14 @@ test('T129: the AUTOSUCCESS convention strings exist, en and it', () => {
     assert.match(en.CHRISPREMADES.Macros.ProtectionFromEvilAndGood.Save, /^Roll with advantage/);
     assert.match(it.CHRISPREMADES.Macros.ProtectionFromEvilAndGood.Save, /^Tira con vantaggio/);
 });
+
+test('T129 dedup: the forced-success attribution carries the LOCALIZED reason', () => {
+    /*
+     * The attribution display name is what the green tooltip row shows; with the paint no longer
+     * re-appending a contained reason, this row is the single place the explanation lives — so it
+     * must be the localized AutoSuccessReason, not the bare English spell name. Node-safe: under
+     * plain node (these tests import the macro) game is undefined and the literal falls back.
+     */
+    const source = readFileSync(pfegMacroPath, 'utf8');
+    assert.match(source, /globalThis\.game\?\.i18n\?\.localize\('CHRISPREMADES\.Macros\.ProtectionFromEvilAndGood\.AutoSuccessReason'\) \?\? 'Protection from Evil and Good'/);
+});

@@ -59,3 +59,27 @@ test('a missing reason leaves the tooltip untouched but still repaints the row',
     assert.equal(row.hasAttribution, false);
     assert.equal(row.rollTotal, 'AUTOSUCCESS');
 });
+
+test('does not append a reason the tooltip already contains (T129/T174 dedup)', () => {
+    /*
+     * With forced saves, midi's attribution tooltip ALREADY carries the reason: the preTargetSave
+     * succeed() call passes it as the attribution display name (the green AutoSuccess row). The
+     * postSave paint then appended the same sentence again — Vittorio's screenshot showed it
+     * twice. The check is on the ESCAPED text, since that is what the tooltip stores.
+     */
+    const row = freshRow();
+    row.attributionTooltip = '<span class="attribution-type attribution-type-SUCCESS">AutoSuccess</span> <span class="attribution-source">Immune to sleep &amp; exhaustion</span>';
+    row.hasAttribution = true;
+    const before = row.attributionTooltip;
+    paintAutoSuccessRow(row, {label: 'AUTOSUCCESS', reason: 'Immune to sleep & exhaustion'});
+    assert.equal(row.attributionTooltip, before, 'the same sentence must not appear twice');
+    assert.equal(row.rollTotal, 'AUTOSUCCESS', 'the repaint itself still happens');
+});
+
+test('a genuinely different reason still appends alongside an existing attribution', () => {
+    const row = freshRow();
+    row.attributionTooltip = '<span class="attribution-source">Advantage from Bless</span>';
+    row.hasAttribution = true;
+    paintAutoSuccessRow(row, {label: 'AUTOSUCCESS', reason: 'Immune to sleep'});
+    assert.ok(row.attributionTooltip.endsWith('<br>Immune to sleep'));
+});

@@ -58,10 +58,14 @@ async function preTargetSave({workflow, token}) {
         defaultTracker,
         ...Object.values(saveDetails.advantageByChoice ?? {}).map(choice => choice.tracker)
     ]);
+    // T129 dedup: the attribution display name is the single place the explanation lives now
+    // (the paint no longer re-appends a contained reason), so pass the localized reason here.
+    // Node-safe: the guard tests import this module under plain node, where game is undefined.
+    let autoSuccessReason = globalThis.game?.i18n?.localize('CHRISPREMADES.Macros.ProtectionFromEvilAndGood.AutoSuccessReason') ?? 'Protection from Evil and Good';
     for (const tracker of trackers) {
         tracker?.modifiers?.succeed(
             'protectionFromEvilAndGood',
-            'Protection from Evil and Good'
+            autoSuccessReason
         );
     }
     // T129: remember who was forced, for the display repaint after the card is drawn. midi shows
