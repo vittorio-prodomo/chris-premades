@@ -187,6 +187,12 @@
           "mode": 0,
           "value": "function.chrisPremades.legacyMacros.protectionFromEvilAndGood.preTargetSave,preTargetSave",
           "priority": 20
+        },
+        {
+          "key": "flags.midi-qol.onUseMacroName",
+          "mode": 0,
+          "value": "function.chrisPremades.legacyMacros.protectionFromEvilAndGood.repaintAutoSuccess,postTargetEffectApplication",
+          "priority": 20
         }
       ],
       "transfer": false,
@@ -297,7 +303,7 @@
         ],
         "identifier": "protectionFromEvilAndGood",
         "source": "chris-premades",
-        "version": "1.3.139"
+        "version": "1.3.140"
       }
     }
   },

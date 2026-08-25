@@ -171,3 +171,61 @@ test('the 2024 applied effect registers the modern target handler at preTargetSa
         'function.chrisPremades.macros.protectionFromEvilAndGood.preTargetSave,preTargetSave'
     );
 });
+
+/*
+ * T129 — the clause-2 advantage prompt and the "99" display, both raised at the table 2026-08-24.
+ */
+const pfegMacroPath = fileURLToPath(new URL('../../macros/2014/spells/protectionFromEvilAndGood.js', import.meta.url));
+
+test('T129: the advantage prompt is suppressed when the auto-success will fire anyway', () => {
+    // Asking about advantage on a save that cannot fail is noise. Same predicate as preTargetSave,
+    // keyed off the activity uuid the fork stashes on the roll config; when the activity is
+    // unreachable (possession, repeat saves vs an applied effect, overtime rolls) the prompt keeps
+    // its legitimate residual role — suppressed conditionally, never removed.
+    const source = readFileSync(pfegMacroPath, 'utf8');
+    const saveFn = source.slice(source.indexOf('async function save('), source.indexOf('const protectedCreatureTypes'));
+    assert.match(saveFn, /chris-premades.*activityUuid|activityUuid/);
+    assert.match(saveFn, /protectedCreatureTypes\.has\(raceOrType\(/);
+    assert.match(saveFn, /activityHasProtectedCondition\(/);
+});
+
+test('T129: a forced save repaints as AUTOSUCCESS instead of the pinned 99', () => {
+    const source = readFileSync(pfegMacroPath, 'utf8');
+    // preTargetSave remembers who it forced; the repaint pass runs after the card is drawn.
+    assert.match(source, /pfegAutoSucceeded/);
+    assert.match(source, /paintAutoSuccessRow/);
+    assert.match(source, /displaySaves\(false\)/);
+    assert.match(source, /repaintAutoSuccess/);
+});
+
+test('T129: both edition effects wire the repaint at postTargetEffectApplication', () => {
+    // ⚠️ midi's comma format ("macroName,pass") — the bracket form parses the pass as undefined.
+    // postTargetEffectApplication is the target pass that fires AFTER displaySaves has drawn the
+    // card; preTargetSave itself runs before the roll even exists.
+    const legacy = JSON.parse(readFileSync(new URL('../../../packData/cpr-spells/Protection_from_Evil_and_Good_LAjtSpMEyIDbeOct.json', import.meta.url), 'utf8'));
+    const modern = JSON.parse(readFileSync(new URL('../../../packData/cpr-spells-2024/Protection_from_Evil_and_Good_YLdLnvBtK8ksdXgd.json', import.meta.url), 'utf8'));
+    const values = doc => doc.effects.flatMap(e => e.changes.filter(c => c.key === 'flags.midi-qol.onUseMacroName').map(c => c.value));
+    assert.ok(values(legacy).includes('function.chrisPremades.legacyMacros.protectionFromEvilAndGood.repaintAutoSuccess,postTargetEffectApplication'), 'legacy effect misses the repaint pass');
+    assert.ok(values(modern).includes('function.chrisPremades.macros.protectionFromEvilAndGood.repaintAutoSuccess,postTargetEffectApplication'), 'modern effect misses the repaint pass');
+    // T127 deliverability: pack change -> versions move together, both editions + the macro.
+    const macroVersion = readFileSync(pfegMacroPath, 'utf8').match(/version: '([^']+)'/)?.[1];
+    assert.equal(macroVersion, '1.3.140');
+    assert.equal(legacy.flags['chris-premades'].info.version, '1.3.140');
+    assert.equal(modern.flags['chris-premades'].info.version, '1.3.140');
+    const modernMacro = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/protectionFromEvilAndGood.js', import.meta.url)), 'utf8');
+    assert.match(modernMacro, /version: '1\.3\.140'/);
+});
+
+test('T129: the AUTOSUCCESS convention strings exist, en and it', () => {
+    const en = JSON.parse(readFileSync(fileURLToPath(new URL('../../../lang/en.json', import.meta.url)), 'utf8'));
+    const it = JSON.parse(readFileSync(fileURLToPath(new URL('../../../lang/it.json', import.meta.url)), 'utf8'));
+    for (const [lang, label] of [[en, 'AUTOSUCCESS'], [it, 'AUTOSUCCESSO']]) {
+        const pfeg = lang.CHRISPREMADES.Macros.ProtectionFromEvilAndGood;
+        assert.equal(pfeg.AutoSuccess, label, 'label must match the GPS house convention');
+        assert.ok(pfeg.AutoSuccessReason, 'attribution reason missing');
+        assert.ok(pfeg.Save, 'the reworded prompt label must still exist');
+    }
+    // The reworded prompt should lead with the action, not read like a lore statement.
+    assert.match(en.CHRISPREMADES.Macros.ProtectionFromEvilAndGood.Save, /^Roll with advantage/);
+    assert.match(it.CHRISPREMADES.Macros.ProtectionFromEvilAndGood.Save, /^Tira con vantaggio/);
+});

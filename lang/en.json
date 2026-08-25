@@ -2290,7 +2290,9 @@
                 "Protected": "Protection: Protected"
             },
             "ProtectionFromEvilAndGood": {
-                "Save": "This save is from an effect from an aberration, celestial, elemental, fey, fiends, or undead that has charmed, frightened, or possessed you."
+                "Save": "Roll with advantage — this save is against being charmed, frightened, or possessed by an aberration, celestial, elemental, fey, fiend, or undead already affecting you (Protection from Evil and Good).",
+                "AutoSuccess": "AUTOSUCCESS",
+                "AutoSuccessReason": "Auto-success — Protection from Evil and Good"
             },
             "PsionicPower": {
                 "Confirm": "Did the skill or tool check succeed?"

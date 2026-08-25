@@ -1,4 +1,19 @@
+// ⚠️ No utils.js import here: protectionFromEvilAndGood.test.mjs imports this module under plain
+// node, and utils.js touches Foundry globals at load. autoSuccessRow.mjs is pure; i18n and
+// fromUuid are runtime globals reached only inside the functions.
+import {paintAutoSuccessRow} from '../../../lib/utilities/autoSuccessRow.mjs';
+
 async function save({trigger}) {
+    // T129: don't ask about advantage on a save the clause-1 handler is about to FORCE — asking
+    // about a save that cannot fail is noise. Same predicate as preTargetSave, keyed off the
+    // activity uuid the save event stashes on the roll config. When the activity is unreachable
+    // (possession, repeat saves against an already-applied effect, overtime rolls) the prompt
+    // keeps its legitimate residual role — suppressed conditionally, never removed.
+    let activityUuid = trigger?.config?.['chris-premades']?.activityUuid;
+    if (activityUuid) {
+        let activity = await fromUuid(activityUuid);
+        if (activity && protectedCreatureTypes.has(raceOrType(activity.actor)) && activityHasProtectedCondition(activity)) return;
+    }
     return {label: 'CHRISPREMADES.Macros.ProtectionFromEvilAndGood.Save', type: 'advantage'};
 }
 const protectedCreatureTypes = new Set(['aberration', 'celestial', 'elemental', 'fey', 'fiend', 'undead']);
@@ -20,7 +35,7 @@ function activityHasProtectedCondition(activity) {
     }
     return false;
 }
-async function preTargetSave({workflow}) {
+async function preTargetSave({workflow, token}) {
     if (!protectedCreatureTypes.has(raceOrType(workflow?.actor))) return;
     if (!activityHasProtectedCondition(workflow?.activity)) return;
     const saveDetails = workflow.saveDetails;
@@ -49,11 +64,34 @@ async function preTargetSave({workflow}) {
             'Protection from Evil and Good'
         );
     }
+    // T129: remember who was forced, for the display repaint after the card is drawn. midi shows
+    // a forced success as a pinned 99 — mechanically its native route, visually a fake number.
+    if (token) {
+        workflow.chrisPremades ??= {};
+        (workflow.chrisPremades.pfegAutoSucceeded ??= new Set()).add(token.id);
+    }
+}
+// T129: the T133 AUTOSUCCESS house convention (see GPS's Sleep repaint). Runs per target at
+// postTargetEffectApplication — the target pass that fires AFTER displaySaves has drawn the card;
+// the real roll stays in the hover breakdown, the reason lands in the attribution tooltip.
+// ⚠️ displaySaves REPLACES its card block, so re-calling it per painted target is safe.
+async function repaintAutoSuccess({workflow, token}) {
+    let forced = workflow?.chrisPremades?.pfegAutoSucceeded;
+    if (!token || !forced?.has(token.id)) return;
+    forced.delete(token.id);
+    let row = workflow.saveDisplayData?.find(d => d.id === token.id);
+    if (!row) return;
+    paintAutoSuccessRow(row, {
+        label: game.i18n.localize('CHRISPREMADES.Macros.ProtectionFromEvilAndGood.AutoSuccess'),
+        reason: game.i18n.localize('CHRISPREMADES.Macros.ProtectionFromEvilAndGood.AutoSuccessReason')
+    });
+    await workflow.displaySaves(false);
 }
 export let protectionFromEvilAndGood = {
     name: 'Protection from Evil and Good',
-    version: '1.3.139',
+    version: '1.3.140',
     preTargetSave,
+    repaintAutoSuccess,
     save: [
         {
             pass: 'context',

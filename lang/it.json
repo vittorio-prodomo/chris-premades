@@ -1701,7 +1701,9 @@
                 "ReplacementAbility": "Caratteristica sostitutiva:"
             },
             "ProtectionFromEvilAndGood": {
-                "Save": "Questo tiro salvezza è dovuto a un effetto di un'aberrazione, celestiale, elementale, fey, demone o non morto che ti ha affascinato, spaventato o posseduto."
+                "Save": "Tira con vantaggio — questo tiro salvezza è contro l'essere affascinato, spaventato o posseduto da un'aberrazione, un celestiale, un elementale, una fata, un immondo o un non morto che già ti influenza (Protezione dal Bene e dal Male).",
+                "AutoSuccess": "AUTOSUCCESSO",
+                "AutoSuccessReason": "Successo automatico — Protezione dal Bene e dal Male"
             },
             "PsionicSorcery": {
                 "Select": "Seleziona quale incantesimo lanciare:"
