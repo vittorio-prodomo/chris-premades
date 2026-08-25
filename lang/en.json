@@ -1839,6 +1839,11 @@
                 "MoveSelect": "Which creature should Hunter's Mark move to?",
                 "Select": "Which target would you like to unmark?"
             },
+            "LightWeaponEconomy": {
+                "NickFold": "Nick: the extra attack is part of the Attack action — your bonus action stays free.",
+                "OffhandMarked": "Off-hand extra attack — bonus action used.",
+                "OffhandNoBonus": "Off-hand extra attack, but the bonus action was already used this turn."
+            },
             "MageArmor": {
                 "WearingArmor": "{targetName} is wearing armor — Mage Armor requires a creature who isn't wearing armor."
             },

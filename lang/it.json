@@ -1482,6 +1482,11 @@
                 "ReduceMaxHP": "Riduzione dei PF Massimi:",
                 "excessAsTemp": "Guarigione in eccesso come punti ferita temporanei:"
             },
+            "LightWeaponEconomy": {
+                "NickFold": "Intaccare: l'attacco extra fa parte dell'azione di Attacco — l'azione bonus resta libera.",
+                "OffhandMarked": "Attacco extra con la mano secondaria — azione bonus consumata.",
+                "OffhandNoBonus": "Attacco extra con la mano secondaria, ma l'azione bonus è già stata usata questo turno."
+            },
             "LightningArrow": {
                 "Burst": "Freccia Fulminante: Esplosione"
             },

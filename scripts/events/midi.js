@@ -10,6 +10,7 @@ import {critFumble} from '../macros/homebrew/critFumble.js';
 import {explodingHeals} from '../macros/homebrew/explodingHeals.js';
 import {CPRMultipleRollResolver} from '../applications/rollResolverMultiple.js';
 import {masteries} from '../macros/2024/mechanics/masteries.js';
+import {lightWeaponEconomy} from '../macros/2024/mechanics/lightWeaponEconomy.js';
 import {effects} from '../extensions/effects.js';
 import {convenientEffects} from '../integrations/convenientEffects.js';
 import {heroicInspiration} from '../macros/2024/mechanics/heroicInspiration.js';
@@ -413,6 +414,7 @@ async function rollFinished(workflow) {
         await conditionVulnerability.RollComplete(workflow);
     }
     if (genericUtils.getCPRSetting('weaponMastery')) await masteries.RollComplete(workflow);
+    await lightWeaponEconomy.RollComplete(workflow);
     await effects.specialDuration(workflow);
     await effects.removeWorkflowEffects(workflow);
     if (genericUtils.getCPRSetting('cleave')) await cleave(workflow);
