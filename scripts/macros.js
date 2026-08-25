@@ -1,3 +1,4 @@
+import './macros/2024/spells/mageArmor.js';
 export {summonUtilsModern as summonUtils} from './lib/summons.js';
 // Utility
 export {setAttackRoll} from './macros/2024/generic/setAttackRoll.js';

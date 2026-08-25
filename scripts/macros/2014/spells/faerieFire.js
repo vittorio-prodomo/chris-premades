@@ -263,7 +263,6 @@ async function use({workflow}) {
 
             .play();
     }
-    if (!workflow.failedSaves.size) return;
     for (let target of workflow.failedSaves) {
         await effectUtils.createEffect(target.actor, effectData, {concentrationItem: workflow.item});
         if (shouldAnimate) {
@@ -294,6 +293,15 @@ async function use({workflow}) {
                 .play();
         }
     }
+    // T151: the template has no post-cast function — FF lights the creatures caught at cast; the
+    // zone does not persist. Left in place it sits INVISIBLE for the spell's minute (duration 1m
+    // evades midi's instantaneous bucket; the expiry bucket only fires at concentration end) and
+    // animation autorecs latch onto it. ⚠️ Deleted only now, AFTER the target effects exist: the
+    // template is a concentration DEPENDENT, and midi removes a concentration whose LAST dependent
+    // vanishes — deleting it earlier killed the spell at cast (watched live). On a whiffed cast
+    // the template is the sole dependent and concentration goes with it, which is midi's own
+    // nothing-applied behavior and RAW-harmless: nothing is left to sustain.
+    await genericUtils.remove(templateDoc);
 }
 async function end({trigger: {entity}}) {
     let playAnimation = entity.flags['chris-premades']?.faerieFire?.playAnimation;

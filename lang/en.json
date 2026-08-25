@@ -1839,6 +1839,9 @@
                 "MoveSelect": "Which creature should Hunter's Mark move to?",
                 "Select": "Which target would you like to unmark?"
             },
+            "MageArmor": {
+                "WearingArmor": "{targetName} is wearing armor — Mage Armor requires a creature who isn't wearing armor."
+            },
             "PotionOfHealing": {
                 "Select": "Who receives the potion? (within 5 feet)"
             },

@@ -1488,6 +1488,9 @@
             "MaelstromAura": {
                 "Aura": "Aura di Maelstrom"
             },
+            "MageArmor": {
+                "WearingArmor": "{targetName} indossa un'armatura — Armatura Magica richiede una creatura che non indossi armature."
+            },
             "MagicMissile": {
                 "Bolt": "Dardo Incantato",
                 "Cancelled": "{name} annullato — nessuna risorsa spesa.",

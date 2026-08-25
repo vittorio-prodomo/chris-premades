@@ -1,4 +1,5 @@
 import {Summons} from '../../../../../lib/summons.js';
+import {liftPrimalSort} from '../../../../../lib/utilities/primalTurnOrder.mjs';
 import {activityUtils, actorUtils, combatUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 
 // Locate the tokens tracked by the caster's Primal Companion summon effect (living or a lingering
@@ -259,12 +260,34 @@ async function primalCompanionAutoTurn(combat, changes) {
 }
 Hooks.on('updateCombat', primalCompanionAutoTurn);
 // T44b-fix (Option A) — keep the beast anchored right after its hunter. The summons lib only applies the
-// 'follows' initiative (hunter − 0.01) at SUMMON time (summons.js), so a beast summoned BEFORE combat rolls an
+// 'follows' initiative at SUMMON time (summons.js), so a beast summoned BEFORE combat rolls an
 // independent initiative and can land anywhere — e.g. ABOVE the hunter, which made the auto-Dodge fire at the
 // START of the hunter's turn (or at combat start) and let the beast auto-act before the hunter could command
 // it. Re-assert the anchor whenever ANY combatant's initiative changes: this fires during Roll-All / manual
 // sets, BEFORE startCombat establishes turn 0, so the beast is never the opening turn. GM-side single writer;
 // the in-flight guard both breaks the self-triggered update loop and suppresses the auto-turn mid-reposition.
+// T153 — the beast must act IMMEDIATELY after its hunter regardless of initiative ties. Warpey 20,
+// Xender ALSO 20: no beast value below 20 can sit between them, so the offset model is unwinnable —
+// the beast mirrors the hunter's initiative and the SORT is lifted instead: a beast inherits its
+// hunter's whole sort identity and loses ties only to the hunter (transitive — see
+// lib/utilities/primalTurnOrder.mjs). Core calls _sortCombatants UNBOUND from setupTurns, so the
+// combat is reached through the combatants' parent, never `this`. Registered at setup, after dnd5e
+// has installed its Combat document class; nothing else in this stack wraps the target. ⚠️ MIXED,
+// not WRAPPER: the lift legitimately short-circuits (beast vs its own hunter never consults the
+// base comparator) and libWrapper UNREGISTERS a WRAPPER the first time it fails to chain.
+function resolvePrimalAnchor(combatant) {
+    if (isPrimalCompanionBeast(combatant?.actor)) {
+        let hunterUuid = combatant.actor.flags?.['chris-premades']?.summons?.control?.actor;
+        let hunter = hunterUuid ? combatant.parent?.combatants?.find(c => c.actor?.uuid === hunterUuid) : undefined;
+        if (hunter) return {anchor: hunter, isBeast: true};
+    }
+    return {anchor: combatant, isBeast: false};
+}
+Hooks.once('setup', () => {
+    libWrapper.register('chris-premades', 'CONFIG.Combat.documentClass.prototype._sortCombatants', function (wrapped, a, b) {
+        return liftPrimalSort((x, y) => wrapped(x, y), resolvePrimalAnchor)(a, b);
+    }, 'MIXED');
+});
 async function reanchorPrimalBeasts(combat) {
     for (let beastCombatant of combat.combatants) {
         if (!isPrimalCompanionBeast(beastCombatant.actor)) continue;
@@ -272,7 +295,7 @@ async function reanchorPrimalBeasts(combat) {
         if (!hunterUuid) continue;
         let hunterCombatant = combat.combatants.find(c => c.actor?.uuid === hunterUuid);
         if (hunterCombatant?.initiative == null) continue;
-        let target = hunterCombatant.initiative - 0.01;
+        let target = hunterCombatant.initiative;
         if (beastCombatant.initiative !== target) await beastCombatant.update({initiative: target});
     }
 }
@@ -292,7 +315,8 @@ Hooks.on('updateCombatant', async (combatant, changes) => {
 });
 // Beast <-> hunter combat linkage + fixed (no-roll) initiative. The beast's CCT portrait is hidden (T44b), so
 // it's easy to lose track of whether it's actually in the fight — so keep the pair together: adding EITHER to
-// combat drags the other in. And the beast's initiative is fixed (hunter - 0.01, per the re-anchor), so it must
+// combat drags the other in. And the beast's initiative is fixed (MIRRORS the hunter, per the re-anchor; the
+// lifted _sortCombatants comparator below places it immediately after — T153), so it must
 // never ROLL — a roll shows a pointless 3D die and, when only the hunter + beast are present, makes the Alert
 // feat's swap prompt fire with no real target. Setting the beast's initiative DIRECTLY at creation makes
 // Roll-All / combat-start skip it (a non-null initiative is never rolled); the re-anchor then keeps it correct.
@@ -332,12 +356,12 @@ Hooks.on('preCreateCombatant', (combatant, data) => {
     if (data.initiative != null) return; // already fixed (e.g. our own linked create)
     let hunterUuid = actor.flags['chris-premades'].summons.control.actor;
     let hunterCombatant = combatant.parent?.combatants.find(c => c.actor?.uuid === hunterUuid);
-    let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative - 0.01 : 0;
+    let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative : 0;
     combatant.updateSource({initiative: init});
 });
 Hooks.on('dnd5e.preRollInitiative', (actor) => {
     if (!isPrimalCompanionBeast(actor)) return;
-    return false; // never roll — the beast's initiative is fixed at hunter - 0.01 (set at creation + re-anchored)
+    return false; // never roll — the beast's initiative is fixed to mirror the hunter (set at creation + re-anchored)
 });
 // Catch-all for Fix C: the belt/suspenders above miss an EXPLICIT `combat.rollInitiative([beastId])` (core
 // "Roll All" for a still-null beast, CCT's roll-all over the hidden beast, a reroll). Wrap rollInitiative to
@@ -357,7 +381,7 @@ if (!globalThis.__primalRollInitiativeWrapped) {
                     if (socketUtils.isTheGM() && combatant.initiative == null) {
                         let hunterUuid = combatant.actor.flags['chris-premades'].summons.control.actor;
                         let hc = this.combatants.find(x => x.actor?.uuid === hunterUuid);
-                        await combatant.update({initiative: (hc?.initiative != null) ? hc.initiative - 0.01 : 0});
+                        await combatant.update({initiative: (hc?.initiative != null) ? hc.initiative : 0});
                     }
                 } else rollIds.push(id);
             }
@@ -378,13 +402,13 @@ Hooks.on('createCombatant', async (combatant) => {
         // A beast entered combat: pin its initiative (no roll → no 3D die) + pull its hunter in.
         let hunterUuid = actor.flags?.['chris-premades']?.summons?.control?.actor;
         let hunterCombatant = combat.combatants.find(c => c.actor?.uuid === hunterUuid);
-        let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative - 0.01 : 0;
+        let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative : 0;
         if (combatant.initiative !== init) await combatant.update({initiative: init});
         if (!hunterCombatant) await primalEnsureCombatant(combat, scene.tokens.find(t => t.actor?.uuid === hunterUuid), null, scene);
     } else if (actor) {
         // A creature entered combat: if it owns a Primal Companion beast, pull the beast in with a fixed init.
         let hunterCombatant = combat.combatants.find(c => c.actor?.uuid === actor.uuid);
-        let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative - 0.01 : 0;
+        let init = (hunterCombatant?.initiative != null) ? hunterCombatant.initiative : 0;
         for (let beastToken of getBeastTokens(actor)) await primalEnsureCombatant(combat, beastToken, init, scene);
     }
 });
