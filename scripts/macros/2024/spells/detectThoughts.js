@@ -89,6 +89,12 @@ async function use({workflow}) {
 async function sustain({actor, config, dialog}) {
     if (!effectUtils.getEffectByIdentifier(actor, 'detectThoughts')) return;
     config.consume = false;
+    // ⚠️ Sense/Read inherit the item's concentration so a CAST through either starts it — which
+    // means a later-turn use would BEGIN A NEW concentration, and the limit-1 replacement deletes
+    // the old one's dependents, the spell's own effect included (the §T117 cascade; watched it
+    // happen live 2026-08-25). dnd5e preps `concentration.begin ??= true`, so pre-set it.
+    config.concentration ??= {};
+    config.concentration.begin = false;
     dialog.configure = false;
 }
 export let detectThoughts = {

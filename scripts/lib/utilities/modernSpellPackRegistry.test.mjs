@@ -139,6 +139,9 @@ test('Probe Deeper is hidden until a read activates it', () => {
     // upstream shipped it spellSlot:true, silent once the usage dialog is suppressed.
     const probe = entry.data.system.activities[cpr.activityIdentifiers.probeDeeper];
     assert.equal(probe.consumption.spellSlot, false);
+    // …and it must not inherit the item's concentration: an inherited duration makes a probe
+    // begin a NEW concentration, whose limit-1 replacement deletes the spell's own effect.
+    assert.deepEqual(probe.duration, {units: 'inst', concentration: false, override: true});
 });
 
 test('Detect Thoughts is registered in the modern macro registry', () => {
@@ -196,6 +199,15 @@ test('re-activating a mode on a later turn consumes nothing', () => {
     // dispatcher's try/catch and the suppression silently never runs.
     assert.match(modern, /async function sustain\(\{actor, config, dialog\}\)/);
     assert.ok(!/sustain\(\{workflow/.test(modern), 'no workflow exists at preTargeting');
+    /*
+     * ⚠️ Caught live (2026-08-25): consumption alone is not enough. Sense/Read inherit the item's
+     * concentration (their duration must stay override:false so a CAST through either starts it),
+     * so a later-turn use BEGINS A NEW CONCENTRATION — whose limit-1 replacement deletes the old
+     * one's dependents, i.e. the spell's own effect (the §T117 cascade). dnd5e preps
+     * `concentration.begin ??= true`, so pre-setting begin:false at preTargeting is respected.
+     */
+    assert.match(modern, /config\.concentration \?\?= \{\}/);
+    assert.match(modern, /config\.concentration\.begin = false/);
 });
 
 test('the Detect Thoughts macro and packData versions agree', () => {

@@ -321,8 +321,8 @@
         },
         "duration": {
           "units": "inst",
-          "override": false,
-          "concentration": false
+          "concentration": false,
+          "override": true
         },
         "effects": [],
         "range": {
