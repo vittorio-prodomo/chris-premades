@@ -247,10 +247,16 @@ export class Crosshairs extends foundry.canvas.placeables.MeasuredTemplate {
         this.rightUpHandler = this._rightUpHandler.bind(this);
         this.activeWheelHandler = this._mouseWheelHandler.bind(this);
   
+        this.escapeKeyHandler = this._escapeKeyHandler.bind(this);
+
         this.clearHandlers = this._clearHandlers.bind(this);
   
         // Update placement (mouse-move)
         canvas.stage.on('pointermove', this.activeMoveHandler);
+
+        // Esc cancel (keydown, capture phase so core's own Escape keybinding never sees the
+        // stroke while a crosshair is in flight)
+        window.addEventListener('keydown', this.escapeKeyHandler, {capture: true});
   
         // Confirm the workflow (left-click)
         canvas.stage.on('pointerdown', this.activeLeftClickHandler);
@@ -316,6 +322,15 @@ export class Crosshairs extends foundry.canvas.placeables.MeasuredTemplate {
         }
         this.refresh();
     }
+    // The crosshair only ever listened for mouse input, so Esc was silently ignored (it fell
+    // through to core's dismiss handling instead). Same effect as a stationary right-click.
+    _escapeKeyHandler(event) {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.cancelled = true;
+        this.clearHandlers(event);
+    }
     _rightDownHandler(event) {
         if (event.button !== 2) return;
         this.rightX = event.screenX;
@@ -337,6 +352,7 @@ export class Crosshairs extends foundry.canvas.placeables.MeasuredTemplate {
         canvas.app.view.onmousedown = null;
         canvas.app.view.onmouseup = null;
         canvas.app.view.onwheel = null;
+        window.removeEventListener('keydown', this.escapeKeyHandler, {capture: true});
         if (this.actorSheet) this.actorSheet.maximize();
         this.layer.interactiveChildren = true;
         setTimeout(() => {
