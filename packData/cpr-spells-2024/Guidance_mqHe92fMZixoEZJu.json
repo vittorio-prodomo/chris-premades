@@ -126,8 +126,9 @@
           "chatFlavor": ""
         },
         "duration": {
-          "units": "inst",
-          "concentration": false,
+          "value": "1",
+          "units": "minute",
+          "concentration": true,
           "override": true
         },
         "effects": [],
@@ -382,7 +383,7 @@
         "identifier": "guidance",
         "rules": "modern",
         "source": "chris-premades",
-        "version": "1.3.78"
+        "version": "1.3.79"
       },
       "macros": {
         "midi": {
