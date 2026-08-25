@@ -108,6 +108,14 @@ test('Detect Thoughts has a modern packData entry wired to the 2024 activities',
     assert.equal(named(cpr.activityIdentifiers.probeDeeper), 'Probe Deeper');
     assert.equal(activities[cpr.activityIdentifiers.probeDeeper].type, 'save',
         'the late pass keys on this being the save that can end the spell');
+    // T123 REOPEN (2026-08-24, caught at the table): the official text has THREE modes and the
+    // 08-03 port shipped two — Read Thoughts was missing entirely.
+    assert.equal(named(cpr.activityIdentifiers.readThoughts), 'Read Thoughts');
+    const read = activities[cpr.activityIdentifiers.readThoughts];
+    assert.equal(read.type, 'utility', 'no save, no attack — reading just happens');
+    assert.equal(read.target.affects.count, '1');
+    assert.equal(read.target.affects.type, 'creature');
+    assert.equal(read.range.value, '30', 'one creature within 30 feet, unlike Sense (self)');
 });
 
 test('Probe Deeper is declared a sustained roll, not a fresh cast', () => {
@@ -120,12 +128,22 @@ test('Probe Deeper is declared a sustained roll, not a fresh cast', () => {
     assert.deepEqual(entry.data.flags['chris-premades'].spellActivities, ['probeDeeper']);
 });
 
-test('⚠️ the 2024 entry hides NOTHING, unlike its 2014 counterpart', () => {
-    // 2014 hid Probe Deeper until the spell was cast and the macro unhid it. 2024: "you can
-    // activate either effect as a Magic action on your later turns". Declaring hiddenActivities
-    // here would hide a mode the rules say is available from the start.
+test('Probe Deeper is hidden until a read activates it', () => {
+    /*
+     * T123 REOPEN: the 08-03 port hid nothing, reading "you can activate either effect" as
+     * all-three-co-equal. But "either effect" is Sense/Read; Probe Deeper is only legal "as a
+     * Magic action on your next turn" against a target currently being read, and offering it in
+     * the cast-time midi picker let it be the first action ever taken on the spell. It is hidden
+     * here, unhidden by the macro when Read Thoughts fires, and rehidden by the deleteActiveEffect
+     * hook when the spell's effect goes away (the Witch Bolt sustain model).
+     */
     const entry = packItems().find(i => i.data.flags?.['chris-premades']?.info?.identifier === 'detectThoughts');
-    assert.equal(entry.data.flags['chris-premades'].hiddenActivities, undefined);
+    const cpr = entry.data.flags['chris-premades'];
+    assert.deepEqual(cpr.hiddenActivities, ['probeDeeper']);
+    // Probe can never be the cast any more, so it must not consume a slot when used mid-spell —
+    // upstream shipped it spellSlot:true, silent once the usage dialog is suppressed.
+    const probe = entry.data.system.activities[cpr.activityIdentifiers.probeDeeper];
+    assert.equal(probe.consumption.spellSlot, false);
 });
 
 test('Detect Thoughts is registered in the modern macro registry', () => {
@@ -148,11 +166,41 @@ test('the 2024 macro reuses the legacy passes by REFERENCE, not by function name
 });
 
 test('the opener pass is idempotent across both 2024 entry points', () => {
-    // Either mode can start the spell in 2024, so `use` is registered on both — and must not create
-    // the effect twice when the caster senses first and probes afterwards.
+    // Either MODE (Sense or Read) can start the spell in 2024, so `use` is registered on both —
+    // and must not create the effect twice when the caster senses first and reads afterwards.
     const modern = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/detectThoughts.js', import.meta.url)), 'utf8');
-    assert.match(modern, /activities: \['detectThoughts', 'probeDeeper'\]/);
-    assert.match(modern, /getEffectByIdentifier\(workflow\.actor, 'detectThoughts'\)\) return/);
+    assert.match(modern, /activities: \['detectThoughts', 'readThoughts'\]/);
+    assert.match(modern, /effectUtils\.getEffectByIdentifier\(workflow\.actor, 'detectThoughts'\)/);
+    assert.ok(!/activities: \['detectThoughts', 'probeDeeper'\]/.test(modern),
+        'T123 reopen: Probe Deeper cannot open the spell — it is hidden until a read');
+});
+
+test('a Read — at cast or on a later turn — is what unlocks Probe Deeper', () => {
+    const modern = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/detectThoughts.js', import.meta.url)), 'utf8');
+    // Opened-by-Read path: the effect carries unhideActivities, so the createActiveEffect hook
+    // unhides + favourites Probe Deeper and the deleteActiveEffect hook undoes both at spell end.
+    assert.match(modern, /unhideActivities/);
+    assert.match(modern, /activityIdentifiers: \['probeDeeper'\]/);
+    assert.match(modern, /favorite: true/);
+    // Opened-by-Sense path: a later Read finds the effect already created WITHOUT that flag, so it
+    // must stamp the flag and do by hand what the create hook would have done.
+    assert.match(modern, /setHiddenActivities/);
+    assert.match(modern, /addFavorites/);
+});
+
+test('re-activating a mode on a later turn consumes nothing', () => {
+    // 2024: "Until the spell ends, you can activate either effect as a Magic action on your later
+    // turns" — the spell was cast ONCE. While the detectThoughts effect is up, a Sense/Read use
+    // skips the usage dialog and consumes nothing (the deferred-consumption `consume = false`
+    // idiom from faerie fire / magic missile, applied at preTargeting).
+    const modern = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/detectThoughts.js', import.meta.url)), 'utf8');
+    assert.match(modern, /config\.consume = false/);
+    assert.match(modern, /dialog\.configure = false/);
+    // ⚠️ preTargeting passes receive {trigger, activity, token, actor, config, dialog, message} —
+    // there is NO workflow yet (events/midi.js:228). Destructuring `workflow` here throws into the
+    // dispatcher's try/catch and the suppression silently never runs.
+    assert.match(modern, /async function sustain\(\{actor, config, dialog\}\)/);
+    assert.ok(!/sustain\(\{workflow/.test(modern), 'no workflow exists at preTargeting');
 });
 
 test('the Detect Thoughts macro and packData versions agree', () => {

@@ -1,19 +1,24 @@
-import {activityUtils, effectUtils, genericUtils, itemUtils} from '../../../utils.js';
+import {activityUtils, actorUtils, effectUtils, genericUtils, itemUtils} from '../../../utils.js';
 import {detectThoughtsLate, detectThoughtsEarly} from '../../2014/spells/detectThoughts.js';
 
 /*
- * 2024 port (queue T123). The spell was RESTRUCTURED, so unlike most modern ports this is not a
- * bare re-export of the legacy passes:
+ * 2024 port (queue T123, activity model corrected at the reopen 2026-08-24). The official text has
+ * THREE modes, and they are not co-equal:
  *
- *   - 2014 hid "Probe Deeper" until the spell was cast, and the legacy `use` pass unhid and
- *     favourited it. 2024 says "You activate one of the effects below. Until the spell ends, you
- *     can activate either effect as a Magic action on your later turns" — both modes are co-equal
- *     and the official item hides neither, so `unhideActivities` is dropped and the packData entry
- *     declares no `hiddenActivities`.
- *   - The opener is renamed "Sense Thoughts". The CPR identifier stays `detectThoughts` (that is
- *     what the registry and this macro key on); packData maps it to the 2024 activity id.
- *   - Either mode can open the spell, so `use` is registered on BOTH and made idempotent. The
- *     legacy version could assume the cast came first.
+ *   - Sense Thoughts and Read Thoughts are the two effects of the spell — "You activate one of the
+ *     effects below" at cast, and "you can activate either effect as a Magic action on your later
+ *     turns". Either can open the spell, so `use` is registered on BOTH and is idempotent.
+ *   - Probe Deeper is only legal against a target currently being read ("As a Magic action on your
+ *     next turn, you can try to probe deeper"). The 08-03 port left it visible in the cast-time
+ *     midi picker, where it could be the first action ever taken on the spell — caught at the
+ *     table. It is now hidden in packData (`hiddenActivities`) and unlocked by a read: opened-by-
+ *     Read rides the createActiveEffect hook (the effect carries `unhideActivities`), opened-by-
+ *     Sense-then-read stamps the same flag and unhides by hand. Either way deleteActiveEffect
+ *     rehides + un-favourites at spell end — the Witch Bolt sustain model.
+ *   - A later-turn Sense/Read is a Magic action on a spell cast ONCE, not a recast: while the
+ *     detectThoughts effect is up, `sustain` suppresses the usage dialog and consumes nothing
+ *     (the faerie fire / magic missile `consume = false` idiom). Probe Deeper's own activity is
+ *     spellSlot:false in packData, since it can never be the cast.
  *
  * Unchanged and re-exported verbatim: `late` (a successful Probe Deeper save ends the spell — 2024
  * still says "On a successful save, the spell ends") and `early` (suppress the usage dialog).
@@ -22,9 +27,44 @@ import {detectThoughtsLate, detectThoughtsEarly} from '../../2014/spells/detectT
  * make an Intelligence (Arcana) check against your spell save DC, ending the spell on a success".
  * That is a target-side recurring option with no 2014 counterpart — its own item of work.
  */
+function probeUnhideFlags(item) {
+    return {
+        itemUuid: item.uuid,
+        activityIdentifiers: ['probeDeeper'],
+        favorite: true
+    };
+}
+function probeVaeButton(probe) {
+    return {
+        type: 'use',
+        name: probe.name,
+        identifier: 'detectThoughts',
+        activityIdentifier: 'probeDeeper'
+    };
+}
+// The Sense-first path: the effect exists without the unhide flag, so do by hand what the
+// createActiveEffect hook does for an opened-by-Read effect — and stamp the flag itself, so the
+// deleteActiveEffect hook rehides and un-favourites at spell end exactly as in the other path.
+async function enableProbe(effect, workflow) {
+    if (effect.flags['chris-premades']?.unhideActivities) return;
+    let probe = activityUtils.getActivityByIdentifier(workflow.item, 'probeDeeper');
+    if (!probe) return;
+    await genericUtils.update(effect, {
+        'flags.chris-premades.unhideActivities': probeUnhideFlags(workflow.item),
+        'flags.chris-premades.vae.buttons': [probeVaeButton(probe)]
+    });
+    let hidden = itemUtils.getHiddenActivities(workflow.item) ?? [];
+    await itemUtils.setHiddenActivities(workflow.item, hidden.filter(i => i !== 'probeDeeper'));
+    await actorUtils.addFavorites(workflow.actor, [probe]);
+}
 async function use({workflow}) {
+    let isRead = activityUtils.getIdentifier(workflow.activity) === 'readThoughts';
     // Idempotent: whichever mode opened the spell creates the effect, the other must not double it.
-    if (effectUtils.getEffectByIdentifier(workflow.actor, 'detectThoughts')) return;
+    let existing = effectUtils.getEffectByIdentifier(workflow.actor, 'detectThoughts');
+    if (existing) {
+        if (isRead) await enableProbe(existing, workflow);
+        return;
+    }
     let concentrationEffect = await effectUtils.getConcentrationEffect(workflow.actor, workflow.item);
     let probe = activityUtils.getActivityByIdentifier(workflow.item, 'probeDeeper');
     let effectData = {
@@ -37,20 +77,23 @@ async function use({workflow}) {
         concentrationItem: workflow.item,
         strictlyInterdependent: true,
         identifier: 'detectThoughts',
-        // The button is the whole point of the effect now that nothing needs unhiding: it puts
-        // Probe Deeper one click away for as long as the spell is sustained.
-        vae: probe ? [{
-            type: 'use',
-            name: probe.name,
-            identifier: 'detectThoughts',
-            activityIdentifier: 'probeDeeper'
-        }] : []
+        // Probe Deeper is unlocked by a read, not by the cast: only an opened-by-Read effect
+        // carries the unhide flag and the one-click button from the start.
+        unhideActivities: isRead && probe ? probeUnhideFlags(workflow.item) : undefined,
+        vae: isRead && probe ? [probeVaeButton(probe)] : []
     });
     if (concentrationEffect) await genericUtils.update(concentrationEffect, {duration: effectData.duration});
 }
+// While the spell is up, a later-turn Sense/Read is a free Magic action, not a recast.
+// ⚠️ preTargeting passes get {activity, actor, config, dialog…} — no workflow exists yet.
+async function sustain({actor, config, dialog}) {
+    if (!effectUtils.getEffectByIdentifier(actor, 'detectThoughts')) return;
+    config.consume = false;
+    dialog.configure = false;
+}
 export let detectThoughts = {
     name: 'Detect Thoughts',
-    version: '1.2.28',
+    version: '1.3.0',
     rules: 'modern',
     midi: {
         item: [
@@ -58,7 +101,13 @@ export let detectThoughts = {
                 pass: 'rollFinished',
                 macro: use,
                 priority: 50,
-                activities: ['detectThoughts', 'probeDeeper']
+                activities: ['detectThoughts', 'readThoughts']
+            },
+            {
+                pass: 'preTargeting',
+                macro: sustain,
+                priority: 50,
+                activities: ['detectThoughts', 'readThoughts']
             },
             {
                 pass: 'rollFinished',
