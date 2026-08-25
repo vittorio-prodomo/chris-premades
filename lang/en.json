@@ -802,7 +802,8 @@
         },
         "HeroicInspiration": {
             "Give": "You were given Heroic Inspiration but already have it. Choose another player to give it to:",
-            "Name": "Heroic Inspiration"
+            "Name": "Heroic Inspiration",
+            "SelectDiePrompt": "Spend your Heroic Inspiration to reroll a die? Select the die to reroll below, then confirm — the new roll replaces it, even if it is lower."
         },
         "Item": {
             "Condense": "Condense",

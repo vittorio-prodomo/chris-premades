@@ -3161,7 +3161,12 @@
             "Miles": "Miglia",
             "Units": "Unità:"
         },
-        "UnknownTarget": "Bersaglio Sconosciuto"
+        "UnknownTarget": "Bersaglio Sconosciuto",
+        "HeroicInspiration": {
+            "Name": "Ispirazione Eroica",
+            "Give": "Hai ricevuto l'Ispirazione Eroica ma la possiedi già. Scegli un altro giocatore a cui darla:",
+            "SelectDiePrompt": "Spendere la tua Ispirazione Eroica per ritirare un dado? Seleziona qui sotto il dado da ritirare e conferma: il nuovo risultato sostituirà il precedente, anche se peggiore."
+        }
     },
     "CONTROLS": {
         "LightSelect": "Seleziona Luci",

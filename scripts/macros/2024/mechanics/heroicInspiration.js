@@ -1,7 +1,10 @@
 import {dialogUtils, genericUtils, rollUtils} from '../../../utils.js';
+// ⚠️ FORK PATCH (queue T141): the offer's body was the generic "Use Heroic Inspiration?" over an
+// unexplained die list. All three passes now use HeroicInspiration.SelectDiePrompt (en+it), which
+// says what is spent, what to select, and that the new roll is kept even if lower (2024 RAW).
 async function attack(workflow) {
     if (workflow.workflowOptions?.skipHeroicInspiration || !workflow.attackRoll || !workflow.actor.system.attributes.inspiration) return;
-    let selection = await dialogUtils.selectDie([workflow.attackRoll], 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name')}), {buttons: 'yesNo'});
+    let selection = await dialogUtils.selectDie([workflow.attackRoll], 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.translate('CHRISPREMADES.HeroicInspiration.SelectDiePrompt'), {buttons: 'yesNo'});
     if (!selection) return;
     let positions = selection[0].split('-').map(i => Number(i));
     let mode = ((workflow.activity.midiProperties?.rollMode ?? 'default') === 'default') ? game.settings.get('core', 'rollMode') : workflow.activity.midiProperties?.rollMode;
@@ -12,7 +15,7 @@ async function attack(workflow) {
 }
 async function damage(workflow) {
     if (workflow.workflowOptions?.skipHeroicInspiration || !workflow.damageRolls || !workflow.actor.system.attributes.inspiration) return;
-    let selection = await dialogUtils.selectDie(workflow.damageRolls, 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name')}), {buttons: 'yesNo'});
+    let selection = await dialogUtils.selectDie(workflow.damageRolls, 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.translate('CHRISPREMADES.HeroicInspiration.SelectDiePrompt'), {buttons: 'yesNo'});
     if (!selection) return;
     let positions = selection[0].split('-').map(i => Number(i));
     let previousDieValue = workflow.damageRolls[positions[0]].terms[positions[1]].results[positions[2]].result;
@@ -31,7 +34,7 @@ async function damage(workflow) {
 }
 async function saveSkillCheck(roll, actor, mode) {
     if (!actor.system.attributes.inspiration) return;
-    let selection = await dialogUtils.selectDie([roll], 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name')}), {buttons: 'yesNo'});
+    let selection = await dialogUtils.selectDie([roll], 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.translate('CHRISPREMADES.HeroicInspiration.SelectDiePrompt'), {buttons: 'yesNo'});
     if (!selection) return;
     let positions = selection[0].split('-').map(i => Number(i));
     let rolled = await rollUtils.rollDice('1d' + roll.terms[positions[1]].faces, {chatMessage: true, mode, flavor: genericUtils.translate('CHRISPREMADES.HeroicInspiration.Name')});
