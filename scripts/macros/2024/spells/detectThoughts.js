@@ -97,6 +97,37 @@ async function sustain({actor, config, dialog}) {
     config.concentration.begin = false;
     dialog.configure = false;
 }
+// T123 follow-up (Vittorio 2026-08-25): Read Thoughts and Probe Deeper arrive through the midi
+// activity picker or the effect's VAE button — surfaces that bypass Argon's own target-picker
+// gate — so with no target selected the use just failed midi's requiresTargets check. Mirror the
+// Argon HUD behavior at dnd5e.preUseActivity (the zero-footprint abort point, before consumption
+// and the card): cancel the raw use, run Argon's picker (clearing existing targets happens INSIDE
+// the picker, per its rangepickerclear setting), then re-invoke with a marker. Cancelling the
+// picker aborts with nothing spent; Argon absent/off, its Target Picker setting off, a
+// skipTargetPicker item flag, or no owned token on the scene all keep the old behavior.
+const argonPickedActivities = ['readThoughts', 'probeDeeper'];
+Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
+    if (!argonPickedActivities.includes(activityUtils.getIdentifier(activity))) return;
+    if (usageConfig?.chrisPremades?.detectThoughtsTargetPicked) return;
+    let argon = game.modules.get('enhancedcombathud');
+    if (!argon?.active || !argon.api?.runTargetPicker) return;
+    if (!game.settings.get('enhancedcombathud', 'rangepicker')) return;
+    if (activity.item.getFlag?.('enhancedcombathud', 'skipTargetPicker')) return;
+    let token = canvas.tokens.controlled.find(t => t.actor === activity.actor) ?? activity.actor.getActiveTokens()[0];
+    if (!token) return;
+    (async () => {
+        let picked = await argon.api.runTargetPicker({
+            token,
+            targets: 1,
+            ranges: {normal: activity.range?.value ?? null, long: activity.range?.long ?? null},
+            item: activity.item,
+            label: activity.name
+        });
+        if (!picked) return;
+        await activity.use(genericUtils.mergeObject(usageConfig ?? {}, {chrisPremades: {detectThoughtsTargetPicked: true}}, {inplace: false}), {}, {});
+    })();
+    return false;
+});
 export let detectThoughts = {
     name: 'Detect Thoughts',
     version: '1.3.0',

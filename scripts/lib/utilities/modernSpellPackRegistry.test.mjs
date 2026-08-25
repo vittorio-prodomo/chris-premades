@@ -437,3 +437,23 @@ test('T124: the three touched spells bumped pack and macro versions together', (
         assert.equal(macro.match(/version: '([^']+)'/)?.[1], expected, macroFile);
     }
 });
+
+test('T123 follow-up: Read Thoughts and Probe Deeper run the Argon target picker like a HUD click', () => {
+    /*
+     * Vittorio 2026-08-25: both arrive through the midi activity picker or the VAE button —
+     * surfaces that bypass Argon's own target-picker gate — so with no target the use just failed
+     * midi's requiresTargets check. The fork now mirrors the HUD behavior at dnd5e.preUseActivity
+     * (the zero-footprint abort point): cancel the raw use, run Argon's picker (clearing existing
+     * targets is the picker's own business, per rangepickerclear), re-invoke with a marker.
+     * Cancelling the picker aborts cleanly; Argon off or its Target Picker setting off keeps the
+     * old behavior.
+     */
+    const modern = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/detectThoughts.js', import.meta.url)), 'utf8');
+    assert.match(modern, /Hooks\.on\('dnd5e\.preUseActivity'/);
+    assert.match(modern, /\['readThoughts', 'probeDeeper'\]/);
+    assert.match(modern, /runTargetPicker/);
+    assert.match(modern, /'rangepicker'/, 'gate on the same setting the HUD button consults');
+    assert.match(modern, /skipTargetPicker/, 'honour the established per-item opt-out flag');
+    assert.match(modern, /detectThoughtsTargetPicked/, 'the re-invoke marker prevents a picker loop');
+    assert.match(modern, /return false;/);
+});
