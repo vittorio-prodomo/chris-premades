@@ -231,7 +231,7 @@
     "chris-premades": {
       "info": {
         "name": "Compelled Duel",
-        "version": "1.2.21",
+        "version": "1.2.22",
         "identifier": "compelledDuel",
         "source": "chris-premades",
         "rules": "modern"
@@ -244,12 +244,8 @@
         }
       },
       "activityIdentifiers": {
-        "compelledDuelMoved": "2xnYUd891b0vOwZN",
         "compelledDuel": "dnd5eactivity000"
-      },
-      "hiddenActivities": [
-        "compelledDuelMoved"
-      ]
+      }
     }
   },
   "effects": [],

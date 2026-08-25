@@ -90,7 +90,7 @@ async function use({workflow}) {
 }
 export let summonDragon = {
     name: 'Summon Dragon',
-    version: '1.2.32',
+    version: '1.2.33',
     rules: 'modern',
     hasAnimation: true,
     midi: {

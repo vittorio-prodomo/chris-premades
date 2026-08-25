@@ -162,7 +162,7 @@ async function targetMoved({trigger: {entity: effect, token}, options}) {
 }
 export let compelledDuel = {
     name: 'Compelled Duel',
-    version: '1.2.21',
+    version: '1.2.22',
     rules: 'modern',
     midi: {
         item: [

@@ -40,27 +40,22 @@ function packItems() {
 }
 
 /*
- * ⚠️ PRE-EXISTING UPSTREAM BREAKAGE, found by the guard below on the day it was written (T123,
- * 2026-08-03) and NOT introduced by us. Each of these declares a CPR identifier whose activity is
- * absent from the 2024 pack entry, so the pass bound to it can never resolve:
+ * ⚠️ The four upstream dangling identifiers this list used to pin (found 2026-08-03 by the guard
+ * below, resolved 2026-08-25 as queue T124) are gone, each by what the 2024 rules actually say:
  *
- *   Warding Bond      — `wardingBondDismiss` is missing, and wardingBond.js looks it up with
- *                       `{strict: true}`, i.e. it raises errors.missingActivity rather than
- *                       degrading quietly. The 2024 entry has only Warding Bond + its Damage rider.
- *   Compelled Duel    — `compelledDuelMoved` missing; the single activity present has an EMPTY name.
- *   Summon Dragon     — the Metallic and Gem variants both dangle, leaving one of three summonable.
+ *   Warding Bond      — the Dismiss activity was RESTORED from the 2014 donor (same id, so the
+ *                       entry's own hiddenActivities/spellActivities/unhide wiring all light up
+ *                       again) and the 2024 macro re-binds the dismiss passes.
+ *   Compelled Duel    — `compelledDuelMoved` REMOVED as copy residue: the 2024 spell has no
+ *                       moved-save ("can't willingly move" — the 2024 targetMoved confirms
+ *                       willingness and teleports back, no roll), so nothing consumes it.
+ *   Summon Dragon     — Metallic/Gem REMOVED as copy residue: the 2024 reissue has ONE Draconic
+ *                       Spirit with a chosen resistance (acid/cold/fire/lightning/poison); the
+ *                       2024 macro has no variant dispatch.
  *
- * Listed rather than fixed because reconstructing four missing activities is its own piece of work
- * (raised as queue T124), and listed rather than ignored because an unexplained allowlist is how
- * this kind of debt becomes permanent. The assertion is EXACT equality, so fixing one — or adding a
- * new dangling pair — fails this test and forces the list to be revisited.
+ * The list stays so a NEW dangling pair still fails loudly and gets an entry here or a fix.
  */
-const KNOWN_UPSTREAM_DANGLING = [
-    'Compelled_Duel_EkzkGFHAQL86Ec0M.json: compelledDuelMoved -> 2xnYUd891b0vOwZN',
-    'Summon_Dragon_L4K47zMyxumTGTg7.json: summonDraconicSpiritGem -> q43Wpz943aBmcQFD',
-    'Summon_Dragon_L4K47zMyxumTGTg7.json: summonDraconicSpiritMetallic -> tt2PihfUt3ejpirS',
-    'Warding_Bond_9hoDcPal5ONreoSf.json: wardingBondDismiss -> lP7h2QXXLeU6ltip'
-];
+const KNOWN_UPSTREAM_DANGLING = [];
 
 test('every cpr-spells-2024 activityIdentifiers entry points at an activity the item HAS', () => {
     /*
@@ -366,4 +361,67 @@ test('the caster token is resolved from the uuid stashed at cast time, not re-de
     assert.deepEqual(calls.map((l) => l.trim()), [
         'return stashed?.object ?? sourceEffect.parent?.getActiveTokens?.()[0];'
     ]);
+});
+
+test('T124: Warding Bond 2024 restores the Dismiss activity the reissue dropped', () => {
+    const doc = JSON.parse(readFileSync(
+        new URL('../../../packData/cpr-spells-2024/Warding_Bond_9hoDcPal5ONreoSf.json', import.meta.url), 'utf8'));
+    const cpr = doc.flags['chris-premades'];
+    const dismiss = doc.system.activities[cpr.activityIdentifiers.wardingBondDismiss];
+    assert.ok(dismiss, 'the entry declared wardingBondDismiss but shipped no such activity');
+    assert.equal(dismiss.name, 'Warding Bond: Dismiss');
+    assert.equal(dismiss.type, 'utility');
+    assert.equal(dismiss.consumption.spellSlot, false, 'dismissing is not casting');
+    // These two flags referenced the missing activity all along — with it restored they are
+    // load-bearing again (hide until cast; a dismiss is a sustained roll, not a fresh cast).
+    assert.ok(cpr.hiddenActivities.includes('wardingBondDismiss'));
+    assert.ok(cpr.spellActivities.includes('wardingBondDismiss'));
+});
+
+test('T124: the 2024 Warding Bond macro reuses the legacy passes by REFERENCE and binds dismiss', () => {
+    // Same rule as Detect Thoughts: the bundle is minified, so reuse must go through named exports.
+    const legacy = readFileSync(fileURLToPath(new URL('../../macros/2014/spells/wardingBond.js', import.meta.url)), 'utf8');
+    assert.match(legacy, /export \{use as wardingBondUse, dismiss as wardingBondDismissUse, early as wardingBondDismissEarly\}/);
+    const modern = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/wardingBond.js', import.meta.url)), 'utf8');
+    assert.match(modern, /import \{wardingBondUse, wardingBondDismissUse, wardingBondDismissEarly\}/);
+    // The defective local copy of use() — 2014's minus the dismiss vae/unhide block — must be gone,
+    // and the dismiss passes bound (rollFinished removes the bond, preTargeting skips the dialog).
+    assert.ok(!/async function use\(/.test(modern), 'the 2024 use was the 2014 one with the dismiss wiring dropped — reuse, not fork');
+    assert.match(modern, /activities: \['wardingBondDismiss'\]/);
+});
+
+test('T124: Compelled Duel 2024 carries no moved-save residue', () => {
+    /*
+     * 2024 RAW: the target "can't willingly move to a space more than 30 feet away" — no save.
+     * The 2024 targetMoved confirms willingness and teleports back; compelledDuelMoved and the
+     * hiddenActivities entry pointing at it were copied from the 2014 flags and consumed by nothing.
+     */
+    const doc = JSON.parse(readFileSync(
+        new URL('../../../packData/cpr-spells-2024/Compelled_Duel_EkzkGFHAQL86Ec0M.json', import.meta.url), 'utf8'));
+    const cpr = doc.flags['chris-premades'];
+    assert.deepEqual(cpr.activityIdentifiers, {compelledDuel: 'dnd5eactivity000'});
+    assert.equal(cpr.hiddenActivities, undefined);
+});
+
+test('T124: Summon Dragon 2024 carries no variant residue', () => {
+    // The 2024 reissue has ONE Draconic Spirit (choose acid/cold/fire/lightning/poison); the 2024
+    // macro has no variant dispatch. Metallic/Gem identifiers were 2014 flag residue.
+    const doc = JSON.parse(readFileSync(
+        new URL('../../../packData/cpr-spells-2024/Summon_Dragon_L4K47zMyxumTGTg7.json', import.meta.url), 'utf8'));
+    assert.deepEqual(doc.flags['chris-premades'].activityIdentifiers, {});
+});
+
+test('T124: the three touched spells bumped pack and macro versions together', () => {
+    // ⚠️ T127: a packData change is undeliverable while the MACRO version is unchanged — equal
+    // versions read "Up to Date" and the Medkit Apply is a silent no-op.
+    for (const [pack, macroFile, expected] of [
+        ['Warding_Bond_9hoDcPal5ONreoSf.json', '../../macros/2024/spells/wardingBond.js', '1.2.30'],
+        ['Compelled_Duel_EkzkGFHAQL86Ec0M.json', '../../macros/2024/spells/compelledDuel.js', '1.2.22'],
+        ['Summon_Dragon_L4K47zMyxumTGTg7.json', '../../macros/2024/spells/summonDragon.js', '1.2.33']
+    ]) {
+        const doc = JSON.parse(readFileSync(new URL('../../../packData/cpr-spells-2024/' + pack, import.meta.url), 'utf8'));
+        assert.equal(doc.flags['chris-premades'].info.version, expected, pack);
+        const macro = readFileSync(fileURLToPath(new URL(macroFile, import.meta.url)), 'utf8');
+        assert.equal(macro.match(/version: '([^']+)'/)?.[1], expected, macroFile);
+    }
 });

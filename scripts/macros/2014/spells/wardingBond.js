@@ -132,6 +132,11 @@ async function movedSource({trigger}) {
 async function early({dialog}) {
     dialog.configure = false;
 }
+/*
+ * Named exports so the 2024 registration (T124) can reuse these passes by REFERENCE — the bundle
+ * is webpack-minified, so matching `macro.name` or indexing `midi.item[n]` binds to nothing.
+ */
+export {use as wardingBondUse, dismiss as wardingBondDismissUse, early as wardingBondDismissEarly};
 export let wardingBond = {
     name: 'Warding Bond',
     version: '1.2.28',

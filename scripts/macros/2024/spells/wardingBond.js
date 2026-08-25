@@ -1,82 +1,38 @@
-import {activityUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../utils.js';
-async function use({trigger, workflow}) {
-    if (!workflow.targets.size) return;
-    let targetEffectData = {
-        name: workflow.item.name,
-        img: workflow.item.img,
-        duration: itemUtils.convertDuration(workflow.item),
-        origin: workflow.item.uuid,
-        changes: [
-            {
-                key: 'system.traits.dr.all',
-                mode: 0,
-                value: 1,
-                priority: 20
-            },
-            {
-                key: 'system.attributes.ac.bonus',
-                mode: 2,
-                value: '+1',
-                priority: 20
-            },
-            {
-                key: 'system.bonuses.abilities.save',
-                mode: 2,
-                value: '+1',
-                priority: 20
-            }
-        ],
-        flags: {
-            'chris-premades': {
-                wardingBond: {
-                    bondUuid: workflow.token.document.uuid,
-                    maxDistance: itemUtils.getConfig(workflow.item, 'maxDistance')
-                },
-                macros: {
-                    movement: ['wardingBondTarget'],
-                    midi: {
-                        actor: ['wardingBondTarget']
-                    }
-                }
-            }
-        }
-    };
-    let casterEffectData = {
-        name: workflow.item.name,
-        img: workflow.item.img,
-        duration: targetEffectData.duration,
-        origin: workflow.item.uuid,
-        flags: {
-            'chris-premades': {
-                wardingBond: {
-                    bondUuids: Array.from(workflow.targets).map(i => i.document.uuid),
-                    maxDistance: itemUtils.getConfig(workflow.item, 'maxDistance')
-                },
-                macros: {
-                    movement: ['wardingBondSource']
-                }
-            }
-        }
-    };
-    let effect = await effectUtils.createEffect(workflow.actor, casterEffectData, {
-        identifier: 'wardingBondSource'
-    });
-    await Promise.all(workflow.targets.map(async token => {
-        await effectUtils.createEffect(token.actor, targetEffectData, {identifier: 'wardingBondTarget', parentEntity: effect, interdependent: true});
-    }));
-}
-// Note: Most logic is just in the legacy Warding Bond
+import {wardingBondUse, wardingBondDismissUse, wardingBondDismissEarly} from '../../2014/spells/wardingBond.js';
+
+/*
+ * 2024 registration (fixed as queue T124). Upstream's 2024 copy was the 2014 `use` with the
+ * Dismiss wiring dropped — the pack entry had lost the "Warding Bond: Dismiss" activity while its
+ * own activityIdentifiers/hiddenActivities/spellActivities still declared it, so the caster effect
+ * shipped with no way to end the 1-hour bond early. The activity is restored in packData from the
+ * 2014 donor (same id), and the passes are reused BY REFERENCE from the legacy file (minified
+ * bundle — named exports, never `macro.name` or `midi.item[n]`): `use` recreates the vae button +
+ * unhide-on-cast block verbatim, `dismiss` removes the source effect (its interdependents follow),
+ * `early` suppresses the usage dialog on the dismiss.
+ */
 export let wardingBond = {
     name: 'Warding Bond',
-    version: '1.2.29',
+    version: '1.2.30',
     rules: 'modern',
     midi: {
         item: [
             {
                 pass: 'rollFinished',
-                macro: use,
+                macro: wardingBondUse,
                 priority: 50,
                 activities: ['wardingBond']
+            },
+            {
+                pass: 'rollFinished',
+                macro: wardingBondDismissUse,
+                priority: 50,
+                activities: ['wardingBondDismiss']
+            },
+            {
+                pass: 'preTargeting',
+                macro: wardingBondDismissEarly,
+                priority: 50,
+                activities: ['wardingBondDismiss']
             }
         ]
     },
