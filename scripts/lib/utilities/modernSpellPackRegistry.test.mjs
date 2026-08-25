@@ -438,22 +438,55 @@ test('T124: the three touched spells bumped pack and macro versions together', (
     }
 });
 
-test('T123 follow-up: Read Thoughts and Probe Deeper run the Argon target picker like a HUD click', () => {
+test('T123 follow-up: Read Thoughts runs the Argon target picker like a HUD click', () => {
     /*
-     * Vittorio 2026-08-25: both arrive through the midi activity picker or the VAE button —
+     * Vittorio 2026-08-25: Read arrives through the midi activity picker or the VAE button —
      * surfaces that bypass Argon's own target-picker gate — so with no target the use just failed
-     * midi's requiresTargets check. The fork now mirrors the HUD behavior at dnd5e.preUseActivity
-     * (the zero-footprint abort point): cancel the raw use, run Argon's picker (clearing existing
-     * targets is the picker's own business, per rangepickerclear), re-invoke with a marker.
-     * Cancelling the picker aborts cleanly; Argon off or its Target Picker setting off keeps the
-     * old behavior.
+     * midi's requiresTargets check. The fork mirrors the HUD behavior at dnd5e.preUseActivity:
+     * cancel the raw use, run Argon's picker (clearing per rangepickerclear happens INSIDE the
+     * picker), re-invoke with a marker. No custom label — the picker shows its stock
+     * "0/1 Targets" text like any HUD click. Probe Deeper is deliberately NOT in this list any
+     * more: it self-targets from the read marker (next test).
      */
     const modern = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/detectThoughts.js', import.meta.url)), 'utf8');
     assert.match(modern, /Hooks\.on\('dnd5e\.preUseActivity'/);
-    assert.match(modern, /\['readThoughts', 'probeDeeper'\]/);
+    assert.match(modern, /argonPickedActivities = \['readThoughts'\]/);
     assert.match(modern, /runTargetPicker/);
-    assert.match(modern, /'rangepicker'/, 'gate on the same setting the HUD button consults');
-    assert.match(modern, /skipTargetPicker/, 'honour the established per-item opt-out flag');
-    assert.match(modern, /detectThoughtsTargetPicked/, 'the re-invoke marker prevents a picker loop');
-    assert.match(modern, /return false;/);
+    assert.ok(!/label: activity\.name/.test(modern), 'the stock 0/1 Targets text, not the activity name');
+    assert.match(modern, /'rangepicker'/);
+    assert.match(modern, /skipTargetPicker/);
+    assert.match(modern, /detectThoughtsTargetPicked/);
 });
+
+test('T123 follow-up: a read stamps a "Thoughts Being Read" marker on the target', () => {
+    /*
+     * The target previously carried NOTHING — the caster had both effects, the goblin none. The
+     * marker is created at read time as a dependent of the caster's CONCENTRATION (plain
+     * dependent, not strictly interdependent: spell end removes the marker, but removing the
+     * marker must not end the spell), and it MOVES when the caster reads someone else — RAW,
+     * attention shifts; one creature is read at a time. The previous holder is found through the
+     * readTargetUuid flag on the caster's own effect (a TOKEN uuid — the unlinked-NPC landmine).
+     */
+    const modern = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/detectThoughts.js', import.meta.url)), 'utf8');
+    assert.match(modern, /identifier: 'detectThoughtsRead'/);
+    assert.match(modern, /concentrationItem: workflow\.item/);
+    assert.match(modern, /readTargetUuid/);
+    assert.match(modern, /moveReadMarker/);
+    assert.ok(!/strictlyInterdependent[\s\S]{0,200}detectThoughtsRead/.test(modern), 'marker removal must not end the spell');
+});
+
+test('T123 follow-up: Probe Deeper self-targets the marked creature, no picker', () => {
+    const modern = readFileSync(fileURLToPath(new URL('../../macros/2024/spells/detectThoughts.js', import.meta.url)), 'utf8');
+    assert.match(modern, /setTarget\(true, \{releaseOthers: true\}\)/);
+    assert.match(modern, /ProbeNoRead/, 'a probe with no live read warns and aborts cleanly');
+});
+
+test('T123 follow-up: the marker strings exist, en and it', () => {
+    const en = JSON.parse(readFileSync(fileURLToPath(new URL('../../../lang/en.json', import.meta.url)), 'utf8'));
+    const it = JSON.parse(readFileSync(fileURLToPath(new URL('../../../lang/it.json', import.meta.url)), 'utf8'));
+    for (const lang of [en, it]) {
+        const dt = lang.CHRISPREMADES.Macros.DetectThoughts ?? {};
+        for (const k of ['ReadEffectName', 'ReadEffectDescription', 'ProbeNoRead']) assert.ok(dt[k], k + ' missing');
+    }
+});
+

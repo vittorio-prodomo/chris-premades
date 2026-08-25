@@ -1390,7 +1390,10 @@
                 "UseAndTarget": "Redirect Attack?"
             },
             "DetectThoughts": {
-                "ProbeDeeper": "Detect Thoughts: Probe Deeper"
+                "ProbeDeeper": "Detect Thoughts: Probe Deeper",
+                "ReadEffectName": "Thoughts Being Read",
+                "ReadEffectDescription": "This creature's surface thoughts are being read (Detect Thoughts). Probe Deeper targets it automatically. Ends when the reader shifts attention or the spell ends.",
+                "ProbeNoRead": "Probe Deeper: no creature is currently being read — use Read Thoughts first."
             },
             "Devastator": {
                 "Message": "Target one enemy and all allies up to your proficiency score!"

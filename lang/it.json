@@ -1008,7 +1008,10 @@
                 "Name": "Esplosione Mortale"
             },
             "DetectThoughts": {
-                "ProbeDeeper": "Rileva Pensieri: Scavare Più a Fondo"
+                "ProbeDeeper": "Rileva Pensieri: Scavare Più a Fondo",
+                "ReadEffectName": "Pensieri Sotto Lettura",
+                "ReadEffectDescription": "I pensieri superficiali di questa creatura vengono letti (Individuazione dei Pensieri). Sondare a Fondo la bersaglia automaticamente. Termina quando il lettore sposta l'attenzione o l'incantesimo finisce.",
+                "ProbeNoRead": "Sondare a Fondo: nessuna creatura è attualmente sotto lettura — usa prima Leggi Pensieri."
             },
             "DivineSmite": {
                 "Context": "Punire il bersaglio?",
