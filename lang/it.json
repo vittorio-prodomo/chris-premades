@@ -1211,6 +1211,7 @@
                 "Scimitar": "Scimitarra della Lama di Fiamma"
             },
             "FlamingSphere": {
+                "Cancelled": "{name} annullato — nessuna risorsa spesa.",
                 "EndTurn": "Sfera Fiammeggiante: Fine del Turno",
                 "Move": "Sfera Fiammeggiante: Sposta",
                 "Ram": "Colpire il Bersaglio?",

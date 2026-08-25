@@ -1,5 +1,27 @@
 import {Summons} from '../../../lib/summons.js';
 import {activityUtils, animationUtils, compendiumUtils, constants, crosshairUtils, dialogUtils, effectUtils, genericUtils, itemUtils, tokenUtils, workflowUtils} from '../../../utils.js';
+
+// T152: consumption is DEFERRED for Flaming Sphere casts (magicMissile.js / faerieFire.js pattern):
+// the slot used to be spent before rollFinished, so cancelling the summon's crosshair placement
+// (Esc / right-click) burned it with nothing to show. Deferring the spend to use() means a
+// cancelled placement just removes the cast card and concentration — nothing was ever consumed.
+const pendingCasts = new Map();
+
+function isFlamingSphere(item) {
+    return item?.flags?.['chris-premades']?.info?.identifier === 'flamingSphere';
+}
+
+// Runs inside Activity#consume AFTER the usage dialog, so the chosen upcast level is already
+// fixed on the usage card. Scoped to the item's MAIN cast activity — the Move activity must not
+// create pending entries. The macro's own deferred consume() call passes back through here via
+// the marker.
+Hooks.on('dnd5e.preActivityConsumption', (activity, usageConfig) => {
+    if (usageConfig?.chrisPremades?.flamingSphereDeferred) return;
+    if (!isFlamingSphere(activity.item)) return;
+    if (activityUtils.getIdentifier(activity) !== 'flamingSphere') return;
+    pendingCasts.set(activity.item.uuid, {ts: Date.now()});
+    usageConfig.consume = false;
+});
 // Re-cast prompt (T19): with a sphere already up the spell has two visible activities (Cast + Move),
 // so clicking Cast would drop the current sphere silently. Gate on dnd5e.preUseActivity (fires before
 // the card / consumption / concentration — see potionOfHealing.js / primalCompanion.js) and offer a
@@ -34,8 +56,30 @@ Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
     return false;
 });
 async function use({trigger, workflow}) {
+    let pending = pendingCasts.get(workflow.item.uuid);
+    pendingCasts.delete(workflow.item.uuid);
+    if (pending && Date.now() - pending.ts > 60000) pending = undefined;
+    let message = workflow.itemCardUuid ? await fromUuid(workflow.itemCardUuid) : undefined;
     let concentration = effectUtils.getConcentrationEffect(workflow.actor, workflow.item);
     let removeConcentration = async () => {if (concentration) await genericUtils.remove(concentration);};
+    // Any pre-spawn bail is a cancelled cast: with the spend deferred nothing was consumed, so
+    // dropping the card + concentration leaves zero footprint (a toast still says what happened).
+    let cancelCast = async () => {
+        await removeConcentration();
+        if (!pending) return;
+        if (message) await message.delete().catch(() => {});
+        genericUtils.notify(genericUtils.format('CHRISPREMADES.Macros.FlamingSphere.Cancelled', {name: workflow.item.name}), 'info', {localize: false});
+    };
+    if (pending) {
+        // With the spend deferred, dnd5e no longer aborts the use on an empty slot — run its own
+        // affordability check before doing any summon work.
+        let dryRun = await workflow.activity._prepareUsageUpdates({consume: true, scaling: message?.system?.scaling ?? 0}, {returnErrors: true});
+        if (foundry.utils.getType(dryRun) !== 'Object') {
+            dryRun?.forEach?.(err => ui.notifications.warn(err.message));
+            await cancelCast();
+            return;
+        }
+    }
     let avatarImg = itemUtils.getConfig(workflow.item, 'avatar');
     let tokenImg = itemUtils.getConfig(workflow.item, 'token');
     let color = itemUtils.getConfig(workflow.item, 'color');
@@ -55,9 +99,9 @@ async function use({trigger, workflow}) {
         }
     };
     let damageFeature = await Summons.getSummonItem('Flaming Sphere: End Turn', damageUpdates, workflow.item, {flatDC: itemUtils.getSaveDC(workflow.item), damageFlat: workflowUtils.getCastLevel(workflow) + 'd6[fire]', translate: 'CHRISPREMADES.Macros.FlamingSphere.EndTurn'});
-    if (!damageFeature) return await removeConcentration();
+    if (!damageFeature) return await cancelCast();
     let ramFeature = await Summons.getSummonItem('Flaming Sphere: Ram', damageUpdates, workflow.item,{flatDC: itemUtils.getSaveDC(workflow.item), damageFlat: workflowUtils.getCastLevel(workflow) + 'd6[fire]', translate: 'CHRISPREMADES.Macros.FlamingSphere.RamItem'});
-    if (!ramFeature) return await removeConcentration();
+    if (!ramFeature) return await cancelCast();
     // Explicit-ram model (T19 revision): the sphere's Ram is a normal Argon action that uses the usual
     // targeting flow (the world's clear-and-pick target mode). Give the Ram activity a 5-ft range so
     // midi's own range machinery flags/blocks an out-of-range pick live in the target step; the bound
@@ -95,9 +139,9 @@ async function use({trigger, workflow}) {
     if (avatarImg) genericUtils.setProperty(updates, 'actor.img', avatarImg);
     let animation = itemUtils.getConfig(workflow.item, 'animation');
     let actor = await compendiumUtils.getActorFromCompendium(constants.packs.summons, 'CPR - Flaming Sphere');
-    if (!actor) return await removeConcentration();
+    if (!actor) return await cancelCast();
     let feature = activityUtils.getActivityByIdentifier(workflow.item, 'flamingSphereMove', {strict: true});
-    if (!feature) return await removeConcentration();
+    if (!feature) return await cancelCast();
     let token = await Summons.spawn(actor, updates, workflow.item, workflow.token, {
         duration: itemUtils.convertDuration(workflow.item).seconds, 
         range: 60, 
@@ -115,8 +159,19 @@ async function use({trigger, workflow}) {
             favorite: true
         }
     });
-    if (!token) return await removeConcentration();
+    if (!token) return await cancelCast();
     token = token[0];
+    if (pending) {
+        // Placement confirmed: perform the deferred consumption now. Mirrors the chat card's own
+        // "Consume Resource" handler so the card's Refund button keeps working.
+        let messageConfig = {};
+        let usageConfig = {consume: true, scaling: message?.system?.scaling ?? 0, workflow, chrisPremades: {flamingSphereDeferred: true}};
+        let cause = message?.system?.cause;
+        let linkedActivity = cause ? workflow.activity.getLinkedActivity?.(cause) : undefined;
+        if (linkedActivity) usageConfig.cause = {activity: linkedActivity.relativeUUID, resources: linkedActivity.consumption.targets.length > 0};
+        await workflow.activity.consume(usageConfig, messageConfig);
+        if (message && !foundry.utils.isEmpty(messageConfig.data)) await message.update(messageConfig.data);
+    }
     let effect = effectUtils.getEffectByIdentifier(workflow.actor, 'flamingSphere');
     if (!effect) return await removeConcentration();
     await genericUtils.update(effect, {
