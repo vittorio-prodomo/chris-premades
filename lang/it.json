@@ -2263,6 +2263,11 @@
             },
             "ZoneOfTruth": {
                 "Save": "Zona di Verità: Salvezza"
+            },
+            "TacticalMind": {
+                "PromptFailed": "Hai tirato {rollTotal} ({rollFormula}) e fallito la prova. Usare {itemName} per aggiungere {bonus} al tiro?",
+                "Prompt": "Hai tirato {rollTotal} ({rollFormula}). Usare {itemName} per aggiungere {bonus} al tiro?",
+                "ConsumeConfirm": "La prova è riuscita? In caso contrario rispondi No: non verrà speso alcun uso di Vigore Incrollabile."
             }
         },
         "ManualRolls": {

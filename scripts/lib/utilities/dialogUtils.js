@@ -152,11 +152,15 @@ async function selectTargetDialog(title, content, targets, {type = 'one', select
     }
     return ([result, skip]);
 }
-async function confirm(title, content, {userId = game.user.id, buttons = 'yesNo'} = {}) {
+async function confirm(title, content, {userId = game.user.id, buttons = 'yesNo', width, timeout} = {}) {
+    // ⚠️ FORK PATCH (queue T141/T145 follow-ups): optional width + auto-expiry passthrough.
+    let config = {height: 'auto'};
+    if (width) config.width = width;
+    if (timeout) config.timeout = timeout;
     let selection;
     if (userId !== game.user.id) {
-        selection = await socket.executeAsUser(sockets.dialog.name, userId, title, content, [], buttons);
-    } else selection = await DialogApp.dialog(title, content, [], buttons);
+        selection = await socket.executeAsUser(sockets.dialog.name, userId, title, content, [], buttons, config);
+    } else selection = await DialogApp.dialog(title, content, [], buttons, config);
     return selection?.buttons;
 }
 async function confirmUseItem(item, {userId = game.user.id, buttons = 'yesNo'} = {}) {
@@ -337,7 +341,7 @@ async function queuedConfirmDialog(title, content, {actor, reason, userId} = {})
     }
     return selection;
 }
-async function selectDie(rolls = [], title, content, {max = 1, userId = game.user.id, buttons = 'okCancel'} = {}) {
+async function selectDie(rolls = [], title, content, {max = 1, userId = game.user.id, buttons = 'okCancel', width, timeout, contexts} = {}) {
     // T97: with no non-deterministic term anywhere in these rolls the checkbox list below is
     // empty, so the dialog asks to spend a resource on nothing — and accepting it THROWS, since
     // this returns an empty array (truthy) whose [0] every caller then `.split()`s. A flat-damage
@@ -345,19 +349,27 @@ async function selectDie(rolls = [], title, content, {max = 1, userId = game.use
     if (!hasSelectableDie(rolls)) return;
     let dice = [];
     for (let i = 0; i < rolls.length; i++) {
+        // ⚠️ FORK PATCH (queue T141 follow-up): each die names what its roll was about —
+        // the roll's own flavor when it carries one, else a caller-supplied context string.
+        let context = rolls[i].options?.flavor || contexts?.[i] || '';
         for (let j = 0; j < rolls[i].terms.length; j++) {
             if (rolls[i].terms[j].isDeterministic) continue;
             for (let k = 0; k < rolls[i].terms[j].results.length; k++) {
-                dice.push({name: i + '-' + j + '-' + k, label: rolls[i].terms[j].results[k].result + ' (d' + rolls[i].terms[j].faces + ')'});
+                let label = rolls[i].terms[j].results[k].result + ' (d' + rolls[i].terms[j].faces + ')';
+                if (context) label += ' — ' + context;
+                dice.push({name: i + '-' + j + '-' + k, label});
             }
         }
     }
     let inputs = [['checkbox', dice, {displayAsRows: true, totalMax: max}]];
+    let config = {height: 'auto'};
+    if (width) config.width = width;
+    if (timeout) config.timeout = timeout;
     let selection;
     if (game.user.id != userId) {
-        selection = await socket.executeAsUser(sockets.dialog.name, userId, title, content, inputs, buttons, {height: 'auto'});
+        selection = await socket.executeAsUser(sockets.dialog.name, userId, title, content, inputs, buttons, config);
     } else {
-        selection = await DialogApp.dialog(title, content, inputs, buttons, {height: 'auto'});
+        selection = await DialogApp.dialog(title, content, inputs, buttons, config);
     }
     if (selection.buttons) {
         delete selection.buttons;

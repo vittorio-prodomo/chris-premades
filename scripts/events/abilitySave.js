@@ -330,7 +330,7 @@ async function rollSave(wrapped, config, dialog = {}, message = {}) {
         }
     }
     if (genericUtils.getCPRSetting('heroicInspiration') && !isSettledConcentrationSave(config, returnData)) {
-        let heroicInspirationRoll = await heroicInspiration.saveSkillCheck(returnData, this, rollMode);
+        let heroicInspirationRoll = await heroicInspiration.saveSkillCheck(returnData, this, rollMode, (CONFIG.DND5E.abilities[saveId]?.label ?? '') + ' ' + game.i18n.localize('DND5E.SavingThrow'));
         if (heroicInspirationRoll) returnData = heroicInspirationRoll;
     }
     if (returnData.options) genericUtils.mergeObject(returnData.options, oldOptions);

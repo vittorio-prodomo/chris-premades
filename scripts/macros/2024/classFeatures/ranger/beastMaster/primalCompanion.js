@@ -285,7 +285,14 @@ function resolvePrimalAnchor(combatant) {
 }
 Hooks.once('setup', () => {
     libWrapper.register('chris-premades', 'CONFIG.Combat.documentClass.prototype._sortCombatants', function (wrapped, a, b) {
-        return liftPrimalSort((x, y) => wrapped(x, y), resolvePrimalAnchor)(a, b);
+        // ⚠️ Always chain ONCE per invocation (T135 follow-up): with another module wrapping
+        // the same target (Monk's Combat Details), libWrapper raises a conflict toast every
+        // time a wrapper returns without chaining — which the lift legitimately does on
+        // beast/hunter pairs. Pre-computing the base comparison chains unconditionally; the
+        // memo hands it back if the lift asks for the same pair, and the comparator is pure
+        // so an occasional extra wrapped() call for other pairs is harmless.
+        const baseAB = wrapped(a, b);
+        return liftPrimalSort((x, y) => (x === a && y === b) ? baseAB : wrapped(x, y), resolvePrimalAnchor)(a, b);
     }, 'MIXED');
 });
 async function reanchorPrimalBeasts(combat) {

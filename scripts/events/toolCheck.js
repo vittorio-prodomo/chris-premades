@@ -314,7 +314,7 @@ async function rollToolCheck(wrapped, config, dialog, message) {
         }
     }
     if (genericUtils.getCPRSetting('heroicInspiration')) {
-        let heroicInspirationRoll = await heroicInspiration.saveSkillCheck(returnData, this, rollMode);
+        let heroicInspirationRoll = await heroicInspiration.saveSkillCheck(returnData, this, rollMode, this.items?.get?.(toolId)?.name ?? CONFIG.DND5E.tools?.[toolId]?.label);
         if (heroicInspirationRoll) returnData = heroicInspirationRoll;
     }
     if (returnData.options) genericUtils.mergeObject(returnData.options, oldOptions);

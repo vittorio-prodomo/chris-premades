@@ -79,11 +79,21 @@ export class DialogApp extends HandlebarsApplicationMixin(ApplicationV2) {
     static async dialog(...options) {
         return new Promise((resolve) => {
             const dialog = new DialogApp(options);
+            // ⚠️ FORK PATCH (queue T141/T145 follow-ups): optional auto-expiry. A config
+            // with {timeout: N} closes the dialog after N seconds, resolving null — the
+            // same shape as the user declining, so every caller's falsy-check covers it.
+            const timeoutSeconds = options?.[4]?.timeout;
+            let timeoutId;
+            if (Number.isFinite(timeoutSeconds) && timeoutSeconds > 0) {
+                timeoutId = setTimeout(() => dialog.close(), timeoutSeconds * 1000);
+            }
             dialog.addEventListener('close', () => {
+                if (timeoutId) clearTimeout(timeoutId);
                 resolve(null);
             }, {once: true});
             dialog.render({force: true});
             dialog.submit = async result => {
+                if (timeoutId) clearTimeout(timeoutId);
                 resolve(result);
                 dialog.close();
             };
