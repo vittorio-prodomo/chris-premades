@@ -1742,7 +1742,9 @@
             },
             "Guidance": {
                 "ChosenSkill": "Chosen skill: {skill}",
-                "Flavor": "from {item}"
+                "Flavor": "from {item}",
+                "ConcentrationWarningTargets": "This will end {spellName} on {targets}.",
+                "ConcentrationWarning": "This will end your concentration on {spellName}."
             },
             "GuidedStrike": {
                 "Attack": "Use {item}? Attack Roll: {attackRoll}"

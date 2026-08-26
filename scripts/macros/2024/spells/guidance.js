@@ -38,13 +38,25 @@ async function skillCheck({trigger: {actor, entity: item, roll, token, skillId}}
     if (combatUtils.inCombat()) return;
     let effect = effectUtils.getEffectByIdentifier(actor, 'guidanceEffect');
     if (effect) return;
-    // ⚠️ FORK PATCH (queue T144a): the offer is now a REAL cast, so accepting it while already
-    // concentrating on Guidance (e.g. cast on an ally) would restart concentration and delete
-    // the ally's buff for a self d4. Skip the offer in that case — a deliberate re-cast is
-    // still available from the sheet/HUD.
-    if (effectUtils.getConcentrationEffect(actor, item)) return;
-    if (prompt === 'prompt') {
-        let selection = await dialogUtils.confirmUseItem(item);
+    // ⚠️ FORK PATCH (queue T144a, revised per Vittorio 2026-08-26): the offer is a REAL cast,
+    // and a real cast breaks existing concentration — never behind a plain "Use Guidance?".
+    // When the caster is concentrating on ANYTHING (another Guidance included), the offer
+    // names what would end and on whom ("This will end Guidance on Warpey.") and always asks,
+    // even with promptToUse set to 'auto'.
+    let concEffects = Array.from(actor.concentration?.effects ?? []);
+    let warning = '';
+    if (concEffects.length) {
+        let concItem = Array.from(actor.concentration.items ?? [])[0];
+        let spellName = concItem?.name ?? concEffects[0].name;
+        let targetNames = [...new Set(concEffects.flatMap(e => e.getDependents?.() ?? []).map(d => d?.parent?.name ?? d?.name).filter(n => n))];
+        warning = targetNames.length
+            ? genericUtils.format('CHRISPREMADES.Macros.Guidance.ConcentrationWarningTargets', {spellName, targets: targetNames.join(', ')})
+            : genericUtils.format('CHRISPREMADES.Macros.Guidance.ConcentrationWarning', {spellName});
+    }
+    if (prompt === 'prompt' || warning.length) {
+        let content = genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: item.name});
+        if (warning.length) content += '<p><strong>⚠️ ' + warning + '</strong></p>';
+        let selection = await dialogUtils.confirm(item.name, content);
         if (!selection) return;
     }
     let activity = activityUtils.getActivityByIdentifier(item, 'selfUse', {strict: true});

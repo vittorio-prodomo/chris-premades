@@ -1300,7 +1300,9 @@
             },
             "Guidance": {
                 "ChosenSkill": "Abilità scelta: {skill}",
-                "Flavor": "da {item}"
+                "Flavor": "da {item}",
+                "ConcentrationWarningTargets": "Questo terminerà {spellName} su {targets}.",
+                "ConcentrationWarning": "Questo terminerà la tua concentrazione su {spellName}."
             },
             "GustOfWind": {
                 "Move": "Soffio di Vento: Spostare",
