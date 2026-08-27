@@ -341,8 +341,13 @@ async function damageRollComplete(workflow) {
     sortedSceneTriggers = sortedSceneTriggers.sort((a, b) => a.priority - b.priority);
     genericUtils.log('dev', 'Executing Midi Macro Pass: sceneDamageRollComplete');
     for (let trigger of sortedSceneTriggers) await executeMacro(trigger, workflow);
-    if (genericUtils.getCPRSetting('heroicInspiration')) await heroicInspiration.damage(workflow);
+    // ⚠️ ORDER IS LOAD-BEARING: `preItemRoll` turns midi's own DSN display off, so THIS is
+    // where the damage dice are actually thrown. Offering Heroic Inspiration before it ran
+    // showed the player a prompt listing die results that had not been rolled on screen yet
+    // — an outright spoiler, and the dice then landed on exactly the values the prompt named.
+    // Animate first, then offer the reroll.
     if (genericUtils.getCPRSetting('diceSoNice') && game.modules.get('dice-so-nice')?.active) await diceSoNice.damageRollComplete(workflow);
+    if (genericUtils.getCPRSetting('heroicInspiration')) await heroicInspiration.damage(workflow);
     if (genericUtils.getCPRSetting('explodingHeals')) await explodingHeals(workflow);
     let manualRollsEnabled = genericUtils.getCPRSetting('manualRollsEnabled');
     if (manualRollsEnabled && (workflow.hitTargets?.size === 0 ? genericUtils.getCPRSetting('manualRollsPromptOnMiss') : true)) await _manualRollsNewRolls(workflow);
