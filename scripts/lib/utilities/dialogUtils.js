@@ -1,4 +1,5 @@
 import {DialogApp} from '../../applications/dialog.js';
+import {selectedDieKeys} from './dieSelection.mjs';
 import {constants, tokenUtils, genericUtils, itemUtils} from '../../utils.js';
 import {socket, sockets} from '../sockets.js';
 import {resolveDamageLabel} from './damageTypeLabels.mjs';
@@ -371,10 +372,7 @@ async function selectDie(rolls = [], title, content, {max = 1, userId = game.use
     } else {
         selection = await DialogApp.dialog(title, content, inputs, buttons, config);
     }
-    if (selection.buttons) {
-        delete selection.buttons;
-        return Object.entries(selection).filter(([key, value]) => (value)).map(i => i[0]);
-    }
+    return selectedDieKeys(selection);
 }
 export let dialogUtils = {
     buttonDialog,
