@@ -1,4 +1,5 @@
 import {genericUtils} from '../utils.js';
+import {secondsRemaining} from '../lib/utilities/dialogCountdown.mjs';
 let {ApplicationV2, HandlebarsApplicationMixin} = foundry.applications.api;
 export class DialogApp extends HandlebarsApplicationMixin(ApplicationV2) {
     constructor(options) {
@@ -84,16 +85,43 @@ export class DialogApp extends HandlebarsApplicationMixin(ApplicationV2) {
             // same shape as the user declining, so every caller's falsy-check covers it.
             const timeoutSeconds = options?.[4]?.timeout;
             let timeoutId;
+            let countdownId;
+            const stopTimers = () => {
+                if (timeoutId) clearTimeout(timeoutId);
+                if (countdownId) clearInterval(countdownId);
+            };
             if (Number.isFinite(timeoutSeconds) && timeoutSeconds > 0) {
                 timeoutId = setTimeout(() => dialog.close(), timeoutSeconds * 1000);
+                // ⚠️ An invisible deadline is worse than none: he sat on a prompt, it
+                // vanished with no explanation, and the disappearance read as a bug.
+                // Show the remaining seconds so the expiry is legible while it runs.
+                const deadline = Date.now() + (timeoutSeconds * 1000);
+                dialog.render({force: true}).then(() => {
+                    const content = dialog.element?.querySelector('.window-content');
+                    if (!content) return;
+                    const note = document.createElement('p');
+                    note.className = 'cpr-dialog-countdown';
+                    // Inline, not a stylesheet: this element is created per dialog and the
+                    // styling is two declarations — keeping it here avoids a CSS round trip.
+                    note.style.cssText = 'margin:6px 0 0;text-align:center;opacity:0.7;font-size:var(--font-size-12)';
+                    content.appendChild(note);
+                    const tick = () => {
+                        note.textContent = genericUtils.format('CHRISPREMADES.Dialog.ExpiresIn', {
+                            seconds: secondsRemaining(deadline, Date.now())
+                        });
+                    };
+                    tick();
+                    countdownId = setInterval(tick, 250);
+                });
+            } else {
+                dialog.render({force: true});
             }
             dialog.addEventListener('close', () => {
-                if (timeoutId) clearTimeout(timeoutId);
+                stopTimers();
                 resolve(null);
             }, {once: true});
-            dialog.render({force: true});
             dialog.submit = async result => {
-                if (timeoutId) clearTimeout(timeoutId);
+                stopTimers();
                 resolve(result);
                 dialog.close();
             };

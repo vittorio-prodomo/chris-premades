@@ -65,7 +65,8 @@ async function skillCheck({trigger: {actor, entity: item, token, skillId}}) {
     if (prompt === 'prompt' || warning.length) {
         let content = genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: item.name});
         if (warning.length) content += '<p><strong>⚠️ ' + warning + '</strong></p>';
-        let selection = await dialogUtils.confirm(item.name, content, {width: 320});
+        // 30s auto-expiry = no Guidance, matching the Heroic Inspiration prompt.
+        let selection = await dialogUtils.confirm(item.name, content, {width: 320, timeout: 30});
         if (!selection) return;
     }
     let activity = activityUtils.getActivityByIdentifier(item, 'selfUse', {strict: true});
