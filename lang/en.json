@@ -3010,7 +3010,9 @@
       "TacticalMind": {
         "PromptFailed": "You rolled {rollTotal} ({rollFormula}) and failed the check. Use {itemName} to add {bonus} to the roll?",
         "Prompt": "You rolled {rollTotal} ({rollFormula}). Use {itemName} to add {bonus} to the roll?",
-        "ConsumeConfirm": "Did the check succeed? If not, answer No — no use of Second Wind will be spent."
+        "ConsumeConfirm": "Did the check succeed? If not, answer No — no use of Second Wind will be spent.",
+        "Spent": "<strong>{itemName}</strong> — spent a use of <strong>{resourceName}</strong> ({remaining} remaining).",
+        "SpentUnknown": "<strong>{itemName}</strong> — spent a use of <strong>{resourceName}</strong>."
       }
     },
     "ManualRolls": {

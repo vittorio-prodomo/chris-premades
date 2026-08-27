@@ -1,4 +1,5 @@
 import {dialogUtils, genericUtils, itemUtils, rollUtils, workflowUtils} from '../../../../utils.js';
+import {remainingUses} from '../../../../lib/utilities/resourceSpend.mjs';
 async function check({trigger: {entity: item, roll, actor, options}}) {
     let targetValue = roll.options.target;
     if (targetValue && roll.total >= targetValue) return;
@@ -32,6 +33,32 @@ async function checkLate({trigger: {entity: item, roll, actor, options}}) {
     let secondWind = itemUtils.getItemByIdentifier(actor, 'secondWind');
     if (!secondWind) return;
     await genericUtils.update(secondWind, {'system.uses.spent': secondWind.system.uses.spent + 1});
+    // ⚠️ FORK PATCH (queue T183, Vittorio 2026-08-27): spending Second Wind was completely
+    // silent — the resource just went down with nothing in chat to explain why. Say so.
+    await announceSpend(actor, item, secondWind);
+}
+/**
+ * Tell the table that a resource was spent to power a feature.
+ * Its own chat card because a skill check has no midi workflow card to annotate.
+ */
+async function announceSpend(actor, item, resource) {
+    try {
+        let left = remainingUses(resource.system?.uses);
+        // ⚠️ i18n.format does NOT escape its substitutions and these strings carry markup,
+        // so an item renamed to '<img onerror=...>' would land in a STORED chat card that
+        // re-renders for every client. Escape the names, not the template.
+        let itemName = foundry.utils.escapeHTML(item.name ?? '');
+        let resourceName = foundry.utils.escapeHTML(resource.name ?? '');
+        let content = left === null
+            ? genericUtils.format('CHRISPREMADES.Macros.TacticalMind.SpentUnknown', {itemName, resourceName})
+            : genericUtils.format('CHRISPREMADES.Macros.TacticalMind.Spent', {itemName, resourceName, remaining: left});
+        await ChatMessage.create({
+            speaker: ChatMessage.getSpeaker({actor}),
+            content: '<p>' + content + '</p>'
+        });
+    } catch (error) {
+        genericUtils.log('warn', 'Failed to announce the Second Wind spend: ' + (error?.message ?? error));
+    }
 }
 export let tacticalMind = {
     name: 'Tactical Mind',

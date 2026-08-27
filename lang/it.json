@@ -2268,7 +2268,9 @@
       "TacticalMind": {
         "PromptFailed": "Hai tirato {rollTotal} ({rollFormula}) e fallito la prova. Usare {itemName} per aggiungere {bonus} al tiro?",
         "Prompt": "Hai tirato {rollTotal} ({rollFormula}). Usare {itemName} per aggiungere {bonus} al tiro?",
-        "ConsumeConfirm": "La prova è riuscita? In caso contrario rispondi No: non verrà speso alcun uso di Vigore Incrollabile."
+        "ConsumeConfirm": "La prova è riuscita? In caso contrario rispondi No: non verrà speso alcun uso di Vigore Incrollabile.",
+        "Spent": "<strong>{itemName}</strong> — consumato un utilizzo di <strong>{resourceName}</strong> ({remaining} rimanenti).",
+        "SpentUnknown": "<strong>{itemName}</strong> — consumato un utilizzo di <strong>{resourceName}</strong>."
       }
     },
     "ManualRolls": {
