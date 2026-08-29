@@ -159,6 +159,40 @@ async function early({dialog}) {
 // Gated on dnd5e's preUseActivity so a blocked attempt cancels BEFORE the usage card,
 // consumption, and MidiQOL's action-economy bookkeeping (setBonusActionUsed runs inside
 // MidiActivityMixin.use() even for workflows a preItemRoll/state macro later aborts).
+// Re-cast gate (2026-08-29, the same-spell recast re-frame): clicking Hunter's Mark while
+// already concentrating on it offers Move / Re-cast / Cancel instead of silently dropping the
+// mark — the same shape as Flaming Sphere's T19 gate. Move is offered unconditionally: the RAW
+// 0-HP gate below refuses an illegal move with its own notice, which keeps the rule in ONE
+// place. Re-cast re-dispatches with dnd5eLSC.handled so the generic concentration warning in
+// dnd5e-lowest-slot-cast stands down and its dual-pool routing decides the resource (free use
+// first, slot with confirm otherwise). The claim registered at ready is what tells that module
+// this spell owns its own same-spell moment.
+Hooks.on('dnd5e.preUseActivity', (activity, usageConfig) => {
+    let item = activity.item;
+    if (item?.identifier !== 'hunters-mark' || item.type !== 'spell' || !item.actor) return;
+    if (activityUtils.getIdentifier(activity) === 'huntersMarkMove') return;
+    if (usageConfig?.dnd5eLSC?.handled || usageConfig?.dnd5eLSC?.routed) return;
+    let effect = effectUtils.getEffectByIdentifier(item.actor, 'huntersMark');
+    if (!effect) return; // not concentrating on it: a normal cast
+    (async () => {
+        let choice = await dialogUtils.buttonDialog(item.name, 'CHRISPREMADES.Macros.HuntersMark.RecastPrompt', [
+            ['CHRISPREMADES.Macros.HuntersMark.RecastMove', 'move'],
+            ['CHRISPREMADES.Macros.HuntersMark.RecastRecast', 'recast'],
+            ['CHRISPREMADES.Macros.HuntersMark.RecastCancel', 'cancel']
+        ]);
+        if (!choice || choice === 'cancel') return; // clean abort, nothing spent
+        if (choice === 'move') {
+            let moveActivity = activityUtils.getActivityByIdentifier(item, 'huntersMarkMove', {strict: true});
+            if (moveActivity) await moveActivity.use({}, {}, {});
+            return;
+        }
+        await activity.use(genericUtils.mergeObject(usageConfig ?? {}, {dnd5eLSC: {handled: true}}, {inplace: false}), {}, {});
+    })();
+    return false;
+});
+Hooks.once('ready', () => {
+    game.modules.get('dnd5e-lowest-slot-cast')?.api?.claimSameSpellRecast('hunters-mark');
+});
 Hooks.on('dnd5e.preUseActivity', activity => {
     if (activityUtils.getIdentifier(activity) !== 'huntersMarkMove') return;
     let actor = activity.item?.actor;
