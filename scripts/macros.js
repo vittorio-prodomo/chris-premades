@@ -418,7 +418,6 @@ export {naturesVeil} from './macros/2024/classFeatures/ranger/naturesVeil.js';
 export {preciseHunter} from './macros/2024/classFeatures/ranger/preciseHunter.js';
 export {foeSlayer} from './macros/2024/classFeatures/ranger/foeSlayer.js';
 // Beast Master
-export {primalCompanion, bestialFury, primalCompanionStrike} from './macros/2024/classFeatures/ranger/beastMaster/primalCompanion.js';
 export {exceptionalTraining} from './macros/2024/classFeatures/ranger/beastMaster/exceptionalTraining.js';
 export {shareSpells} from './macros/2024/classFeatures/ranger/beastMaster/shareSpells.js';
 // Fey Wanderer

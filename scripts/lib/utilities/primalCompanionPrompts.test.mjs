@@ -7,15 +7,18 @@ import { fileURLToPath } from 'node:url';
  * T77 guard — the beast's damage-type prompt has to say what it is asking about.
  * Both Primal Companion macros used the shared 'CHRISPREMADES.Dialog.DamageType' key
  * ("What damage type?"), which lands right after the companion-type pick with no subject.
- * They now pass their own key, so these tests assert the two halves stay in sync: the
- * macros reference the dedicated key, and en + it (the two languages we maintain) define it.
+ * They passed their own key instead, so this test asserts the surviving (2014) macro and
+ * the en + it lang keys stay in sync. The 2024 macro was deleted (primal-companion-native
+ * plan, T9): 2024 Primal Companion is rebuilt on dnd5e's native Summon activity, and its
+ * damage-type prompt now lives in the dnd5e-primal-companion module (own lang keys, ported
+ * verbatim from these same CHRISPREMADES strings — see that module's lang/en.json + it.json).
+ * The lang keys tested below stay live because the 2014 macro still uses them.
  */
 
 const PROMPT_KEY = 'CHRISPREMADES.Macros.PrimalCompanion.DamageTypePrompt';
 const SHARED_KEY = 'CHRISPREMADES.Dialog.DamageType';
 
 const macroPaths = {
-    modern: fileURLToPath(new URL('../../macros/2024/classFeatures/ranger/beastMaster/primalCompanion.js', import.meta.url)),
     legacy: fileURLToPath(new URL('../../macros/2014/classFeatures/ranger/beastMaster/primalCompanion.js', import.meta.url))
 };
 

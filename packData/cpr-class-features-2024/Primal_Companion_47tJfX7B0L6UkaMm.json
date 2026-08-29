@@ -782,13 +782,6 @@
         "hasAnimation": true,
         "rules": "modern"
       },
-      "macros": {
-        "midi": {
-          "item": [
-            "primalCompanion"
-          ]
-        }
-      },
       "hiddenActivities": [
         "primalCompanionCommand",
         "primalCompanionRestore",
