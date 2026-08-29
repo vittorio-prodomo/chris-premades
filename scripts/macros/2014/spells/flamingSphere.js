@@ -359,3 +359,11 @@ export let flamingSphereRam = {
         ]
     }
 };
+
+// The T19 re-cast gate above owns the same-spell recast moment; tell
+// dnd5e-lowest-slot-cast so its generic concentration warning stands down here
+// by contract instead of by hook-ordering luck.
+Hooks.once('ready', () => {
+    game.modules.get('dnd5e-lowest-slot-cast')?.api?.claimSameSpellRecast('flaming-sphere');
+});
+
