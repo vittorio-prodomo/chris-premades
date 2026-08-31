@@ -1,4 +1,5 @@
 import {genericUtils, itemUtils, rollUtils} from '../../../../utils.js';
+import {arcaneRecoverySummary} from '../../../../lib/utilities/arcaneRecoverySummary.mjs';
 import {DialogApp} from '../../../../applications/dialog.js';
 async function use({trigger, workflow}) {
     let formula = itemUtils.getConfig(workflow.item, 'formula');
@@ -57,14 +58,34 @@ async function use({trigger, workflow}) {
     if (!selection?.buttons) return;
     let updates = {};
     let totalRecovered = 0;
+    let recovered = [];
     for (let i of availableLevels) {
         let amount = parseInt(selection['spell' + i]) || 0;
         if (amount > 0) {
             totalRecovered += (amount * i);
+            recovered.push({level: i, amount});
             updates['system.spells.spell' + i + '.value'] = spells['spell' + i].value + amount;
         }
     }
     if (Object.keys(updates).length > 0) genericUtils.update(workflow.actor, updates);
+
+    // Say WHICH slots came back. The recovery was applied silently before this, so
+    // midi's card announced the feature and nothing else.
+    // ⚠️ Appended to the existing card rather than posted as a second message: the
+    // ask was for the card itself to carry it. Wrapped because a cosmetic summary
+    // must never fail the recovery that already happened.
+    try {
+        let summary = arcaneRecoverySummary({
+            recovered,
+            allowed: totalSlots,
+            label: (level) => CONFIG.DND5E.spellLevels?.[level] ?? `Level ${level}`
+        });
+        if (summary && workflow.chatCard) {
+            await workflow.chatCard.update({content: workflow.chatCard.content + summary});
+        }
+    } catch (error) {
+        genericUtils.log('warn', 'Could not summarise the Arcane Recovery slots: ' + (error?.message ?? error));
+    }
 }
 export let arcaneRecovery = {
     name: 'Arcane Recovery',
