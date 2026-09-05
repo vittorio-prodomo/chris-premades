@@ -1467,6 +1467,11 @@
                 "Bolt": "Giavellotto del Fulmine: Dardo"
             },
             "Jump": {
+                "Config": {
+                    "RunUpSound": "Passi della rincorsa",
+                    "TakeoffSound": "Suono dello stacco",
+                    "LandingSound": "Suono dell'atterraggio"
+                },
                 "LongJump": {
                     "DifficultTerrain": "Atterri su terreno difficile?",
                     "LowObstacle": "C'è un ostacolo basso?",

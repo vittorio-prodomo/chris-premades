@@ -1994,6 +1994,11 @@
                 "Bolt": "Javelin of Lightning: Bolt"
             },
             "Jump": {
+                "Config": {
+                    "RunUpSound": "Run-up footsteps",
+                    "TakeoffSound": "Take-off sound",
+                    "LandingSound": "Landing sound"
+                },
                 "LongJump": {
                     "DifficultTerrain": "Landing in difficult terrain?",
                     "LowObstacle": "Is there a low obstacle?",

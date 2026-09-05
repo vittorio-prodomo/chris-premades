@@ -153,6 +153,14 @@ async function longJump({trigger, workflow}) {
     let lowDC = Number(selection.lowObstacleDC ?? defaultLowDC) || defaultLowDC;
     let terrainDC = Number(selection.difficultTerrainDC ?? defaultTerrainDC) || defaultTerrainDC;
     let playAnimation = itemUtils.getConfig(workflow.item, 'playAnimation');
+    // Sounds (his ask, 2026-09-06): PSFX + cartoon-pack files as defaults, medkit-editable, all optional.
+    let sounds = {
+        runUp: itemUtils.getConfig(workflow.item, 'runUpSound'),
+        takeoff: itemUtils.getConfig(workflow.item, 'takeoffSound'),
+        landing: itemUtils.getConfig(workflow.item, 'landingSound')
+    };
+    // Only a run-up the history can vouch for gets footsteps (out of combat "running" is an assumption).
+    let playRunUp = !!sounds.runUp && plan.running && plan.remaining !== null;
     // The checks roll DURING the jump (his call, 2026-09-05): the low obstacle on take-off,
     // once the landing is chosen and the budget answered; the difficult terrain on landing.
     let rollCheck = async (identifier, dc) => {
@@ -207,6 +215,13 @@ async function longJump({trigger, workflow}) {
     if (playAnimation && !obstacleFailed) {
         /* eslint-disable indent */
         await new Sequence()
+            .sound()
+                .playIf(playRunUp)
+                .file(sounds.runUp)
+                .waitUntilFinished(-600)
+            .sound()
+                .playIf(!!sounds.takeoff)
+                .file(sounds.takeoff)
             .animation()
                 .on(token)
                 .opacity(0)
@@ -241,6 +256,9 @@ async function longJump({trigger, workflow}) {
             .thenDo(async () => {
                 moved = await moveByJump(token, destination, {distance: feet, cost: verdict.cost, animate: false});
             })
+            .sound()
+                .playIf(!!sounds.landing)
+                .file(sounds.landing)
             .animation()
                 .on(token)
                 .opacity(1)
@@ -252,7 +270,12 @@ async function longJump({trigger, workflow}) {
             .play();
         /* eslint-enable indent */
     } else if (!obstacleFailed) {
+        if (sounds.takeoff) await new Sequence().sound().file(sounds.takeoff).play();
         moved = await moveByJump(token, destination, {distance: feet, cost: verdict.cost, animate: true});
+        if (moved) {
+            await token.movementAnimationPromise;
+            if (sounds.landing) await new Sequence().sound().file(sounds.landing).play();
+        }
     }
     // Core may still clamp the path (the spot filled up while the dice were rolling):
     // `move` reports true for a partial move, so the landing is the position itself.
@@ -304,6 +327,27 @@ export let jump = {
             type: 'checkbox',
             default: true,
             category: 'animation'
+        },
+        {
+            value: 'runUpSound',
+            label: 'CHRISPREMADES.Macros.Jump.Config.RunUpSound',
+            type: 'file',
+            default: 'modules/psfx-patreon/library/creature/movement/footsteps/outdoors/002/footsteps-sequence-outdoors-002.ogg',
+            category: 'sound'
+        },
+        {
+            value: 'takeoffSound',
+            label: 'CHRISPREMADES.Macros.Jump.Config.TakeoffSound',
+            type: 'file',
+            default: 'modules/animated-spell-effects-cartoon/sound-fx/swoosh/sfx_swoosh_fast_01.ogg',
+            category: 'sound'
+        },
+        {
+            value: 'landingSound',
+            label: 'CHRISPREMADES.Macros.Jump.Config.LandingSound',
+            type: 'file',
+            default: 'modules/psfx-patreon/library/creature/movement/flight/landing/landing-impact-small-001.ogg',
+            category: 'sound'
         },
         {
             value: 'lowObstacleDC',
