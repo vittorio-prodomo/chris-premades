@@ -1,9 +1,13 @@
 import {Crosshairs} from '../crosshairs.js';
 import {genericUtils} from '../../utils.js';
-async function aimCrosshair({token, maxRange, crosshairsConfig, centerpoint, drawBoundries, customCallbacks, trackDistance = true, fudgeDistance = 0, validityFunctions = []}) {
+// ⚠️ FORK PATCH (T223): `boundaryRange` draws the ring at a SHORTER radius than `maxRange`
+// (the movement budget vs the physical jump) — a spot past the ring but within maxRange
+// stays valid, the ring just turns orange so the player sees they are insisting past it.
+async function aimCrosshair({token, maxRange, boundaryRange, crosshairsConfig, centerpoint, drawBoundries, customCallbacks, trackDistance = true, fudgeDistance = 0, validityFunctions = []}) {
     let distance = 0;
     let widthAdjust = 0;
     if (maxRange) maxRange = Number(maxRange);
+    boundaryRange = boundaryRange === undefined ? maxRange : Number(boundaryRange);
     if (!centerpoint) {
         let actualHalf = token.document.width / 2;
         widthAdjust += canvas.grid.distance * Math.floor(actualHalf);
@@ -18,12 +22,12 @@ async function aimCrosshair({token, maxRange, crosshairsConfig, centerpoint, dra
     let valid = true;
     let checkDistance = async (crosshairs) => {
         if (maxRange && drawBoundries) {
-            let radius = (canvas.grid.size * ((maxRange + fudgeDistance + widthAdjust) / canvas.grid.distance));
+            let radius = (canvas.grid.size * ((boundaryRange + fudgeDistance + widthAdjust) / canvas.grid.distance));
             drawing = new PIXI.Graphics();
             drawing.lineStyle(5, 0xffffff);
             let matchTemplates = game.settings.get('core', 'gridTemplates') && (game.settings.get('core', 'gridDiagonals') !== CONST.GRID_DIAGONALS.EXACT);
             if (matchTemplates) {
-                drawing.drawPolygon(canvas.grid.getCircle(centerpoint, maxRange + fudgeDistance + widthAdjust));
+                drawing.drawPolygon(canvas.grid.getCircle(centerpoint, boundaryRange + fudgeDistance + widthAdjust));
             } else {
                 drawing.drawCircle(centerpoint.x, centerpoint.y, radius);
             }
@@ -44,7 +48,7 @@ async function aimCrosshair({token, maxRange, crosshairsConfig, centerpoint, dra
                     valid = false;
                 } else {
                     crosshairs.icon = crosshairsConfig?.icon;
-                    if (drawing) drawing.tint = 0x32cd32;
+                    if (drawing) drawing.tint = distance > boundaryRange ? 0xffa500 : 0x32cd32;
                     valid = true;
                 }
                 crosshairs.draw();

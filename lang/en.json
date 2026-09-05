@@ -1996,7 +1996,20 @@
             "Jump": {
                 "LongJump": {
                     "DifficultTerrain": "Landing in difficult terrain?",
-                    "LowObstacle": "Is there a low obstacle?"
+                    "LowObstacle": "Is there a low obstacle?",
+                    "LowObstacleDC": "Low obstacle DC (Athletics)",
+                    "DifficultTerrainDC": "Difficult terrain DC (Acrobatics)",
+                    "Running": "Running long jump ({distance} ft after a run-up)",
+                    "Standing": "Standing long jump ({distance} ft, no 10-ft run-up)",
+                    "Spell": "Jump spell: up to 30 ft for 10 ft of movement",
+                    "Budget": "{remaining} ft of movement left this turn",
+                    "OverBudgetPrompt": "This jump uses {cost} ft of movement, but only {remaining} ft remain this turn. Jump anyway?",
+                    "OutOfReach": "That spot is beyond the jump's reach.",
+                    "Blocked": "The jump was cut short by an obstacle.",
+                    "Verdict": "Jumped {feet} ft for {cost} ft of movement",
+                    "VerdictLegal": "within this turn's movement",
+                    "VerdictOver": "over this turn's movement by {over} ft",
+                    "VerdictSpell": "Jump spell used this turn"
                 }
             },
             "KeenSenses": {

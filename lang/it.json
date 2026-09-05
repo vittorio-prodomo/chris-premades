@@ -1466,6 +1466,25 @@
             "JavelinOfLightning": {
                 "Bolt": "Giavellotto del Fulmine: Dardo"
             },
+            "Jump": {
+                "LongJump": {
+                    "DifficultTerrain": "Atterri su terreno difficile?",
+                    "LowObstacle": "C'è un ostacolo basso?",
+                    "LowObstacleDC": "CD ostacolo basso (Atletica)",
+                    "DifficultTerrainDC": "CD terreno difficile (Acrobazia)",
+                    "Running": "Salto in lungo con rincorsa ({distance} ft)",
+                    "Standing": "Salto in lungo da fermo ({distance} ft, senza rincorsa di 10 ft)",
+                    "Spell": "Incantesimo Salto: fino a 30 ft per 10 ft di movimento",
+                    "Budget": "{remaining} ft di movimento rimasti in questo turno",
+                    "OverBudgetPrompt": "Questo salto usa {cost} ft di movimento, ma ne restano solo {remaining} ft in questo turno. Saltare comunque?",
+                    "OutOfReach": "Quel punto è oltre la portata del salto.",
+                    "Blocked": "Il salto è stato interrotto da un ostacolo.",
+                    "Verdict": "Saltati {feet} ft per {cost} ft di movimento",
+                    "VerdictLegal": "entro il movimento di questo turno",
+                    "VerdictOver": "oltre il movimento di questo turno di {over} ft",
+                    "VerdictSpell": "Incantesimo Salto usato in questo turno"
+                }
+            },
             "KeenSenses": {
                 "Check": "Questo controllo dipende da: ",
                 "DiceThreshold": "Soglia del Tiro del Dado:",
