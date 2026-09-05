@@ -26,13 +26,13 @@ test('no history, one point, or a non-walk last leg is no run-up', () => {
     assert.equal(runUpFeet([wp(0, 0, 'a'), wp(280, 0, 'a', 'jump')], feet), 0);
 });
 
-test('running vs standing: STR 16 jumps 16 ft after a 10-ft run-up, 8 ft standing', () => {
+test('running vs standing: STR 16 jumps 16 ft after a 10-ft run-up (20 on the grid), 8 ft standing (10 on the grid)', () => {
     let running = planLongJump({rolled: 16, runUp: 10, speed: 30, used: 10, inCombat: true});
     assert.equal(running.running, true);
-    assert.equal(running.distance, 16);
+    assert.equal(running.distance, 20);
     let standing = planLongJump({rolled: 16, runUp: 5, speed: 30, used: 0, inCombat: true});
     assert.equal(standing.running, false);
-    assert.equal(standing.distance, 8);
+    assert.equal(standing.distance, 10);
 });
 
 test('the cap is the smaller of the jump and the remaining movement; out of combat there is no budget', () => {
@@ -41,7 +41,7 @@ test('the cap is the smaller of the jump and the remaining movement; out of comb
     assert.equal(plan.cap, 10);
     let free = planLongJump({rolled: 16, runUp: 10, speed: 30, used: 20, inCombat: false});
     assert.equal(free.remaining, null);
-    assert.equal(free.cap, 16);
+    assert.equal(free.cap, 20);
 });
 
 test('every foot costs a foot; over budget is flagged, never blocked', () => {
@@ -70,8 +70,8 @@ test('the spell never charges more than the feet jumped, and is not "used" by a 
 
 test('the spell already spent this turn is a plain natural jump', () => {
     let plan = planLongJump({rolled: 16, runUp: 0, speed: 30, used: 0, inCombat: true, spellActive: true, spellAvailable: false});
-    assert.equal(plan.distance, 8);
-    assert.equal(jumpVerdict(8, plan).cost, 8);
+    assert.equal(plan.distance, 10);
+    assert.equal(jumpVerdict(10, plan).cost, 10);
 });
 
 test('a natural jump longer than the spell jump costs its full length', () => {
@@ -79,4 +79,11 @@ test('a natural jump longer than the spell jump costs its full length', () => {
     assert.equal(plan.distance, 40);
     assert.equal(jumpVerdict(35, plan).cost, 35);
     assert.equal(plan.cap, 30, '30 ft left: the 30-ft spell jump fits, 31+ costs more than 30');
+});
+
+test('the reach rounds UP to the grid step: 17 → 20, 4 → 5, exact multiples stay; the step is configurable', () => {
+    assert.equal(planLongJump({rolled: 17, runUp: 10, speed: 30, used: 0, inCombat: true}).distance, 20);
+    assert.equal(planLongJump({rolled: 8, runUp: 0, speed: 30, used: 0, inCombat: true}).distance, 5);
+    assert.equal(planLongJump({rolled: 15, runUp: 10, speed: 30, used: 0, inCombat: true}).distance, 15);
+    assert.equal(planLongJump({rolled: 17, runUp: 10, speed: 30, used: 0, inCombat: true, gridStep: 1}).distance, 17);
 });

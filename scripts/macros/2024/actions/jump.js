@@ -55,7 +55,8 @@ function buildPlan({token, actor, rolled}) {
         used: inCombat ? spentThisTurn(token) : 0,
         inCombat,
         spellActive,
-        spellAvailable: spellActive && combatUtils.perTurnCheck(actor, SPELL_TURN_FLAG, false)
+        spellAvailable: spellActive && combatUtils.perTurnCheck(actor, SPELL_TURN_FLAG, false),
+        gridStep: canvas.grid.distance
     });
 }
 /** A check activity clone whose DC is the one chosen in the dialog. */
@@ -152,20 +153,14 @@ async function longJump({trigger, workflow}) {
     let lowDC = Number(selection.lowObstacleDC ?? defaultLowDC) || defaultLowDC;
     let terrainDC = Number(selection.difficultTerrainDC ?? defaultTerrainDC) || defaultTerrainDC;
     let playAnimation = itemUtils.getConfig(workflow.item, 'playAnimation');
-    let obstacleFailed = false;
-    if (selection.lowObstacle) {
-        let activity = await checkWithDC(workflow, 'lowObstacle', lowDC);
-        if (!activity) return;
-        let lowObstacle = await workflowUtils.syntheticActivityRoll(activity, [workflow.token]);
-        if (lowObstacle.failedSaves.size) obstacleFailed = true;
-    }
-    let addProne = false;
-    if (selection.difficultTerrain) {
-        let activity = await checkWithDC(workflow, 'difficultTerrain', terrainDC);
-        if (!activity) return;
-        let difficultTerrain = await workflowUtils.syntheticActivityRoll(activity, [workflow.token]);
-        if (difficultTerrain.failedSaves.size) addProne = true;
-    }
+    // The checks roll DURING the jump (his call, 2026-09-05): the low obstacle on take-off,
+    // once the landing is chosen and the budget answered; the difficult terrain on landing.
+    let rollCheck = async (identifier, dc) => {
+        let activity = await checkWithDC(workflow, identifier, dc);
+        if (!activity) return false;
+        let result = await workflowUtils.syntheticActivityRoll(activity, [workflow.token]);
+        return !!result?.failedSaves?.size;
+    };
     let token = workflow.token;
     let snap = center => token.getSnappedPosition({x: center.x - token.w / 2, y: center.y - token.h / 2});
     // Core (and dnd5e's occupied-space rule) may refuse a landing spot the wall test
@@ -207,6 +202,7 @@ async function longJump({trigger, workflow}) {
         let proceed = await dialogUtils.confirm(workflow.item.name, genericUtils.format('CHRISPREMADES.Macros.Jump.LongJump.OverBudgetPrompt', {cost: verdict.cost, remaining: plan.remaining}));
         if (!proceed) return;
     }
+    let obstacleFailed = selection.lowObstacle ? await rollCheck('lowObstacle', lowDC) : false;
     let moved;
     if (playAnimation && !obstacleFailed) {
         /* eslint-disable indent */
@@ -262,6 +258,7 @@ async function longJump({trigger, workflow}) {
     // `move` reports true for a partial move, so the landing is the position itself.
     let landed = !!moved && token.document.x === destination.x && token.document.y === destination.y;
     if (landed && verdict.spellUsed) await combatUtils.setTurnCheck(workflow.actor, SPELL_TURN_FLAG);
+    let addProne = landed && selection.difficultTerrain ? await rollCheck('difficultTerrain', terrainDC) : false;
     if (addProne) await effectUtils.applyConditions(workflow.actor, ['prone']);
     let lines = [];
     if (obstacleFailed || !landed) {

@@ -71,10 +71,14 @@ export function runUpFeet(history, measureFeet) {
  * @param {boolean} p.inCombat     budget applies only on the jumper's own started-combat turn
  * @param {boolean} p.spellActive  the Jump spell is on the jumper
  * @param {boolean} p.spellAvailable  its once-per-turn jump is still unspent
+ * @param {number} [p.gridStep=5]  the reach is rounded UP to this many feet
  */
-export function planLongJump({rolled, runUp, speed, used, inCombat, spellActive = false, spellAvailable = true}) {
+export function planLongJump({rolled, runUp, speed, used, inCombat, spellActive = false, spellAvailable = true, gridStep = 5}) {
     let running = runUp >= RUN_UP_FEET;
-    let natural = Math.max(0, Math.floor(running ? rolled : rolled / 2));
+    // Rounded UP to the grid step (his call, 2026-09-06): the table places whole squares,
+    // so a 17-ft reach is a 20-ft reach rather than a 15-ft one.
+    let step = gridStep > 0 ? gridStep : 1;
+    let natural = Math.ceil(Math.max(0, running ? rolled : rolled / 2) / step) * step;
     let spell = !!spellActive && !!spellAvailable;
     let distance = spell ? Math.max(natural, JUMP_SPELL_DISTANCE) : natural;
     let remaining = inCombat ? Math.max(0, (speed ?? 0) - (used ?? 0)) : null;
