@@ -44,24 +44,16 @@ async function updateTokenSize(actor, animate, old) {
         }
         return update;
     });
-    // T219 — `animate: false` always (upstream honoured the effect's `sizeAnimation` flag, which made the
-    // RESTORE a ~1.5 s core tween of texture.scale on every client). During that tween the document's
-    // prepared texture.scaleX holds the intermediate frame, and on a ring token nothing re-prepares it
-    // afterwards — so any client that drops out of the tween keeps a goblin "slightly bigger" forever
-    // (Vittorio, 2026-09-05, on Varka: data fully restored, drawn size not). A non-animated update snaps
-    // the mesh to the prepared value via Token#stopAnimation and has no window to interrupt. The
-    // Enlarge/Reduce macro plays its own Sequencer show on APPLY anyway, and the restore never animated
-    // anything worth keeping.
-    await genericUtils.updateEmbeddedDocuments(scene, 'Token', allUpdates, {animate: false, 'chris-premades': {movement: {ignore: true}}});
-    // Second half: core never re-prepares a token document when its actor's effects change (only render
-    // flags), so a LINKED ring token — which gets no scale key from us because dnd5e derives it — stays
-    // drawn at the OLD size after a same-footprint change (med<->sm, sm<->tiny); a flags-only write does
-    // not re-prepare either. What does: re-sending the footprint keys with `diff: false` once the effect
-    // cascade has settled (an in-flow write left it stale; verified live both ways). Sent to EVERY ring
-    // token, linked or not, as a settled re-prepare + redraw on all clients.
-    let ringTokens = tokens.filter(i => i.document.ring?.enabled);
-    if (!ringTokens.length) return;
-    let refresh = ringTokens.map(i => ({_id: i.document.id, width: sizes[size], height: sizes[size]}));
+    await genericUtils.updateEmbeddedDocuments(scene, 'Token', allUpdates, {animate: animate, 'chris-premades': {movement: {ignore: true}}});
+    // T219 — a LINKED ring token gets no scale key from us (dnd5e derives it from the actor's size), and
+    // core never re-prepares a token document when its actor's effects change (only render flags), so a
+    // same-footprint change (med<->sm, sm<->tiny) leaves the ring drawn at the OLD size. A flags-only
+    // write does not re-prepare either. What does: re-sending the footprint keys with `diff: false`
+    // — but only once the effect cascade has settled, hence the deferral (an in-flow write left it
+    // stale; verified live both ways).
+    let derivedTokens = tokens.filter(i => systemDerivesTokenScale(i.document));
+    if (!derivedTokens.length) return;
+    let refresh = derivedTokens.map(i => ({_id: i.document.id, width: sizes[size], height: sizes[size]}));
     setTimeout(() => genericUtils.updateEmbeddedDocuments(scene, 'Token', refresh, {diff: false, animate: false, 'chris-premades': {movement: {ignore: true}}}).catch(console.error), 300);
 }
 async function createDeleteUpdateActiveEffect(...args) {
