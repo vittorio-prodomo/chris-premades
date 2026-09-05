@@ -1,4 +1,67 @@
-import {actorUtils, animationUtils, dialogUtils, effectUtils, genericUtils, itemUtils, tokenUtils} from '../../../utils.js';
+import {actorUtils, animationUtils, dialogUtils, effectUtils, genericUtils, itemUtils, socketUtils, tokenUtils} from '../../../utils.js';
+import {classifyWillingTarget, resolveNewSize} from '../../../lib/utilities/enlargeReduceRules.mjs';
+// T218 (fork, Vittorio's design): the caster picks Enlarge vs Reduce BEFORE the save, and a friendly
+// target's owner is offered to accept the spell (RAW: only an unwilling target makes the save).
+async function selectMode(workflow) {
+    let titanStone = workflow.item.flags['chris-premades']?.titanStone;
+    if (titanStone) return 'enlarge';
+    return await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.EnlargeReduce.Select', [['CHRISPREMADES.Macros.EnlargeReduce.Enlarge', 'enlarge'], ['CHRISPREMADES.Macros.EnlargeReduce.Reduce', 'reduce']]);
+}
+async function early({workflow}) {
+    if (!workflow.targets.size) return;
+    let selection = await selectMode(workflow);
+    if (!selection) {
+        // Dismissed: the cast fizzles here instead of after the save — no roll, no concentration.
+        await genericUtils.remove(effectUtils.getConcentrationEffect(workflow.actor, workflow.item));
+        workflow.aborted = true;
+        return;
+    }
+    genericUtils.setProperty(workflow, 'chris-premades.enlargeReduce.selection', selection);
+    let selectionLabel = genericUtils.translate(selection === 'enlarge' ? 'CHRISPREMADES.Macros.EnlargeReduce.Enlarge' : 'CHRISPREMADES.Macros.EnlargeReduce.Reduce');
+    let casterName = workflow.token?.name ?? workflow.actor.name;
+    for (let targetToken of workflow.targets) {
+        if (!targetToken.actor) continue;
+        let kind = classifyWillingTarget({disposition: targetToken.document.disposition, friendly: CONST.TOKEN_DISPOSITIONS.FRIENDLY, isCaster: targetToken.actor.uuid === workflow.actor.uuid});
+        if (kind === 'other') continue;
+        let willing = true;
+        if (kind === 'friendly') {
+            let content = genericUtils.format('CHRISPREMADES.Macros.EnlargeReduce.WillingPrompt', {casterName, spellName: workflow.item.name, selection: selectionLabel, targetName: targetToken.name});
+            let answer = await dialogUtils.buttonDialog(workflow.item.name, content, [['CHRISPREMADES.Macros.EnlargeReduce.WillingYes', 'willing'], ['CHRISPREMADES.Macros.EnlargeReduce.WillingNo', 'unwilling']], {userId: socketUtils.firstOwner(targetToken.actor, true), timeout: 60});
+            willing = answer === 'willing';
+        }
+        if (!willing) continue;
+        // Same shape as blight's plant auto-fail: one save, then gone.
+        let effectData = {
+            name: workflow.item.name + ': ' + genericUtils.translate('CHRISPREMADES.Macros.EnlargeReduce.WillingEffect'),
+            img: workflow.item.img,
+            origin: workflow.item.uuid,
+            duration: {
+                seconds: 1
+            },
+            changes: [
+                {
+                    key: 'flags.midi-qol.fail.ability.save.all',
+                    value: 1,
+                    mode: 0,
+                    priority: 20
+                }
+            ],
+            flags: {
+                dae: {
+                    specialDuration: [
+                        'isSave'
+                    ]
+                },
+                'chris-premades': {
+                    effect: {
+                        noAnimation: true
+                    }
+                }
+            }
+        };
+        await effectUtils.createEffect(targetToken.actor, effectData, {animate: false});
+    }
+}
 async function use({workflow}) {
     let concentrationEffect = effectUtils.getConcentrationEffect(workflow.actor, workflow.item);
     if (!workflow.failedSaves.size) {
@@ -7,7 +70,8 @@ async function use({workflow}) {
     }
     let playAnimation = itemUtils.getConfig(workflow.item, 'playAnimation');
     let titanStone = workflow.item.flags['chris-premades']?.titanStone;
-    let selection = titanStone ? 'enlarge' : await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.EnlargeReduce.Select', [['CHRISPREMADES.Macros.EnlargeReduce.Enlarge', 'enlarge'], ['CHRISPREMADES.Macros.EnlargeReduce.Reduce', 'reduce']]);
+    // Chosen at preambleComplete (T218); the prompt here is only a fallback for a workflow the early pass never saw.
+    let selection = genericUtils.getProperty(workflow, 'chris-premades.enlargeReduce.selection') ?? await selectMode(workflow);
     if (!selection) {
         await genericUtils.remove(concentrationEffect);
         return;
@@ -87,33 +151,13 @@ async function use({workflow}) {
         effectUtils.addMacro(effectData, 'effect', ['enlargeReduceChanged']);
         for (let targetToken of workflow.failedSaves) {
             let currEffectData = genericUtils.duplicate(effectData);
-            let doGrow = true;
             let targetSize = targetToken.actor.system.traits.size;
+            let hasRoom = true;
             if (targetSize !== 'tiny' && targetSize !== 'sm') {
                 let room = tokenUtils.checkForRoom(targetToken, 1);
-                let direction = tokenUtils.findDirection(room);
-                if (direction === 'none') doGrow = false;
+                hasRoom = tokenUtils.findDirection(room) !== 'none';
             }
-            let newSize = targetSize;
-            if (doGrow) {
-                switch (targetSize) {
-                    case 'tiny':
-                        newSize = 'sm';
-                        break;
-                    case 'sm':
-                        newSize = 'med';
-                        break;
-                    case 'med':
-                        newSize = 'lg';
-                        break;
-                    case 'lg':
-                        newSize = 'huge';
-                        break;
-                    case 'huge':
-                        newSize = 'grg';
-                        break;
-                }
-            }
+            let newSize = resolveNewSize({selection, size: targetSize, hasRoom});
             currEffectData.flags['chris-premades'].enlargeReduce.origSize = targetSize;
             currEffectData.flags['chris-premades'].enlargeReduce.newSize = newSize;
             await effectUtils.createEffect(targetToken.actor, currEffectData, {concentrationItem: workflow.item, interdependent: true, identifier: 'enlargeReduceChanged'});
@@ -166,24 +210,7 @@ async function use({workflow}) {
         for (let targetToken of workflow.failedSaves) {
             let currEffectData = genericUtils.duplicate(effectData);
             let targetSize = targetToken.actor.system.traits.size;
-            let newSize = targetSize;
-            switch (targetSize) {
-                case 'sm':
-                    newSize = 'tiny';
-                    break;
-                case 'med':
-                    newSize = 'sm';
-                    break;
-                case 'lg':
-                    newSize = 'med';
-                    break;
-                case 'huge':
-                    newSize = 'lg';
-                    break;
-                case 'grg':
-                    newSize = 'huge';
-                    break;
-            }
+            let newSize = resolveNewSize({selection, size: targetSize});
             currEffectData.flags['chris-premades'].enlargeReduce.origSize = targetSize;
             currEffectData.flags['chris-premades'].enlargeReduce.newSize = newSize;
             await effectUtils.createEffect(targetToken.actor, currEffectData, {concentrationItem: workflow.item, interdependent: true, identifier: 'enlargeReduceChanged'});
@@ -443,6 +470,11 @@ export let enlargeReduce = {
     hasAnimation: true,
     midi: {
         item: [
+            {
+                pass: 'preambleComplete',
+                macro: early,
+                priority: 50
+            },
             {
                 pass: 'rollFinished',
                 macro: use,

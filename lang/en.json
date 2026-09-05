@@ -1520,7 +1520,11 @@
             "EnlargeReduce": {
                 "Enlarge": "Enlarge",
                 "Reduce": "Reduce",
-                "Select": "Enlarge or Reduce?"
+                "Select": "Enlarge or Reduce?",
+                "WillingPrompt": "{casterName} casts {spellName} ({selection}) on {targetName}. If the target is unwilling, it can make a Constitution saving throw. Is {targetName} willing?",
+                "WillingYes": "Willing (no saving throw)",
+                "WillingNo": "Unwilling (make the saving throw)",
+                "WillingEffect": "Willing"
             },
             "Escape": {
                 "Name": "Escape"

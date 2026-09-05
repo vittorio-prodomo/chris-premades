@@ -1120,7 +1120,11 @@
             "EnlargeReduce": {
                 "Enlarge": "Ingrandire",
                 "Reduce": "Rimpicciolire",
-                "Select": "Ingrandire o Rimpicciolire?"
+                "Select": "Ingrandire o Rimpicciolire?",
+                "WillingPrompt": "{casterName} lancia {spellName} ({selection}) su {targetName}. Se il bersaglio non è consenziente, può effettuare un tiro salvezza su Costituzione. {targetName} è consenziente?",
+                "WillingYes": "Consenziente (nessun tiro salvezza)",
+                "WillingNo": "Non consenziente (effettua il tiro salvezza)",
+                "WillingEffect": "Consenziente"
             },
             "ExperimentalElixir": {
                 "Boldness": "Elisir Sperimentale: Audacia",

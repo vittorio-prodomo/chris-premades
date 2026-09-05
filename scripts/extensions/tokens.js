@@ -1,42 +1,25 @@
 import {actorUtils, genericUtils, socketUtils, tokenUtils} from '../utils.js';
-let sizes = {
-    grg: 4,
-    huge: 3,
-    lg: 2,
-    med: 1,
-    sm: 1,
-    tiny: 1
-};
-let scales = {
-    grg: 1,
-    huge: 1,
-    lg: 1,
-    med: 1,
-    sm: 0.8,
-    tiny: 0.5
-};
+import {resolveTokenSizeUpdate, systemDerivesTokenScale, SIZE_SQUARES as sizes} from '../lib/utilities/tokenSizeScale.mjs';
+// T219 (fork): the size/scale tables and the ring-aware math live in tokenSizeScale.mjs. The ratio
+// is taken from each token's SOURCE scale (the prepared value carries dnd5e's ring factor and
+// compounded on every apply/remove cycle), and a LINKED ring token gets no scale write at all
+// because dnd5e derives it from the actor's size.
 async function updateTokenSize(actor, animate, old) {
     let size = actor.system.traits.size;
-    let sizeDiff = sizes[size] - sizes[old];
-    let scaleDiff = scales[size] - scales[old];
-    if (!sizeDiff && !scaleDiff) return;
-    let scaleRatio = (actor.token ?? actor.prototypeToken).texture.scaleX / scales[old];
-    let newScale = scales[size] * scaleRatio;
-    let updates = {
-        width: sizes[size],
-        height: sizes[size],
-        texture: {
-            scaleX: newScale,
-            scaleY: newScale
-        }
-    };
-    if (!actor.token) await genericUtils.update(actor, {prototypeToken: updates});
+    let probe = resolveTokenSizeUpdate({size, old, sourceScaleX: 1, systemDerivesScale: true});
+    if (!probe) return;
+    let sizeDiff = probe.sizeDiff;
+    let forToken = tokenDoc => resolveTokenSizeUpdate({size, old, sourceScaleX: tokenDoc._source?.texture?.scaleX ?? tokenDoc.texture.scaleX, systemDerivesScale: systemDerivesTokenScale(tokenDoc)})?.update;
+    if (!actor.token) {
+        let prototypeUpdate = forToken(actor.prototypeToken);
+        if (prototypeUpdate) await genericUtils.update(actor, {prototypeToken: prototypeUpdate});
+    }
     let tokens = actorUtils.getTokens(actor);
     if (!tokens.length) return;
     let scene = tokens[0].document.parent;
     let pixels = scene.grid.size * sizeDiff;
     let allUpdates = tokens.map(i => {
-        let update = genericUtils.duplicate(updates);
+        let update = forToken(i.document) ?? {};
         update._id = i.document.id;
         if (sizeDiff > 0) {
             let room = tokenUtils.checkForRoom(i, sizeDiff);
@@ -51,7 +34,7 @@ async function updateTokenSize(actor, animate, old) {
                 case 'ne': update.y = i.document.y - pixels; break;
                 case 'sw': update.x = i.document.x - pixels; break;
                 case 'nw': update.x = i.document.x - pixels; update.y = i.document.y - pixels; break;
-                case 'center': update.x = i.document.x - (scene.grid.size * (sizeDiff / 2)); update.y = i.document.y - (scene.grid.size * (sizeDiff / 2)); break; 
+                case 'center': update.x = i.document.x - (scene.grid.size * (sizeDiff / 2)); update.y = i.document.y - (scene.grid.size * (sizeDiff / 2)); break;
             }
         } else if (sizeDiff < 0) {
             if (sizeDiff % 2 == 0) {
@@ -62,6 +45,16 @@ async function updateTokenSize(actor, animate, old) {
         return update;
     });
     await genericUtils.updateEmbeddedDocuments(scene, 'Token', allUpdates, {animate: animate, 'chris-premades': {movement: {ignore: true}}});
+    // T219 — a LINKED ring token gets no scale key from us (dnd5e derives it from the actor's size), and
+    // core never re-prepares a token document when its actor's effects change (only render flags), so a
+    // same-footprint change (med<->sm, sm<->tiny) leaves the ring drawn at the OLD size. A flags-only
+    // write does not re-prepare either. What does: re-sending the footprint keys with `diff: false`
+    // — but only once the effect cascade has settled, hence the deferral (an in-flow write left it
+    // stale; verified live both ways).
+    let derivedTokens = tokens.filter(i => systemDerivesTokenScale(i.document));
+    if (!derivedTokens.length) return;
+    let refresh = derivedTokens.map(i => ({_id: i.document.id, width: sizes[size], height: sizes[size]}));
+    setTimeout(() => genericUtils.updateEmbeddedDocuments(scene, 'Token', refresh, {diff: false, animate: false, 'chris-premades': {movement: {ignore: true}}}).catch(console.error), 300);
 }
 async function createDeleteUpdateActiveEffect(...args) {
     let effect, updates, options, userId;

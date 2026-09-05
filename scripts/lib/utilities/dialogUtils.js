@@ -4,7 +4,11 @@ import {constants, tokenUtils, genericUtils, itemUtils} from '../../utils.js';
 import {socket, sockets} from '../sockets.js';
 import {resolveDamageLabel} from './damageTypeLabels.mjs';
 import {hasSelectableDie} from './rerollableDice.mjs';
-async function buttonDialog(title, content, buttons, {displayAsRows = true, userId = game.user.id} = {}) {
+async function buttonDialog(title, content, buttons, {displayAsRows = true, userId = game.user.id, timeout} = {}) {
+    // ⚠️ FORK PATCH (T218): optional auto-expiry, same DialogApp option confirm() already passes through —
+    // a prompt routed to ANOTHER user must not be able to park the caster's workflow forever.
+    let config = {width: 400};
+    if (timeout) config.timeout = timeout;
     let inputs = [
         ['button', [], {displayAsRows: displayAsRows}]
     ];
@@ -17,8 +21,8 @@ async function buttonDialog(title, content, buttons, {displayAsRows = true, user
     }
     let result;
     if (userId != game.user.id) {
-        result = await socket.executeAsUser(sockets.dialog.name, userId, title, content, inputs, undefined, {width: 400});
-    } else result = await DialogApp.dialog(title, content, inputs, undefined, {width: 400});
+        result = await socket.executeAsUser(sockets.dialog.name, userId, title, content, inputs, undefined, config);
+    } else result = await DialogApp.dialog(title, content, inputs, undefined, config);
     return result?.buttons ?? false;
 }
 async function numberDialog(title, content, input = {label: 'Label', name: 'identifier', options: {}}, {buttons = 'okCancel', userId = game.user.id}={}) {
