@@ -1,12 +1,16 @@
-import {dialogUtils, genericUtils, rollUtils, workflowUtils} from '../../../utils.js';
+import {combatUtils, dialogUtils, genericUtils, rollUtils, workflowUtils} from '../../../utils.js';
 async function attack({trigger: {entity: item}, workflow}) {
-    if (workflow.hitTargets.size !== 1 || item.system.uses.value == 0 || !workflowUtils.isAttackType(workflow, 'weaponAttack')) return;
+    // FORK (Vittorio, 2026-09-06): "once per turn" only means something inside a started
+    // combat — out of combat the reroll is offered every time and NO use is spent, so the
+    // feature (and its marker) never sits dead until the next fight.
+    let inCombat = combatUtils.combatStarted();
+    if (workflow.hitTargets.size !== 1 || (inCombat && item.system.uses.value == 0) || !workflowUtils.isAttackType(workflow, 'weaponAttack')) return;
     // T66: a flat-damage attack (2024 Unarmed Strike is `1 + @mod`) has no die to reroll, so
     // accepting would spend the once-per-turn use for nothing. Don't offer at all.
     if (!rollUtils.hasRerollableDamage(workflow.activity)) return;
     let selection = await dialogUtils.confirm(item.name, genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: item.name}));
     if (!selection) return;
-    await workflowUtils.completeItemUse(item, {}, {configureDialog: false});
+    await workflowUtils.completeItemUse(item, inCombat ? {} : {consumeUsage: false}, {configureDialog: false});
     genericUtils.setProperty(workflow, 'chris-premades.savageAttacker', true);
 }
 async function damage({trigger: {entity: item}, workflow}) {
