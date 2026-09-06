@@ -13,7 +13,7 @@ async function check({trigger: {entity: item, roll, actor, options}}) {
     // narrower dialog. The added bonus is FLAVORED so the expanded breakdown shows it as its
     // own labeled part instead of merging into the modifier ("+5").
     let promptKey = roll.options.target ? 'CHRISPREMADES.Macros.TacticalMind.PromptFailed' : 'CHRISPREMADES.Macros.TacticalMind.Prompt';
-    let selection = await dialogUtils.confirm(item.name, genericUtils.format(promptKey, {rollTotal: roll.total, rollFormula: roll.formula, itemName: item.name, bonus: '1d10 + ' + classLevels}), {width: 320, timeout: 30});
+    let selection = await dialogUtils.confirm(item.name, genericUtils.format(promptKey, {rollTotal: roll.total, rollFormula: roll.formula, itemName: item.name, bonus: '1d10 + ' + classLevels, resourceName: secondWind.name}), {width: 320, timeout: 30});
     if (!selection) return;
     let workflow = await workflowUtils.syntheticItemRoll(item, []);
     genericUtils.setProperty(options, 'chris-premades.tacticalMind', true);

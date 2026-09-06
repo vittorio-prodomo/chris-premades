@@ -2298,8 +2298,8 @@
                 "Save": "Zona di Verità: Salvezza"
             },
             "TacticalMind": {
-                "PromptFailed": "Hai tirato {rollTotal} ({rollFormula}) e fallito la prova. Usare {itemName} per aggiungere {bonus} al tiro?",
-                "Prompt": "Hai tirato {rollTotal} ({rollFormula}). Usare {itemName} per aggiungere {bonus} al tiro?",
+                "PromptFailed": "Hai tirato {rollTotal} ({rollFormula}) e fallito la prova. Usare {itemName} per aggiungere {bonus} al tiro? Consuma un utilizzo di {resourceName}.",
+                "Prompt": "Hai tirato {rollTotal} ({rollFormula}). Usare {itemName} per aggiungere {bonus} al tiro? Consuma un utilizzo di {resourceName}.",
                 "ConsumeConfirm": "La prova è riuscita? In caso contrario rispondi No: non verrà speso alcun uso di Vigore Incrollabile.",
                 "Spent": "<strong>{itemName}</strong> — consumato un utilizzo di <strong>{resourceName}</strong> ({remaining} rimanenti).",
                 "SpentUnknown": "<strong>{itemName}</strong> — consumato un utilizzo di <strong>{resourceName}</strong>."
