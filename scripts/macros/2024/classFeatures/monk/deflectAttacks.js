@@ -5,17 +5,28 @@ async function damageApplication({trigger: {entity: item}, workflow, ditem}) {
     if (actorUtils.hasUsedReaction(item.actor)) return;
     let deflectEnergy = itemUtils.getItemByIdentifier(item.actor, 'deflectEnergy');
     if (!workflowUtils.isAttackType(workflow, 'attack')) return;
+    let damageTypes = workflowUtils.getDamageTypes(workflow.damageRolls);
     if (!deflectEnergy) {
-        let damageTypes = workflowUtils.getDamageTypes(workflow.damageRolls);
-        if (!['bludgeoning', 'piercing', 'slashing'].find(i => damageTypes.has(i))) return;
+        damageTypes = new Set(['bludgeoning', 'piercing', 'slashing']).intersection(damageTypes);
+        if (!damageTypes.size) return;
     }
     let userId = socketUtils.firstOwner(item.actor, true);
     let selection = await dialogUtils.confirmUseItem(item, {userId});
     if (!selection) return;
     let reduceActivity = activityUtils.getActivityByIdentifier(item, 'use', {strict: true});
     if (!reduceActivity) return;
-    let targetWorkflow = await workflowUtils.syntheticActivityRoll(reduceActivity, [workflow.hitTargets.first()]);
-    workflowUtils.modifyDamageAppliedFlat(ditem, -targetWorkflow.utilityRolls[0].total);
+    let targetWorkflow = await socket.executeAsUser(sockets.syntheticActivityDataRoll.name, userId, reduceActivity.toObject(), item.uuid, [workflow.hitTargets.first().document.uuid]);
+    let reduction = targetWorkflow.utilityRolls[0].total;
+    let originalDetail = genericUtils.deepClone(ditem.damageDetail);
+    for (let dmg of originalDetail) {
+        let multiplier = dmg.active.multiplier;
+        if (dmg.active.immunity || multiplier === 0) continue;
+        if (!damageTypes.has(dmg.type)) continue;
+        let distributedReduction = Math.min(dmg.damage, reduction);
+        workflowUtils.modifyDamageAppliedFlat(ditem, -Math.ceil(distributedReduction * multiplier), {type: dmg.type, multiplier});
+        reduction -= distributedReduction;
+        if (reduction <= 0) break;
+    }
     if (ditem.newHP != ditem.oldHP) return;
     let monksFocus = itemUtils.getItemByIdentifier(item.actor, 'monksFocus');
     if (!monksFocus?.system?.uses?.value) return;

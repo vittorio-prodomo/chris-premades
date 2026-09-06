@@ -272,7 +272,7 @@ async function rollSave(wrapped, config, dialog = {}, message = {}) {
             if (selection.disadvantage) {
                 switch(selection.disadvantage.constructor.name) {
                     case 'Boolean': options.disadvantage = true; break;
-                    case 'Array': options.disadvantage = selection.advantage.find(i => i); break;
+                    case 'Array': options.disadvantage = selection.disadvantage.find(i => i); break;
                 }
             }
         }
@@ -309,9 +309,9 @@ async function rollSave(wrapped, config, dialog = {}, message = {}) {
     if (!returnData) return;
     let oldOptions = returnData.options;
     returnData = await executeBonusMacroPass(this, 'bonus', saveId, options, returnData, config, dialog, message);
-    if (returnData.data?.token) {
+    if (token) {
         let sceneTriggers = [];
-        returnData.data.token.document.parent.tokens.filter(i => i.uuid !== returnData.data.token.document.uuid && i.actor).forEach(j => {
+        token.document.parent.tokens.filter(i => i.uuid !== token.document.uuid && i.actor).forEach(j => {
             sceneTriggers.push(...getSortedTriggers(j.actor, 'sceneBonus', saveId, options, returnData, config, dialog, message, this));
         });
         let sortedSceneTriggers = [];

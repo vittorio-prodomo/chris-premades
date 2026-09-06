@@ -5,8 +5,8 @@ export async function cleave(workflow) {
     if (newHP != 0) return;
     if (workflow.targets.first().actor.items.getName('Minion')) return;
     let oldHP = workflow.damageList[0].oldHP;
-    let leftoverDamage = workflow.damageList[0].totalDamage - (oldHP - newHP);
-    if (!leftoverDamage) return;
+    let leftoverDamage = collectDamage(workflow.damageList[0].damageDetail, oldHP);
+    if (!Object.values(leftoverDamage).some(v => v > 0)) return;
     let cleaveSetting = genericUtils.getCPRSetting('cleave');
     if (cleaveSetting === 2) {
         let targetMaxHP = workflow.targets.first().actor.system.attributes.hp.max;
@@ -17,12 +17,29 @@ export async function cleave(workflow) {
     let selection = await dialogUtils.selectTargetDialog('CHRISPREMADES.Settings.cleave.Name', 'CHRISPREMADES.Cleave.Use', nearbyTargets, {skipDeadAndUnconscious: false, buttons: 'yesNo'});
     if (!selection?.length) return;
     selection = selection[0];
-    let featureData = await compendiumUtils.getItemFromCompendium(constants.packs.miscellaneousItems, 'DMG Cleave', {object: true, getDescription: true});
-    let attackId = Object.keys(featureData.system.activities)[0];
-    featureData.system.activities[attackId].damage.parts[0].bonus = leftoverDamage;
-    featureData.system.activities[attackId].damage.parts[0].types = [workflow.defaultDamageType];
+    let featureData = await compendiumUtils.getItemFromCompendium(constants.packs.miscellaneousItems, 'DMG Cleave', {object: true, getDescription: true});  
     if (workflow.item.system.properties.has('mgc')) featureData.system.properties.push('mgc');
     genericUtils.setProperty(featureData, 'flags.chris-premades.setAttackRoll.formula', workflow.attackRoll.total);
-    genericUtils.setProperty(featureData, 'flags.chris-premades.setDamageRoll.formula', leftoverDamage);
+    genericUtils.setProperty(featureData, 'flags.chris-premades.setDamageRoll.typesAmountsMap', leftoverDamage);
     await workflowUtils.syntheticItemDataRoll(featureData, workflow.actor, [selection]);
+}
+function collectDamage(list, hp) {
+    let pool = hp;
+    let total = {};
+    list.sort((a,b) => b.active.multiplier - a.active.multiplier);
+    for (let entry of list) {
+        if (entry.active.multiplier === 0) continue;
+        total[entry.type] ??= 0;
+        if (entry.value <= pool) {
+            pool -= entry.value;
+            continue;
+        }
+        if (pool <= 0) {
+            total[entry.type] += entry.damage;
+            continue;
+        }
+        total[entry.type] += Math.floor(entry.damage - (pool / entry.active.multiplier));
+        pool = 0;
+    }
+    return total;
 }

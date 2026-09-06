@@ -1,3 +1,85 @@
+# 1.5.46 Release:
+## Bug Fixes
+- Empowered Strikes
+
+# 1.5.45 Release:
+## Bug Fixes
+- Empowered Strikes
+- Cleave Mastery (Thanks Lymsical)
+- DMG Cleave
+- Martial Arts (modern)
+
+# 1.5.44 Release:
+## Bug Fixes
+- Combat Superiority
+- Divine Intervention
+- Flash of Genius
+- Martial Arts
+- Vortex Warp
+
+# 1.5.43 Release:
+## Bug Fixes
+- Alert (Modern) Compendium Item
+
+# 1.5.42 Release:
+## Changes:
+- Spirit Totem
+- Alert
+- Combat Superiority
+## Bug Fixes:
+- Summon Construct (Modern)
+- DMG Cleave
+
+# 1.5.41 Release:
+## Bug Fixes:
+- Battering Roots
+- Heroic Inspiration
+- Turn Undead (legacy, thanks Negan)
+
+# 1.5.40 Release:
+## Bug Fixes:
+- Shake It Off
+- Heroic Inspiration
+- Martial Arts (legacy and modern)
+
+# 1.5.39 Release:
+## Bug Fixes:
+- Circle of Power
+- Blood Sacrifice
+
+# 1.5.38 Release:
+## API Bug Fixes:
+- Fixes a mistake with ability saves from 1.5.37.
+
+# 1.5.37 Release:
+## Update Notes:
+- This is not a V14 update. An update for V14 is still a work in progress.
+## New Modern Content:
+- Circle of Power
+## New Legacy Content:
+- Circle of Power
+## Bug Fixes:
+- Divine Smite
+## API Bug Fixes:
+- Rolls now retain roll data after using `rollUtils.addToRoll`.
+
+# 1.5.36 Release:
+## Update Notes:
+- This is not a V14 update. An update for V14 is still a work in progress.
+## Bug Fixes:
+- Channel Divinity (Paladin, Cleric modern)
+- Flash of Genius
+- Deflect Attacks
+- Compelled Duel
+- Dig Deep
+- Generic Enlarge
+- Tentacle of the Deeps
+- Martial Arts (modern)
+- Wall of Fire
+- Call Lightning
+## API Bug Fixes:
+- Removed `[object Object]` in troubleshooter.
+
 # 1.5.35 Release:
 ## Update Notes:
 - This is not a V14 update. An update for V14 is still a work in progress.

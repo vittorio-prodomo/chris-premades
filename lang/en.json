@@ -226,6 +226,7 @@
             "ItemDelete": "GM Confirms Item Deletion:",
             "ItemTypes": "Item Types:",
             "Items": "Items:",
+            "KeepTemplate": "Keep Template:",
             "LineColor": "Line Color:",
             "Max": "Max:",
             "MaxLevel": "Max Level:",
@@ -1403,6 +1404,9 @@
             "Disengage": {
                 "CunningAction": "Cunning Action",
                 "StepOfTheWind": "Step of the Wind"
+            },
+            "DivineIntervention": {
+                "NoSpells": "Could not find a spell list for class {classIdentifier}!"
             },
             "DivineSmite": {
                 "Context": "Smite Target?",
