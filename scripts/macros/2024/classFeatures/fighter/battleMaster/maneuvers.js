@@ -1,5 +1,6 @@
 import {activityUtils, actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
-import {determineSuperiorityDie, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
+import {determineSuperiorityDie, maneuverName, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
+import {MANEUVER_PARENT_IDENTIFIER, activityKeyFor} from '../../../../../lib/utilities/maneuverHandles.mjs';
 import {selectPendingDie, satisfiesMovementRequirement} from '../../../../../lib/utilities/pendingSuperiorityDie.mjs';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
 
@@ -30,7 +31,7 @@ async function useRiposte({workflow}) {
     if (attacks.length === 1) {
         selected = attacks[0];
     } else {
-        selected = await dialogUtils.selectDocumentDialog(workflow.item.name, 'CHRISPREMADES.Macros.Antagonize.SelectWeapon', attacks);
+        selected = await dialogUtils.selectDocumentDialog(maneuverName(workflow), 'CHRISPREMADES.Macros.Antagonize.SelectWeapon', attacks);
     }
     if (!selected) return;
     /**
@@ -126,11 +127,26 @@ async function appendSuperiorityDie({trigger: {entity: item}, workflow}) {
     // Explain the extra die on the card's damage ⓘ — otherwise it reads as a mystery die, which
     // is doubly confusing next to a Savage Attacker reroll note that deliberately did NOT touch it.
     await rollUtils.postRerollNote(workflow, {
-        source: item.name,
+        source: parentActivity(item, 'maneuversRiposte')?.name ?? item.name,
         kind: 'superiorityDie',
         die: superiorityDie,
         total: workflow.damageRolls.at(-1).total
     });
+}
+
+/**
+ * T232: under the "Maneuver Options" parent a maneuver is an ACTIVITY. Given the entity a pass
+ * fired for and a maneuver's item identifier, return that activity — or undefined when the entity
+ * is an old-shape item (the caller then uses the item as before) or the maneuver was not chosen.
+ */
+function parentActivity(item, identifier) {
+    if (genericUtils.getIdentifier(item) !== MANEUVER_PARENT_IDENTIFIER) return undefined;
+    let key = activityKeyFor(identifier);
+    if (!item.flags['chris-premades']?.activityIdentifiers?.[key]) return undefined;
+    return activityUtils.getActivityByIdentifier(item, key, {strict: true});
+}
+function isParent(item) {
+    return genericUtils.getIdentifier(item) === MANEUVER_PARENT_IDENTIFIER;
 }
 
 /**
@@ -151,8 +167,18 @@ async function offerRiposte({trigger, workflow}) {
     let item = trigger.entity;
     // The miss is the whole trigger: this pass runs for every target, hit or not.
     if (workflow.hitTargets?.has(trigger.token)) return;
+    // T232: on the parent, this actor-level pass fires whether or not Riposte was CHOSEN — the
+    // activity's presence is what says it was.
+    let activity = parentActivity(item, 'maneuversRiposte');
+    if (isParent(item) && !activity) return;
     if (!await canReactWithManeuver(item, workflow)) return;
-    if (!await dialogUtils.confirmUseItem(item, {userId: socketUtils.firstOwner(item.parent, true)})) return;
+    let userId = socketUtils.firstOwner(item.parent, true);
+    if (activity) {
+        if (!await dialogUtils.confirm(activity.name, genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: activity.name}), {userId})) return;
+        await workflowUtils.syntheticActivityRoll(activity, [workflow.token], {consumeResources: true});
+        return;
+    }
+    if (!await dialogUtils.confirmUseItem(item, {userId})) return;
     // Target the attacker — `useRiposte` reads `workflow.targets` to pick who to strike back at.
     // `consumeResources` so the activity's own consumption spends the die exactly once.
     await workflowUtils.syntheticItemRoll(item, [workflow.token], {consumeResources: true});
@@ -272,7 +298,7 @@ async function pickAlly(workflow, candidates) {
         }
         return chosen;
     }
-    let picked = await dialogUtils.selectTargetDialog(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.SelectAlly', candidates);
+    let picked = await dialogUtils.selectTargetDialog(maneuverName(workflow), 'CHRISPREMADES.Macros.Maneuvers.SelectAlly', candidates);
     return picked?.[0];
 }
 
@@ -333,7 +359,7 @@ async function useManeuveringAttack({workflow}) {
         actorUtils.setReactionUsed(ally.actor);
         if (!attackedToken || attackedToken.id === ally.id) return;
         await effectUtils.createEffect(ally.actor, {
-            name: workflow.item.name,
+            name: maneuverName(workflow),
             img: workflow.item.img,
             origin: workflow.item.uuid,
             // Without an explicit description Visual Active Effects falls back to the origin item's,
@@ -384,6 +410,54 @@ async function added({trigger: {entity: item}}) {
     await itemUtils.correctActivityItemConsumption(item, ['use'], 'superiorityDice');
 }
 
+/**
+ * T232: re-point every pool-spending activity of the parent at the actor's own Superiority Dice
+ * item. The pack ships a compendium placeholder there (see T83); the on-hit riders carry no
+ * consumption target at all — the driver spends for them — and are skipped.
+ */
+async function addedParent({trigger: {entity: item}}) {
+    let spenders = Object.keys(item.flags['chris-premades']?.activityIdentifiers ?? {}).filter(key => {
+        let activity = activityUtils.getActivityByIdentifier(item, key, {strict: true});
+        return activity?.consumption?.targets?.[0]?.type === 'itemUses';
+    });
+    if (spenders.length) await itemUtils.correctActivityItemConsumption(item, spenders, 'superiorityDice');
+}
+
+/**
+ * T232 (Vittorio's design, 2026-09-17): ONE "Maneuver Options" item whose ACTIVITIES are the chosen
+ * maneuvers, bare-named ("Riposte"), instead of one prefixed item per maneuver. Every handler below
+ * is the same function the separate-item entries register; only the dispatch differs — a
+ * `midi.item` pass is filtered on the CPR activity identifier (`activities: [...]`), which is the
+ * old item identifier minus its `maneuvers` prefix (lib/utilities/maneuverHandles.mjs).
+ *
+ * ⚠️ The ACTOR passes cannot be filtered that way (they fire for the item, not for one of its
+ * activities), so each guards on its activity existing — that is what "this maneuver was chosen"
+ * means in this shape.
+ *
+ * SPIKE SCOPE: the three on Xender's sheet — a Reaction (Riposte) and two on-hit riders (Goading
+ * Attack, Maneuvering Attack). The separate-item entries stay registered and keep working.
+ */
+export let maneuverOptions = {
+    name: 'Maneuver Options',
+    version: '0.1.0',
+    rules: 'modern',
+    item: [
+        {pass: 'created', macro: addedParent, priority: 55},
+        {pass: 'itemMedkit', macro: addedParent, priority: 55},
+        {pass: 'actorMunch', macro: addedParent, priority: 55}
+    ],
+    midi: {
+        item: [
+            {pass: 'rollFinished', macro: useRiposte, priority: 50, activities: ['riposte']},
+            {pass: 'rollFinished', macro: goadingAttackLegacy.midi.item[0].macro, priority: 50, activities: ['goadingAttack']},
+            {pass: 'rollFinished', macro: useManeuveringAttack, priority: 50, activities: ['maneuveringAttack']}
+        ],
+        actor: [
+            {pass: 'targetAttackRollComplete', macro: offerRiposte, priority: 50},
+            {pass: 'damageRollComplete', macro: appendSuperiorityDie, priority: 50}
+        ]
+    }
+};
 export let maneuversRiposte = {
     name: 'Maneuvers: Riposte',
     // No bare-name alias on purpose: the Monster Manual ships an NPC feat also called "Riposte"

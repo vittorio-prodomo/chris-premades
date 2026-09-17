@@ -1,4 +1,20 @@
 import {activityUtils, constants, dialogUtils, genericUtils, itemUtils, rollUtils, workflowUtils} from '../../../../../utils.js';
+import {MANEUVER_PARENT_IDENTIFIER, maneuverLabel, resolveManeuverHandles} from '../../../../../lib/utilities/maneuverHandles.mjs';
+/**
+ * T232: the "Maneuver Options" parent item, when this actor's maneuvers are modelled as its
+ * activities rather than as one item each. See lib/utilities/maneuverHandles.mjs.
+ */
+export function maneuverParent(actor) {
+    return itemUtils.getItemByIdentifier(actor, MANEUVER_PARENT_IDENTIFIER);
+}
+/** Is this workflow a maneuver used AS an activity of the parent? */
+export function isParentManeuver(workflow) {
+    return genericUtils.getIdentifier(workflow?.item) === MANEUVER_PARENT_IDENTIFIER;
+}
+/** The name a player should read for the maneuver behind this workflow ("Riposte", never "Maneuver Options"). */
+export function maneuverName(workflow) {
+    return maneuverLabel({underParent: isParentManeuver(workflow), activityName: workflow?.activity?.name, itemName: workflow?.item?.name});
+}
 async function hit({workflow}) {
     await superiorityHelper(workflow);
 }
@@ -79,11 +95,19 @@ export async function superiorityHelper(workflow, {triggerManeuvers = legacyTrig
     if (!itemToUse) return;
     let candidates = [...triggerManeuvers];
     if (workflowUtils.getActionType(workflow) === 'mwak') candidates.push('maneuversSweepingAttack');
-    let validManeuvers = candidates.map(i => itemUtils.getItemByIdentifier(workflow.actor, i)).filter(i => i);
-    if (!validManeuvers.length) return;
-    let selected = await dialogUtils.selectDocumentDialog(itemToUse.name, 'CHRISPREMADES.Macros.Maneuvers.SelectManeuver', validManeuvers, {addNoneDocument: true});
+    // T232: a maneuver is either its own item or an activity of the "Maneuver Options" parent.
+    let parent = maneuverParent(workflow.actor);
+    let handles = resolveManeuverHandles(candidates, {
+        itemByIdentifier: i => itemUtils.getItemByIdentifier(workflow.actor, i),
+        // Ask only for keys the parent declares: a strict lookup WARNS on every maneuver not chosen.
+        parentActivityByKey: key => parent?.flags['chris-premades']?.activityIdentifiers?.[key] ? activityUtils.getActivityByIdentifier(parent, key, {strict: true}) : undefined
+    });
+    if (!handles.length) return;
+    let selected = await dialogUtils.selectDocumentDialog(itemToUse.name, 'CHRISPREMADES.Macros.Maneuvers.SelectManeuver', handles.map(i => i.doc), {addNoneDocument: true});
     if (!selected) return;
-    let selectedIdentifier = genericUtils.getIdentifier(selected);
+    let handle = handles.find(i => i.doc === selected) ?? handles.find(i => i.doc.id === selected.id);
+    if (!handle) return;
+    let selectedIdentifier = handle.identifier;
     let rollTotal;
     if (!['maneuversGrapplingStrike', 'maneuversSweepingAttack'].includes(selectedIdentifier)) {
         await workflowUtils.bonusDamage(workflow, superiorityDie, {damageType: workflow.defaultDamageType});
@@ -97,7 +121,7 @@ export async function superiorityHelper(workflow, {triggerManeuvers = legacyTrig
             total: rollTotal
         });
     } else if (selectedIdentifier === 'maneuversSweepingAttack') {
-        await genericUtils.update(selected, {'flags.chris-premades.sweepingAttack': {
+        await genericUtils.update(handle.kind === 'activity' ? selected.item : selected, {'flags.chris-premades.sweepingAttack': {
             currAttackRoll: workflow.attackRoll.total,
             currDamageType: workflow.defaultDamageType,
             currRange: workflow.item.system.range.value ?? workflow.item.system.range.reach ?? 5
@@ -105,7 +129,8 @@ export async function superiorityHelper(workflow, {triggerManeuvers = legacyTrig
     }
     let useSmall = genericUtils.getProperty(workflow.actor, 'flags.chris-premades.useSmallSuperiorityDie');
     if (!useSmall && superiorityDie === 'd6') await genericUtils.setFlag(workflow.actor, 'chris-premades', 'useSmallSuperiorityDie', true);
-    await workflowUtils.completeItemUse(selected);
+    if (handle.kind === 'activity') await workflowUtils.completeActivityUse(selected);
+    else await workflowUtils.completeItemUse(selected);
     if (!useSmall && superiorityDie === 'd6') await genericUtils.update(workflow.actor, {'flags.chris-premades.-=useSmallSuperiorityDie': null});
     await genericUtils.update(itemToUse, {'system.uses.spent': itemToUse.system.uses.spent + 1});
 }

@@ -1,6 +1,6 @@
 import {activityUtils, actorUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 import {proneOnFail} from '../../../generic/proneOnFail.js';
-import {determineSuperiorityDie} from './superiorityDice.js';
+import {determineSuperiorityDie, maneuverName} from './superiorityDice.js';
 async function useBaitAndSwitch({workflow}) {
     if (workflow.targets.size !== 1) return;
     let targetToken = workflow.targets.first();
@@ -167,7 +167,7 @@ async function useGoadingAttack({workflow}) {
     let targetActor = workflow.targets.first()?.actor;
     if (!targetActor) return;
     let effectData = {
-        name: workflow.item.name,
+        name: maneuverName(workflow),
         img: workflow.item.img,
         origin: workflow.item.uuid,
         duration: {
