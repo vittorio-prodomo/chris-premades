@@ -1,6 +1,7 @@
 import {activityUtils, actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 import {determineSuperiorityDie, maneuverName, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
-import {MANEUVER_PARENT_IDENTIFIER, activityKeyFor} from '../../../../../lib/utilities/maneuverHandles.mjs';
+import {MANEUVER_PARENT_IDENTIFIER, activityKeyFor, planManeuverPrune, repointItemUsesCount} from '../../../../../lib/utilities/maneuverHandles.mjs';
+import {maneuverSection, rewriteManeuverCard} from '../../../../../lib/utilities/maneuverCard.mjs';
 import {selectPendingDie, satisfiesMovementRequirement} from '../../../../../lib/utilities/pendingSuperiorityDie.mjs';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
 
@@ -421,43 +422,19 @@ async function addedParent({trigger: {entity: item}}) {
         return activity?.consumption?.targets?.[0]?.type === 'itemUses';
     });
     if (spenders.length) await itemUtils.correctActivityItemConsumption(item, spenders, 'superiorityDice');
+    // The passive maneuvers count their dice through midi's `ItemUses.<item NAME>` — follow the
+    // pool's real name (a DDB sheet calls it "Combat Superiority", the pack "Superiority Dice").
+    let pool = itemUtils.getItemByIdentifier(item.actor, 'superiorityDice');
+    if (!pool) return;
+    let live = item.actor?.items?.get(item.id) ?? item;
+    let updates = [];
+    for (let effect of live.effects) {
+        let changes = repointItemUsesCount(effect.toObject().changes, pool.name);
+        if (changes) updates.push({_id: effect.id, changes});
+    }
+    if (updates.length) await live.updateEmbeddedDocuments('ActiveEffect', updates);
 }
 
-/**
- * T232 (Vittorio's design, 2026-09-17): ONE "Maneuver Options" item whose ACTIVITIES are the chosen
- * maneuvers, bare-named ("Riposte"), instead of one prefixed item per maneuver. Every handler below
- * is the same function the separate-item entries register; only the dispatch differs — a
- * `midi.item` pass is filtered on the CPR activity identifier (`activities: [...]`), which is the
- * old item identifier minus its `maneuvers` prefix (lib/utilities/maneuverHandles.mjs).
- *
- * ⚠️ The ACTOR passes cannot be filtered that way (they fire for the item, not for one of its
- * activities), so each guards on its activity existing — that is what "this maneuver was chosen"
- * means in this shape.
- *
- * SPIKE SCOPE: the three on Xender's sheet — a Reaction (Riposte) and two on-hit riders (Goading
- * Attack, Maneuvering Attack). The separate-item entries stay registered and keep working.
- */
-export let maneuverOptions = {
-    name: 'Maneuver Options',
-    version: '0.1.0',
-    rules: 'modern',
-    item: [
-        {pass: 'created', macro: addedParent, priority: 55},
-        {pass: 'itemMedkit', macro: addedParent, priority: 55},
-        {pass: 'actorMunch', macro: addedParent, priority: 55}
-    ],
-    midi: {
-        item: [
-            {pass: 'rollFinished', macro: useRiposte, priority: 50, activities: ['riposte']},
-            {pass: 'rollFinished', macro: goadingAttackLegacy.midi.item[0].macro, priority: 50, activities: ['goadingAttack']},
-            {pass: 'rollFinished', macro: useManeuveringAttack, priority: 50, activities: ['maneuveringAttack']}
-        ],
-        actor: [
-            {pass: 'targetAttackRollComplete', macro: offerRiposte, priority: 50},
-            {pass: 'damageRollComplete', macro: appendSuperiorityDie, priority: 50}
-        ]
-    }
-};
 export let maneuversRiposte = {
     name: 'Maneuvers: Riposte',
     // No bare-name alias on purpose: the Monster Manual ships an NPC feat also called "Riposte"
@@ -719,7 +696,7 @@ export let maneuversPrecisionAttack = {
 async function pushOnFailedSave({workflow}) {
     if (!workflow.failedSaves?.size) return;
     let buttons = [5, 10, 15].map(i => [genericUtils.format('CHRISPREMADES.Distance.DistanceFeet', {distance: i}), i]);
-    let distance = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.PushDistance', buttons);
+    let distance = await dialogUtils.buttonDialog(maneuverName(workflow), 'CHRISPREMADES.Macros.Maneuvers.PushDistance', buttons);
     if (!distance) return;
     for (let target of workflow.failedSaves) {
         await tokenUtils.pushToken(workflow.token, target, distance);
@@ -976,7 +953,7 @@ async function useDistractingStrike({workflow}) {
     let targetActor = workflow.targets.first()?.actor;
     if (!targetActor) return;
     let effectData = {
-        name: workflow.item.name,
+        name: maneuverName(workflow),
         img: workflow.item.img,
         origin: workflow.item.uuid,
         duration: {
@@ -1075,7 +1052,7 @@ async function useSweepingAttack({workflow}) {
     if (!realNearbyTargets.length) return;
     let target = realNearbyTargets[0];
     if (realNearbyTargets.length > 1) {
-        let picked = await dialogUtils.selectTargetDialog(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.SelectTarget', realNearbyTargets);
+        let picked = await dialogUtils.selectTargetDialog(maneuverName(workflow), 'CHRISPREMADES.Macros.Maneuvers.SelectTarget', realNearbyTargets);
         if (!picked?.length || !picked[0]) return;
         target = picked[0];
     }
@@ -1193,7 +1170,7 @@ async function useCommandersStrike({workflow}) {
     );
     if (!willUse) return;
     let effectData = {
-        name: workflow.item.name,
+        name: maneuverName(workflow),
         img: workflow.item.img,
         origin: workflow.item.uuid,
         duration: {
@@ -1327,14 +1304,14 @@ async function useBaitAndSwitch({workflow}) {
     await superiorityRoll.toMessage({
         rollType: 'roll',
         speaker: ChatMessage.implementation.getSpeaker({token: workflow.token}),
-        flavor: workflow.item.name
+        flavor: maneuverName(workflow)
     });
-    let toTarget = await dialogUtils.buttonDialog(workflow.item.name, 'CHRISPREMADES.Macros.Maneuvers.BaitSwitchAC', [
+    let toTarget = await dialogUtils.buttonDialog(maneuverName(workflow), 'CHRISPREMADES.Macros.Maneuvers.BaitSwitchAC', [
         ['CHRISPREMADES.Generic.You', false],
         ['DND5E.Target', true]
     ]);
     let effectData = {
-        name: workflow.item.name,
+        name: maneuverName(workflow),
         img: workflow.item.img,
         origin: workflow.item.uuid,
         duration: {
@@ -1548,7 +1525,7 @@ async function bankSuperiorityDie(workflow, {identifier, die, targetToken, requi
         });
     }
     let effectData = {
-        name: workflow.item.name,
+        name: maneuverName(workflow),
         img: workflow.item.img,
         origin: workflow.item.uuid,
         changes,
@@ -1566,7 +1543,7 @@ async function bankSuperiorityDie(workflow, {identifier, die, targetToken, requi
                 [PENDING_FLAG]: {
                     pending: {
                         identifier,
-                        name: workflow.item.name,
+                        name: maneuverName(workflow),
                         die,
                         targetId: targetToken?.id,
                         requiresMelee,
@@ -1662,3 +1639,110 @@ export let superiorityDice = {
         ]
     }
 };
+
+/**
+ * T232 (Vittorio's design, 2026-09-17): ONE "Maneuver Options" item whose ACTIVITIES are the chosen
+ * maneuvers, bare-named ("Riposte"), instead of one prefixed item per maneuver.
+ *
+ * ⚠️ GENERATED from the separate-item entries above, never hand-listed: every pass, macro and
+ * priority is inherited, so tuning a maneuver tunes both shapes. (The hand-written spike had
+ * already drifted — it ran Maneuvering Attack at `rollFinished`; its real pass is
+ * `preambleComplete`.)
+ *
+ *  - a `midi.item` pass is filtered on the CPR activity identifier — the item identifier minus
+ *    `maneuvers` (lib/utilities/maneuverHandles.mjs) — unless it already names activities of its
+ *    own (Sweeping Attack's second activity);
+ *  - a `midi.actor` pass cannot be filtered that way (it fires for the item), so it is wrapped to
+ *    run only when that maneuver's activity EXISTS — which is what "chosen" means in this shape;
+ *  - the `item` passes (created / itemMedkit / actorMunch) collapse into one: prune to the chosen
+ *    maneuvers, then re-point the pool-spending activities.
+ */
+const PARENT_SOURCES = {
+    maneuversAmbush, maneuversBaitAndSwitch, maneuversCommandersStrike, maneuversCommandingPresence,
+    maneuversDisarmingAttack, maneuversDistractingStrike, maneuversEvasiveFootwork, maneuversFeintingAttack,
+    maneuversGoadingAttack, maneuversLungingAttack, maneuversManeuveringAttack, maneuversMenacingAttack,
+    maneuversParry, maneuversPrecisionAttack, maneuversPushingAttack, maneuversRally, maneuversRiposte,
+    maneuversSweepingAttack, maneuversTacticalAssessment, maneuversTripAttack
+};
+function onlyWhenChosen(identifier, macro) {
+    return async args => {
+        let item = args?.trigger?.entity;
+        if (isParent(item) && !parentActivity(item, identifier)) return;
+        return await macro(args);
+    };
+}
+function buildParentPasses() {
+    let item = [];
+    let actor = [];
+    for (let [identifier, entry] of Object.entries(PARENT_SOURCES)) {
+        let key = activityKeyFor(identifier);
+        for (let pass of entry.midi?.item ?? []) {
+            // An entry that names its own activities used the ITEM identifier for its main one.
+            let activities = pass.activities?.length ? pass.activities.map(i => i === identifier ? key : i) : [key];
+            item.push({...pass, activities});
+        }
+        for (let pass of entry.midi?.actor ?? []) actor.push({...pass, macro: onlyWhenChosen(identifier, pass.macro)});
+    }
+    return {item, actor};
+}
+async function parentAdded({trigger: {entity: item}}) {
+    await pruneToChosen(item);
+    await addedParent({trigger: {entity: item.parent?.items?.get(item.id) ?? item}});
+}
+/**
+ * A premade swap brings ALL twenty maneuvers. The importer stamps the ones the character actually
+ * chose (`flags.ddbimporter.chosenManeuvers`, bare DDB names — a flag that survives the swap);
+ * everything else goes: its activities, the secondary activities they own, the effects they own.
+ * No stamp (an item dragged from the compendium, a homebrew sheet) = nothing is pruned.
+ */
+async function pruneToChosen(item) {
+    let plan = planManeuverPrune({
+        chosenNames: item.flags?.ddbimporter?.chosenManeuvers,
+        activityIdentifiers: item.flags['chris-premades']?.activityIdentifiers ?? {},
+        hiddenActivities: item.flags['chris-premades']?.hiddenActivities ?? [],
+        owners: item.flags['chris-premades']?.maneuverOptions ?? {}
+    });
+    if (!plan) return;
+    let update = {'flags.chris-premades.hiddenActivities': plan.hiddenActivities};
+    for (let id of plan.removeActivityIds) if (item.system.activities.get(id)) update['system.activities.-=' + id] = null;
+    for (let key of plan.removeKeys) update['flags.chris-premades.activityIdentifiers.-=' + key] = null;
+    await genericUtils.update(item, update);
+    let effectIds = plan.removeEffectIds.filter(id => item.effects.get(id));
+    if (effectIds.length) await item.deleteEmbeddedDocuments('ActiveEffect', effectIds);
+}
+const parentPasses = buildParentPasses();
+export let maneuverOptions = {
+    name: 'Maneuver Options',
+    version: '1.0.0',
+    rules: 'modern',
+    item: [
+        {pass: 'created', macro: parentAdded, priority: 55},
+        {pass: 'itemMedkit', macro: parentAdded, priority: 55},
+        {pass: 'actorMunch', macro: parentAdded, priority: 55}
+    ],
+    midi: parentPasses
+};
+
+/**
+ * T232: a maneuver used as an activity of the parent gets ITS OWN card — dnd5e titles a usage card
+ * after the item ("Maneuver Options") and prints the item's whole description, i.e. every chosen
+ * maneuver's text. `dnd5e.preCreateUsageMessage` fires after `consume` and under midi too (the
+ * T226 seam). Cosmetic: any failure leaves the card as dnd5e built it.
+ */
+export function maneuverOptionsUsageCard(activity, messageConfig) {
+    try {
+        let item = activity?.item;
+        if (!item || genericUtils.getIdentifier(item) !== MANEUVER_PARENT_IDENTIFIER) return;
+        let content = messageConfig?.data?.content;
+        if (typeof content !== 'string' || !activity.name) return;
+        let rewritten = rewriteManeuverCard(content, {
+            // ⚠️ Names are editable and nothing downstream escapes them.
+            title: foundry.utils.escapeHTML(activity.name),
+            img: activity.img,
+            description: maneuverSection(item.system?.description?.value, activity.name)
+        });
+        if (rewritten) messageConfig.data.content = rewritten;
+    } catch (error) {
+        console.error('chris-premades | Maneuver Options: rewriting the usage card failed', error);
+    }
+}
