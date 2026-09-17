@@ -7,6 +7,30 @@ function normalise(text) {
     return String(text ?? '').replace(/<[^>]*>/g, '').replace(/&rsquo;|&#8217;|[’`]/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+// The importer's "Level 3 Options chosen: …" line closes the description; it belongs to the feature,
+// not to whichever maneuver happens to be listed last.
+const CHOICE_ADDENDUM = /<p><em>[^<]*chosen: <strong>[\s\S]*?<\/strong><\/em><\/p>/gi;
+
+/**
+ * Drop closing `</div>`s that have no opener inside the fragment, and close the ones left open.
+ * ⚠️ The LAST section runs to the end of the description, which ends with the importer's wrapper
+ * `</div>` — injected into a chat card that stray tag closed the card early and pushed its buttons
+ * outside it (Vittorio's mis-sized "Refund Resource" button on a Riposte card, 2026-09-18).
+ */
+export function balanceDivs(html) {
+    let depth = 0;
+    let out = String(html ?? '').replace(/<\/?div\b[^>]*>/gi, tag => {
+        if (tag[1] !== '/') {
+            depth++;
+            return tag;
+        }
+        if (depth === 0) return '';
+        depth--;
+        return tag;
+    });
+    return out + '</div>'.repeat(depth);
+}
+
 /**
  * The part of the parent's description that belongs to one maneuver: what follows its `<h3>` up
  * to the next `<h3>` (or the end). The importer composes the description that way.
@@ -22,7 +46,8 @@ export function maneuverSection(description, name) {
         if (normalise(match[1]) !== wanted) continue;
         let start = match.index + match[0].length;
         let next = html.slice(start).search(/<h3\b/i);
-        let section = (next === -1 ? html.slice(start) : html.slice(start, start + next)).trim();
+        let section = (next === -1 ? html.slice(start) : html.slice(start, start + next));
+        section = balanceDivs(section.replace(CHOICE_ADDENDUM, '')).trim();
         return section.length ? section : null;
     }
     return null;
