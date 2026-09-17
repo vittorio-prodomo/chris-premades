@@ -1,6 +1,6 @@
 import {activityUtils, actorUtils, compendiumUtils, constants, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
 import {proneOnFail} from '../../../generic/proneOnFail.js';
-import {determineSuperiorityDie, maneuverName} from './superiorityDice.js';
+import {determineSuperiorityDie, maneuverImg, maneuverName, maneuverText} from './superiorityDice.js';
 async function useBaitAndSwitch({workflow}) {
     if (workflow.targets.size !== 1) return;
     let targetToken = workflow.targets.first();
@@ -20,7 +20,8 @@ async function useBaitAndSwitch({workflow}) {
     if (!selection) selection = false;
     let effectData = {
         name: workflow.item.name,
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         duration: {
             rounds: 1
@@ -63,7 +64,8 @@ async function useBrace({workflow}) {
     if (!selected) return;
     let effectData = {
         name: workflow.item.name,
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         changes: [
             {
@@ -100,7 +102,8 @@ async function useCommandersStrike({workflow}) {
     if (!willUse) return;
     let effectData = {
         name: workflow.item.name,
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         duration: {
             turns: 1
@@ -131,7 +134,8 @@ async function useDistractingStrike({workflow}) {
     if (!targetActor) return;
     let effectData = {
         name: workflow.item.name,
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         duration: {
             rounds: 1
@@ -168,7 +172,8 @@ async function useGoadingAttack({workflow}) {
     if (!targetActor) return;
     let effectData = {
         name: maneuverName(workflow),
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         duration: {
             rounds: 1
@@ -215,7 +220,8 @@ async function useGrapplingStrike({workflow}) {
     let rollTotal = superiorityRoll.total;
     let effectData = {
         name: workflow.item.name,
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         changes: [
             {

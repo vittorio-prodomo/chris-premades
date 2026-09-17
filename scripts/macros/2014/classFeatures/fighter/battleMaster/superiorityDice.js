@@ -1,5 +1,6 @@
 import {activityUtils, constants, dialogUtils, genericUtils, itemUtils, rollUtils, workflowUtils} from '../../../../../utils.js';
 import {MANEUVER_PARENT_IDENTIFIER, maneuverLabel, resolveManeuverHandles} from '../../../../../lib/utilities/maneuverHandles.mjs';
+import {maneuverSection} from '../../../../../lib/utilities/maneuverCard.mjs';
 /**
  * T232: the "Maneuver Options" parent item, when this actor's maneuvers are modelled as its
  * activities rather than as one item each. See lib/utilities/maneuverHandles.mjs.
@@ -14,6 +15,21 @@ export function isParentManeuver(workflow) {
 /** The name a player should read for the maneuver behind this workflow ("Riposte", never "Maneuver Options"). */
 export function maneuverName(workflow) {
     return maneuverLabel({underParent: isParentManeuver(workflow), activityName: workflow?.activity?.name, itemName: workflow?.item?.name});
+}
+/** The icon a player should see for the maneuver behind this workflow — the activity's own under the parent. */
+export function maneuverImg(workflow) {
+    if (isParentManeuver(workflow) && workflow?.activity?.img) return workflow.activity.img;
+    return workflow?.item?.img;
+}
+/**
+ * The rules text of the maneuver behind this workflow, for an effect it creates. Under the parent
+ * the ITEM's description is every chosen maneuver's text, and an effect with no description of
+ * its own inherits all of it — a wall of text on the target's effect tooltip. `undefined` for the
+ * separate-item shape, so nothing changes there.
+ */
+export function maneuverText(workflow) {
+    if (!isParentManeuver(workflow)) return undefined;
+    return maneuverSection(workflow.item?.system?.description?.value, workflow.activity?.name) ?? undefined;
 }
 async function hit({workflow}) {
     await superiorityHelper(workflow);

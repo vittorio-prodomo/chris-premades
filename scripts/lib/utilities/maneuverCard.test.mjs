@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {maneuverSection, rewriteManeuverCard} from './maneuverCard.mjs';
+import {balanceDivs, maneuverSection, rewriteManeuverCard} from './maneuverCard.mjs';
 
 const DESC = '<h3>Riposte</h3><p>When a creature misses you…</p><h3>Goading Attack</h3><p>When you hit…</p><div><p>nested</p></div><h3>Commander’s Strike</h3><p>Forgo one attack…</p><p><em>Level 3 Options chosen</em></p>';
 const CARD = `<div class="chat-card activation-card">
@@ -53,4 +53,24 @@ test('rewriteManeuverCard: no description given keeps dnd5e\'s text', () => {
 
 test('rewriteManeuverCard: a card without the expected header is left alone', () => {
     assert.equal(rewriteManeuverCard('<p>something else</p>', {title: 'Riposte'}), null);
+});
+
+// His Riposte card, 2026-09-18: Riposte is the LAST section of a wrapped description.
+const WRAPPED = '<div class="ddb">\n<h3>Goading Attack</h3><p>g</p><h3>Riposte</h3><p>r</p><p><em>Level 3 Options chosen: <strong>@UUID[x]{Riposte}, @UUID[y]{Goading Attack}</strong></em></p>\n</div>';
+
+test('maneuverSection: the last section carries neither the wrapper\'s closing div nor the options-chosen line', () => {
+    assert.equal(maneuverSection(WRAPPED, 'Riposte'), '<p>r</p>');
+    assert.equal(maneuverSection(WRAPPED, 'Goading Attack'), '<p>g</p>');
+});
+
+test('balanceDivs: stray closers go, open ones are closed, balanced markup is untouched', () => {
+    assert.equal(balanceDivs('<p>a</p></div>'), '<p>a</p>');
+    assert.equal(balanceDivs('<div><p>a</p>'), '<div><p>a</p></div>');
+    assert.equal(balanceDivs('<div class="x"><div>a</div></div>'), '<div class="x"><div>a</div></div>');
+    assert.equal(balanceDivs('</div></div><p>a</p>'), '<p>a</p>');
+});
+
+test('a rewritten card stays structurally intact even when the section came from a wrapped description', () => {
+    let out = rewriteManeuverCard(CARD, {title: 'Riposte', description: maneuverSection(WRAPPED, 'Riposte')});
+    assert.equal((out.match(/<div\b/g) ?? []).length, (out.match(/<\/div>/g) ?? []).length);
 });

@@ -1,6 +1,6 @@
 import {activityUtils, actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
-import {determineSuperiorityDie, maneuverName, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
-import {MANEUVER_PARENT_IDENTIFIER, activityKeyFor, planManeuverPrune, repointItemUsesCount} from '../../../../../lib/utilities/maneuverHandles.mjs';
+import {determineSuperiorityDie, maneuverImg, maneuverName, maneuverText, superiorityDice as superiorityDiceLegacy, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
+import {MANEUVER_PARENT_IDENTIFIER, activityKeyFor, keyForManeuverName, planManeuverPrune, repointItemUsesCount} from '../../../../../lib/utilities/maneuverHandles.mjs';
 import {maneuverSection, rewriteManeuverCard} from '../../../../../lib/utilities/maneuverCard.mjs';
 import {selectPendingDie, satisfiesMovementRequirement} from '../../../../../lib/utilities/pendingSuperiorityDie.mjs';
 import {maneuversGoadingAttack as goadingAttackLegacy} from '../../../../2014/classFeatures/fighter/battleMaster/maneuvers.js';
@@ -361,7 +361,8 @@ async function useManeuveringAttack({workflow}) {
         if (!attackedToken || attackedToken.id === ally.id) return;
         await effectUtils.createEffect(ally.actor, {
             name: maneuverName(workflow),
-            img: workflow.item.img,
+            img: maneuverImg(workflow),
+            ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
             origin: workflow.item.uuid,
             // Without an explicit description Visual Active Effects falls back to the origin item's,
             // i.e. the entire feature text. The ally does not need the rules quotation — they need
@@ -433,6 +434,38 @@ async function addedParent({trigger: {entity: item}}) {
         if (changes) updates.push({_id: effect.id, changes});
     }
     if (updates.length) await live.updateEmbeddedDocuments('ActiveEffect', updates);
+    await dressParent(live);
+}
+/**
+ * Each maneuver looks and reads like itself. The pack gives most maneuvers the same crossed-swords
+ * icon; the importer knows the icon DDB-side art maps to and stamps it per maneuver
+ * (`flags.ddbimporter.maneuverIcons`, bare name -> path). And an effect a maneuver owns carries
+ * that maneuver's own rules text and icon, not the parent's (the parent's description is every
+ * chosen maneuver's text).
+ */
+async function dressParent(item) {
+    let identifiers = item.flags['chris-premades']?.activityIdentifiers ?? {};
+    let owners = item.flags['chris-premades']?.maneuverOptions?.effectOwners ?? {};
+    let icons = Object.fromEntries(Object.entries(item.flags?.ddbimporter?.maneuverIcons ?? {}).map(([name, img]) => [keyForManeuverName(name), img]));
+    let update = {};
+    for (let [key, id] of Object.entries(identifiers)) {
+        let activity = item.system.activities.get(id);
+        if (activity && icons[key] && activity.img !== icons[key]) update['system.activities.' + id + '.img'] = icons[key];
+    }
+    if (Object.keys(update).length) await genericUtils.update(item, update);
+    let live = item.actor?.items?.get(item.id) ?? item;
+    let effectUpdates = [];
+    for (let effect of live.effects) {
+        let key = owners[effect.id];
+        let activity = key ? live.system.activities.get(identifiers[key]) : undefined;
+        if (!activity) continue;
+        let change = {_id: effect.id};
+        let text = maneuverSection(live.system?.description?.value, activity.name);
+        if (text && effect.description !== text) change.description = text;
+        if (activity.img && effect.transfer && effect.img !== activity.img) change.img = activity.img;
+        if (Object.keys(change).length > 1) effectUpdates.push(change);
+    }
+    if (effectUpdates.length) await live.updateEmbeddedDocuments('ActiveEffect', effectUpdates);
 }
 
 export let maneuversRiposte = {
@@ -954,7 +987,8 @@ async function useDistractingStrike({workflow}) {
     if (!targetActor) return;
     let effectData = {
         name: maneuverName(workflow),
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         duration: {
             rounds: 1
@@ -1171,7 +1205,8 @@ async function useCommandersStrike({workflow}) {
     if (!willUse) return;
     let effectData = {
         name: maneuverName(workflow),
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         duration: {
             turns: 1
@@ -1312,7 +1347,8 @@ async function useBaitAndSwitch({workflow}) {
     ]);
     let effectData = {
         name: maneuverName(workflow),
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         duration: {
             rounds: 1
@@ -1526,7 +1562,8 @@ async function bankSuperiorityDie(workflow, {identifier, die, targetToken, requi
     }
     let effectData = {
         name: maneuverName(workflow),
-        img: workflow.item.img,
+        img: maneuverImg(workflow),
+        ...(maneuverText(workflow) ? {description: maneuverText(workflow)} : {}),
         origin: workflow.item.uuid,
         changes,
         duration: {},
@@ -1624,6 +1661,14 @@ async function useFeintingAttack({workflow}) {
 export let superiorityDice = {
     name: 'Superiority Dice',
     aliases: ['Combat Superiority'],
+    // ⚠️ THE CONFIG IS LOAD-BEARING. `determineSuperiorityDie` reads the class and scale identifiers
+    // through `itemUtils.getConfig`, whose defaults come from THIS registry entry. Slice 1
+    // (`da051dfd2`, 2026-07-29) replaced the `...legacy` spread with an entry of its own and the
+    // config went with it: both reads came back undefined, the lookup became
+    // `scale[undefined][undefined]`, CPR toasted "Actor does not have undefined.undefined scale
+    // set!" on every weapon hit and — silently — every superiority die the driver added was a **d6**
+    // instead of the Battle Master's d8 (found by Vittorio's toast report, 2026-09-18).
+    config: superiorityDiceLegacy.config,
     // 1.1.0 — the modern line no longer borrows the legacy driver's midi passes wholesale; it runs
     // the same helper with its own trigger list (see above). Behaviour is identical except that
     // Grappling Strike is no longer offered on a 2024 sheet.
