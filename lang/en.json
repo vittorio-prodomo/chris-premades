@@ -805,6 +805,10 @@
         "HeroicInspiration": {
             "Give": "You were given Heroic Inspiration but already have it. Choose another player to give it to:",
             "Name": "Heroic Inspiration",
+            "Card": "<strong>{name}</strong> spends Heroic Inspiration to reroll a d{faces} of {what}. It showed <strong>{before}</strong>; the new roll replaces it.",
+            "WhatAttack": "the attack roll with {item}",
+            "WhatDamage": "the damage roll of {item}",
+            "WhatTest": "their {test} roll",
             "SelectDiePrompt": "Spend your Heroic Inspiration to reroll a die? Select the die to reroll below, then confirm — the new roll replaces it, even if it is lower."
         },
         "Item": {

@@ -383,8 +383,16 @@ async function useManeuveringAttack({workflow}) {
             // i.e. the entire feature text. The ally does not need the rules quotation — they need
             // what they may do right now, and against whom.
             description: genericUtils.format('CHRISPREMADES.Macros.Maneuvers.ManeuveringEffect', names),
+            // The ally moves NOW, on its Reaction — the exemption has nothing to outlive the turn it
+            // was granted in. `turnEndSource` could never say that: times-up fires it only for an
+            // effect that began BEFORE the source's turn (`combatantLastTurn > effectStart`), so
+            // one created during Xender's turn sat there until the end of his NEXT turn, and
+            // forever once combat ended first (Vittorio, 2026-09-18). One TURN is the honest span.
+            // ⚠️ `turns` ALONE: with `seconds` beside it times-up rewrites the duration to
+            // `rounds: 1, turns: 0` on creation (watched live), which is the old bug again.
+            // `combatEnd` below covers a fight that ends first.
             duration: {
-                rounds: 1
+                turns: 1
             },
             changes: [
                 {
@@ -397,7 +405,7 @@ async function useManeuveringAttack({workflow}) {
             flags: {
                 dae: {
                     specialDuration: [
-                        'turnEndSource'
+                        'combatEnd'
                     ]
                 }
             }
