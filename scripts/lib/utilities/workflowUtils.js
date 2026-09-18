@@ -43,6 +43,8 @@ async function completeActivityUse(activity, config = {}, dialog = {}, message =
         fixSets = true;
     }
     let workflow = await MidiQOL.completeActivityUse(activity, config, dialog, message);
+    // midi answers `undefined` for a use that was refused or aborted; callers get that, not a TypeError.
+    if (!workflow) return;
     workflow = workflow.workflow ?? workflow;
     if (fixSets) {
         if (workflow.failedSaves) workflow.failedSaves = new Set(workflow.failedSaves);

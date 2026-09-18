@@ -1,5 +1,5 @@
 import {activityUtils, actorUtils, constants, dialogUtils, effectUtils, genericUtils, itemUtils, rollUtils, socketUtils, tokenUtils, workflowUtils} from '../../../../../utils.js';
-import {determineSuperiorityDie, maneuverImg, maneuverName, maneuverText, superiorityDice as superiorityDiceLegacy, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
+import {determineSuperiorityDie, dieForPool, maneuverImg, maneuverName, maneuverText, superiorityDice as superiorityDiceLegacy, superiorityHelper} from '../../../../2014/classFeatures/fighter/battleMaster/superiorityDice.js';
 import {MANEUVER_PARENT_IDENTIFIER, activityKeyFor, keyForManeuverName, planManeuverPrune, repointItemUsesCount} from '../../../../../lib/utilities/maneuverHandles.mjs';
 import {maneuverSection, rewriteManeuverCard} from '../../../../../lib/utilities/maneuverCard.mjs';
 import {selectPendingDie, satisfiesMovementRequirement} from '../../../../../lib/utilities/pendingSuperiorityDie.mjs';
@@ -26,8 +26,24 @@ async function useRiposte({workflow}) {
         return i.type === 'weapon' && i.system.equipped && i.system.activities.getByType('attack').some(j => j.actionType === 'mwak');
     });
     if (!attacks.length) return;
-    let [itemToUse, superiorityDie] = await determineSuperiorityDie(workflow.actor);
-    if (!itemToUse?.system.uses.value) return;
+    /**
+     * ⚠️ THE DIE IS ALREADY SPENT WHEN THIS RUNS — never gate on what is LEFT (Vittorio, 2026-09-18).
+     * `rollFinished` fires after dnd5e applied the activity's own `itemUses` consumption, so a
+     * Riposte paid with the LAST die arrived here with the pool at 0 and the old "any dice left?"
+     * test returned: reaction gone, die gone, no counter-attack. Whatever the activity spent from IS
+     * the pool that paid; `determineSuperiorityDie` is only asked when the activity spent nothing
+     * (an unresolvable target), which is the one case the hand spend at the bottom still serves.
+     */
+    let consumedTarget = workflow.activity?.consumption?.targets?.find(i => i.type === 'itemUses')?.target;
+    let paidBy = consumedTarget ? workflow.actor.items.get(consumedTarget) : undefined;
+    let itemToUse, superiorityDie;
+    if (paidBy) {
+        itemToUse = paidBy;
+        superiorityDie = dieForPool(workflow.actor, paidBy);
+    } else {
+        [itemToUse, superiorityDie] = await determineSuperiorityDie(workflow.actor);
+        if (!itemToUse?.system.uses.value) return;
+    }
     let selected;
     if (attacks.length === 1) {
         selected = attacks[0];
@@ -85,7 +101,6 @@ async function useRiposte({workflow}) {
      * pool (Martial Adept, Superior Technique fighting style), which the activity's fixed target
      * cannot express. Spend by hand only in that case.
      */
-    let consumedTarget = workflow.activity?.consumption?.targets?.find(i => i.type === 'itemUses')?.target;
     if (consumedTarget !== itemToUse.id) {
         await genericUtils.update(itemToUse, {'system.uses.spent': itemToUse.system.uses.spent + 1});
     }
