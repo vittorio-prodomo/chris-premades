@@ -7,10 +7,15 @@ export class DialogApp extends HandlebarsApplicationMixin(ApplicationV2) {
         if (options?.length) {
             [title, content, inputs, buttons, config] = options;
         }
+        // ⚠️ The size goes in through OPTIONS, not just `this.position`: on every re-render core
+        // re-applies `width: 'auto'` when `this.options.position.width` is 'auto'
+        // (`_configureRenderOptions`), and this app re-renders on each form change — so a dialog
+        // opened at 320 px sprang to the full text width the moment a checkbox was ticked.
+        let position = options?.length ? {width: config?.width ?? 'auto', height: config?.height ?? 'auto'} : {};
         if (config?.id) {
-            super({id: config.id});
+            super({id: config.id, position});
         } else {
-            super();
+            super({position});
         }
         if (options?.length) {
             this.position.width = config?.width ?? 'auto';

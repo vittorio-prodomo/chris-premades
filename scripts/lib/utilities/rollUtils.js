@@ -133,11 +133,12 @@ async function requestRoll(token, request, ability, options = {}) {
 async function getChangedDamageRoll(origRoll, newType) {
     return await new CONFIG.Dice.DamageRoll(origRoll.terms.map(i => i.expression + (i.flavor?.length ? '[' + newType + ']' : '')).join(''), origRoll.data, genericUtils.mergeObject(origRoll.options, {type: newType})).evaluate();
 }
-async function rollDice(formula, {entity, chatMessage, flavor, mode = 'publicroll', options} = {}) {
+async function rollDice(formula, {entity, chatMessage, flavor, mode = 'publicroll', options, speaker} = {}) {
     let roll = await new Roll(formula, entity?.getRollData()).evaluate(options);
     if (chatMessage) {
         let message = await roll.toMessage({
-            speaker: {alias: name},
+            // `name` here was an undeclared global (upstream), so every card spoke as the USER.
+            speaker: speaker ?? (entity ? ChatMessage.implementation.getSpeaker({actor: entity.actor ?? entity}) : undefined),
             flavor: flavor
         }, {
             rollMode: mode
