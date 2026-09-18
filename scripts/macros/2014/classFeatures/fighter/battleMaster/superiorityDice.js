@@ -34,16 +34,29 @@ export function maneuverText(workflow) {
 async function hit({workflow}) {
     await superiorityHelper(workflow);
 }
+/**
+ * The Battle Master's own die size, read without asking anyone anything.
+ * `d6` when the actor has no Superiority Dice feature (Martial Adept / Superior Technique only).
+ */
+export function battleMasterDie(actor) {
+    let superiorityDiceItem = itemUtils.getItemByIdentifier(actor, 'superiorityDice');
+    if (!superiorityDiceItem) return 'd6';
+    let subclass = itemUtils.getConfig(superiorityDiceItem, 'subclass');
+    let scale = itemUtils.getConfig(superiorityDiceItem, 'scale');
+    let value = actor.system.scale?.[subclass]?.[scale]?.die;
+    if (!value) genericUtils.notify(genericUtils.format('CHRISPREMADES.Generic.MissingScale', {scaleName: `${subclass}.${scale}`}), 'warn');
+    return value ?? 'd6';
+}
+/**
+ * The die a maneuver rolls when ITS OWN ACTIVITY already spent from `poolItem`: the Battle Master
+ * die for the Superiority Dice feature, a d6 for the flat pools (Martial Adept, Superior Technique).
+ */
+export function dieForPool(actor, poolItem) {
+    return genericUtils.getIdentifier(poolItem) === 'superiorityDice' ? battleMasterDie(actor) : 'd6';
+}
 export async function determineSuperiorityDie(actor) {
     let superiorityDiceItem = itemUtils.getItemByIdentifier(actor, 'superiorityDice');
-    let superiorityDie;
-    if (superiorityDiceItem) {
-        let subclass = itemUtils.getConfig(superiorityDiceItem, 'subclass');
-        let scale = itemUtils.getConfig(superiorityDiceItem, 'scale');
-        let value = actor.system.scale?.[subclass]?.[scale]?.die;
-        if (!value) genericUtils.notify(genericUtils.format('CHRISPREMADES.Generic.MissingScale', {scaleName: `${subclass}.${scale}`}), 'warn');
-        superiorityDie = value ?? 'd6';
-    } else superiorityDie = 'd6';
+    let superiorityDie = battleMasterDie(actor);
     let isBattleMaster = superiorityDie !== 'd6';
     let allSameDice = !isBattleMaster || (isBattleMaster && actor.classes.fighter?.system.levels >= 10);
     let martialAdept = itemUtils.getItemByIdentifier(actor,'martialAdept');
