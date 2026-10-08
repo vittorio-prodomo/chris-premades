@@ -2103,7 +2103,9 @@
                 "Cancelled": "{name} cancelled — nothing was spent.",
                 "RollEach": "Roll Damage for Each Bolt?",
                 "Select": "How many? (Max: {maxMissiles})",
-                "Shield": "Shield as reaction?"
+                "Shield": "Shield as reaction?",
+                "ShieldPrompt": "You are targeted by <strong>{spell}</strong> ({count} darts). Cast Shield as a Reaction? You take no damage from {spell}, and you have a +5 bonus to AC until the start of your next turn.",
+                "ShieldPromptOne": "You are targeted by <strong>{spell}</strong> (1 dart). Cast Shield as a Reaction? You take no damage from {spell}, and you have a +5 bonus to AC until the start of your next turn."
             },
             "MagnificentFeast": {
                 "MagnificentFeast": "Magnificent Feast"

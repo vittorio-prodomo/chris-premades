@@ -134,7 +134,12 @@ async function dialog(...options) {
 async function rollItem(itemRef, config, options) {
     let item = await fromUuid(itemRef);
     if (!item) return;
-    return await MidiQOL.completeItemUse(item, config, options);
+    // ⚠️ FORK PATCH (queue T238): do NOT return the workflow. This runs on another user's client and
+    // socketlib sends the return value back over the socket — a midi Workflow is a cyclic object, and
+    // serialising it threw "RangeError: Maximum call stack size exceeded" on that client every time
+    // (seen live when a player accepted Shield against Magic Missile). No caller reads the value.
+    await MidiQOL.completeItemUse(item, config, options);
+    return true;
 }
 async function createSidebarActor(actorUuid, {folderId} = {}) {
     let compendiumActor = await fromUuid(actorUuid);

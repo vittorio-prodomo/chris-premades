@@ -1,4 +1,5 @@
 import {dialogUtils, genericUtils, rollUtils} from '../../../utils.js';
+import {isReplacedD20} from '../../../lib/utilities/reactionPromptText.mjs';
 // ⚠️ FORK PATCH (queue T141): the offer's body was the generic "Use Heroic Inspiration?" over an
 // unexplained die list. All three passes now use HeroicInspiration.SelectDiePrompt (en+it), which
 // says what is spent, what to select, and that the new roll is kept even if lower (2024 RAW).
@@ -24,6 +25,8 @@ function card(actor, token, what, faces, before) {
 }
 async function attack(workflow) {
     if (workflow.workflowOptions?.skipHeroicInspiration || !workflow.attackRoll || !workflow.actor.system.attributes.inspiration) return;
+    // FORK PATCH (queue T237): a d20 replaced by a Portent die was never rolled — nothing to reroll.
+    if (isReplacedD20(workflow.attackRoll)) return;
     let selection = await dialogUtils.selectDie([workflow.attackRoll], 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.translate('CHRISPREMADES.HeroicInspiration.SelectDiePrompt'), {buttons: 'yesNo', width: 320, timeout: 30, contexts: [workflow.item?.name]});
     if (!selection) return;
     let positions = selection[0].split('-').map(i => Number(i));
@@ -56,6 +59,7 @@ async function damage(workflow) {
 }
 async function saveSkillCheck(roll, actor, mode, context) {
     if (!actor.system.attributes.inspiration) return;
+    if (isReplacedD20(roll)) return; // FORK PATCH (queue T237)
     let selection = await dialogUtils.selectDie([roll], 'CHRISPREMADES.HeroicInspiration.Name', genericUtils.translate('CHRISPREMADES.HeroicInspiration.SelectDiePrompt'), {buttons: 'yesNo', width: 320, timeout: 30, contexts: [context]});
     if (!selection) return;
     let positions = selection[0].split('-').map(i => Number(i));
