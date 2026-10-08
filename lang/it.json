@@ -1540,7 +1540,9 @@
                 "Cancelled": "{name} annullato — nessuna risorsa spesa.",
                 "RollEach": "Tirare il Danno per Ogni Dardo?",
                 "Select": "Quanti? (Max: {maxMissiles})",
-                "Shield": "Scudo come reazione?"
+                "Shield": "Scudo come reazione?",
+                "ShieldPrompt": "Sei bersaglio di <strong>{spell}</strong> ({count} dardi). Vuoi lanciare Scudo come reazione? Non subisci danni da {spell} e hai un bonus di +5 alla CA fino all'inizio del tuo prossimo turno.",
+                "ShieldPromptOne": "Sei bersaglio di <strong>{spell}</strong> (1 dardo). Vuoi lanciare Scudo come reazione? Non subisci danni da {spell} e hai un bonus di +5 alla CA fino all'inizio del tuo prossimo turno."
             },
             "Maneuvers": {
                 "AmbushBody": "<p>Hai ottenuto <strong>{initiative}</strong> in Iniziativa.</p><p>Vuoi spendere un Dado di Superiorità e aggiungerlo al tiro? L'ordine di turno è ancora nascosto.</p>",

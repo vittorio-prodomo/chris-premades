@@ -1,4 +1,5 @@
 import {activityUtils, actorUtils, animationUtils, consumeArgonDistribution, dialogUtils, effectUtils, errors, genericUtils, itemUtils, socketUtils, workflowUtils} from '../../../utils.js';
+import {SHIELD_PROMPT_SECONDS, shieldPromptKey} from '../../../lib/utilities/reactionPromptText.mjs';
 
 // Consumption is DEFERRED for Magic Missile casts (faerieFire.js pattern): the slot used to be
 // spent before rollFinished, so cancelling the dart-distribution dialog needed a refund plus a
@@ -128,7 +129,14 @@ async function use({workflow}) {
             shieldItems = shieldItems.filter(i => i.system.hasLimitedUses || !i.system.level || (
                 actorUtils.hasSpellSlots(targetToken.actor, i.system.level)
             ) || ['atwill', 'innate'].includes(i.system.method));
-            let selectedSpell = await dialogUtils.selectDocumentDialog(workflow.item.name, 'CHRISPREMADES.Macros.MagicMissile.Shield', shieldItems, {userId: socketUtils.firstOwner(targetToken.actor, true), addNoneDocument: true});
+            // ⚠️ FORK PATCH (queue T238): the prompt used to say only "Shield as reaction?". Against
+            // Magic Missile, Shield does something other than its usual +5 AC — say so, say how many
+            // darts are coming, and let the prompt expire (no answer = no Shield). The caster is not
+            // named on purpose: this text is composed on the caster's client and shown on the
+            // target's, and an NPC caster's name may be veiled there.
+            let esc = foundry.utils.escapeHTML;
+            let shieldPrompt = genericUtils.format(shieldPromptKey(numBolts), {spell: esc(workflow.item.name), count: Number(numBolts)});
+            let selectedSpell = await dialogUtils.selectDocumentDialog(workflow.item.name, shieldPrompt, shieldItems, {userId: socketUtils.firstOwner(targetToken.actor, true), addNoneDocument: true, timeout: SHIELD_PROMPT_SECONDS});
             if (selectedSpell) {
                 await socketUtils.remoteRollItem(selectedSpell, {}, {targetUuids: [targetToken.document.uuid]}, socketUtils.firstOwner(targetToken, true));
                 if (effectUtils.getEffectByIdentifier(targetToken.actor, 'shield')) isShielded = true;

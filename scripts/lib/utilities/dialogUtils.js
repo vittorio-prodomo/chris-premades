@@ -171,7 +171,7 @@ async function confirm(title, content, {userId = game.user.id, buttons = 'yesNo'
 async function confirmUseItem(item, {userId = game.user.id, buttons = 'yesNo'} = {}) {
     return await dialogUtils.confirm(item.name, genericUtils.format('CHRISPREMADES.Dialog.Use', {itemName: item.name}), {userId, buttons});
 }
-async function selectDocumentDialog(title, content, documents, {displayTooltips = false, sortAlphabetical = false, sortCR = false, userId = game.user.id, addNoneDocument = false, showCR = false, showSpellLevel = false, showUses = false, displayReference = false} = {}) {
+async function selectDocumentDialog(title, content, documents, {displayTooltips = false, sortAlphabetical = false, sortCR = false, userId = game.user.id, addNoneDocument = false, showCR = false, showSpellLevel = false, showUses = false, displayReference = false, timeout} = {}) {
     if (sortAlphabetical) {
         documents = documents.sort((a, b) => {
             return a.name.localeCompare(b.name, 'en', {sensitivity: 'base'});
@@ -210,11 +210,14 @@ async function selectDocumentDialog(title, content, documents, {displayTooltips 
         });
     }
     let inputs = [['button', inputFields, {displayAsRows: true}]];
+    // ⚠️ FORK PATCH (queue T238): optional auto-expiry, same passthrough as `confirm` — an expired
+    // dialog resolves null, which every caller already treats as "nothing picked".
+    let config = timeout ? {timeout} : undefined;
     let result;
     if (userId != game.user.id) {
-        result = await socket.executeAsUser(sockets.dialog.name, userId, title, content, inputs, undefined);
+        result = await socket.executeAsUser(sockets.dialog.name, userId, title, content, inputs, undefined, config);
     } else {
-        result = await DialogApp.dialog(title, content, inputs, undefined);
+        result = await DialogApp.dialog(title, content, inputs, undefined, config);
     }
     if (result?.buttons) return isCompendiumDoc ? fromUuid(result.buttons) : documents.find(i => i.id === result.buttons);
     return false;
