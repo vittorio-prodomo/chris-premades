@@ -1684,6 +1684,7 @@
                 "Modern": "Modern",
                 "Name": "Generic Actions",
                 "Select": "Select a generic action:",
+                "LaunchMissing": "This action needs a compendium module that is not active.",
                 "System": "System"
             },
             "GenericTeleport": {

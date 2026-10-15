@@ -31,6 +31,21 @@ async function use({trigger, workflow}) {
     });
     let selection = await dialogUtils.selectDocumentDialog(workflow.item.name, 'CHRISPREMADES.Macros.GenericActions.Select', documents, {sortAlphabetical: true, displayReference: true});
     if (!selection) return;
+    // FORK PATCH (T249): a POINTER entry runs the compendium item it names as a temporary copy
+    // (the official PHB Improvised Weapon) — nothing is stored on the sheet, so neither a D&D Beyond
+    // re-import nor a sync touches it.
+    let launchUuid = selection.flags?.['chris-premades']?.launchUuid;
+    if (launchUuid) {
+        let source = await fromUuid(launchUuid);
+        if (!source) {
+            genericUtils.notify('CHRISPREMADES.Macros.GenericActions.LaunchMissing', 'warn');
+            return;
+        }
+        let launchData = genericUtils.duplicate(source.toObject());
+        delete launchData._id;
+        await workflowUtils.syntheticItemDataRoll(launchData, workflow.actor, Array.from(game.user.targets));
+        return;
+    }
     let documentData = genericUtils.duplicate(selection.toObject());
     documentData.system.description.value = itemUtils.getItemDescription(documentData.name);
     if (!documentData.system.description.value) {
@@ -44,7 +59,7 @@ async function use({trigger, workflow}) {
 }
 export let genericActions = {
     name: 'Generic Actions',
-    version: '1.3.115',
+    version: '1.5.46',
     rules: 'modern',
     midi: {
         item: [

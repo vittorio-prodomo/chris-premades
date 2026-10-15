@@ -2305,6 +2305,9 @@
                 "ConsumeConfirm": "La prova è riuscita? In caso contrario rispondi No: non verrà speso alcun uso di Vigore Incrollabile.",
                 "Spent": "<strong>{itemName}</strong> — consumato un utilizzo di <strong>{resourceName}</strong> ({remaining} rimanenti).",
                 "SpentUnknown": "<strong>{itemName}</strong> — consumato un utilizzo di <strong>{resourceName}</strong>."
+            },
+            "GenericActions": {
+                "LaunchMissing": "Questa azione richiede un modulo compendio non attivo."
             }
         },
         "ManualRolls": {
