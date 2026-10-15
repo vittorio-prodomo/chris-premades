@@ -33,8 +33,7 @@ async function use({trigger, workflow}) {
     }
     let outcome = landingOutcome({aimTotal, dc, undetected, dodgeSave: dodge.accepted ? dodge.total : null});
     let sounds = {runUp: null, takeoff: itemUtils.getConfig(workflow.item, 'takeoffSound'), landing: itemUtils.getConfig(workflow.item, 'landingSound')};
-    let distance3d = token.document.measureMovementPath([{x: token.document.x, y: token.document.y, elevation: token.document.elevation}, {x: landing.destination.x, y: landing.destination.y, elevation: landing.destination.elevation}]).distance;
-    await flyTo({token, position: landing.position, destination: landing.destination, distance: distance3d, cost: landing.verdict.cost, sounds, playRunUp: false, playAnimation: itemUtils.getConfig(workflow.item, 'playAnimation')});
+    await flyTo({token, position: landing.position, destination: landing.destination, distance: landing.feet, cost: landing.verdict.cost, sounds, playRunUp: false, playAnimation: itemUtils.getConfig(workflow.item, 'playAnimation')});
     let fall = await rollFallDice(height, workflow.actor);
     let lines = [genericUtils.format(L + 'Summary', {height, dc, aim: aimTotal})];
     lines.push(genericUtils.translate(undetected ? L + 'Undetected' : L + 'Aware'));

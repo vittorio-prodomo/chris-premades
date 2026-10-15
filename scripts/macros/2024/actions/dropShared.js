@@ -75,7 +75,9 @@ export async function chooseLandingSquare({token, target, item}) {
 export async function rollFallDice(height, actor) {
     let count = fallDiceCount(height);
     if (!count) return {roll: null, total: 0};
-    let roll = await rollUtils.rollDice(count + 'd6', {entity: actor, chatMessage: true, flavor: genericUtils.translate('CHRISPREMADES.Macros.DropAttack.FallDice')});
+    // ⚠️ With chatMessage, rollDice returns {message, roll} — not the roll (read 2026-10-15 after a live
+    // run where every fall total came back undefined).
+    let {roll} = await rollUtils.rollDice(count + 'd6', {entity: actor, chatMessage: true, flavor: genericUtils.translate('CHRISPREMADES.Macros.DropAttack.FallDice')});
     return {roll, total: roll.total};
 }
 export async function stampCard(workflow, lines) {

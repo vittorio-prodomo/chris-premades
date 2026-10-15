@@ -25,7 +25,15 @@ export async function moveByJump(token, destination, {distance, cost, animate}) 
         };
     }
     try {
-        return await token.document.move({x: destination.x, y: destination.y, ...(destination.elevation !== undefined ? {elevation: destination.elevation} : {}), action: 'jump'}, {method: 'api', showRuler: false, animate});
+        let moved = await token.document.move({x: destination.x, y: destination.y, action: 'jump'}, {method: 'api', showRuler: false, animate});
+        // A drop (T249) lands lower. The FALL is free, so it is NOT part of the jump move: one move with the
+        // elevation in it makes core lay a 3D path whose vertical steps escape the cost wrap above (seen live
+        // 2026-10-15: 27.9 ft charged for a 10-ft leap from a 30-ft roof). Core's `displace` action is a
+        // zero-cost teleport, recorded in the history at cost 0.
+        if (moved && destination.elevation !== undefined && destination.elevation !== token.document.elevation) {
+            moved = await token.document.move({x: destination.x, y: destination.y, elevation: destination.elevation, action: 'displace'}, {method: 'api', showRuler: false, animate: false});
+        }
+        return moved;
     } finally {
         if (discounted) delete token._getMovementCostFunction;
     }
