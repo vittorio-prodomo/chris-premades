@@ -2308,6 +2308,28 @@
             },
             "GenericActions": {
                 "LaunchMissing": "Questa azione richiede un modulo compendio non attivo."
+            },
+            "DropAttack": {
+                "TargetFirst": "Prima seleziona come bersaglio la creatura.",
+                "PickLand": "Scegli su chi atterrare",
+                "PickStrike": "Scegli chi colpire",
+                "NoElevation": "{name} non è più in alto del bersaglio su questa mappa. Quanto è alto il salto, in piedi?",
+                "HeightLabel": "Altezza della caduta (ft)",
+                "NotAdjacent": "Atterra in uno spazio libero accanto al bersaglio.",
+                "FallDice": "Danni da caduta"
+            },
+            "LandingOnACreature": {
+                "Summary": "Caduta di {height} ft — CD della mira {dc}, tiro {aim}.",
+                "Undetected": "Non individuato: nessuna schivata.",
+                "Aware": "Il bersaglio lo ha visto arrivare.",
+                "DodgePrompt": "{faller} ti sta cadendo addosso. Spendi la reazione per schivare? Tiro salvezza su Destrezza, CD {dc}.",
+                "DodgeRoll": "Schivata: tiro salvezza su Destrezza {total}.",
+                "NoReaction": "Nessuna reazione rimasta per schivare.",
+                "Hit": "Atterra su {target}: {targetDamage} al bersaglio, {fallerDamage} a chi cade.",
+                "TargetProne": "Il bersaglio cade Prono.",
+                "TooBig": "Il bersaglio è troppo grande per essere abbattuto.",
+                "Dodged": "{target} schiva: chi cade atterra Prono ({damage} danni).",
+                "Missed": "Manca {target}: chi cade atterra Prono ({damage} danni)."
             }
         },
         "ManualRolls": {

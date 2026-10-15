@@ -3050,6 +3050,28 @@
                 "ConsumeConfirm": "Did the check succeed? If not, answer No — no use of Second Wind will be spent.",
                 "Spent": "<strong>{itemName}</strong> — spent a use of <strong>{resourceName}</strong> ({remaining} remaining).",
                 "SpentUnknown": "<strong>{itemName}</strong> — spent a use of <strong>{resourceName}</strong>."
+            },
+            "DropAttack": {
+                "TargetFirst": "Target the creature first.",
+                "PickLand": "Choose who to land on",
+                "PickStrike": "Choose who to strike",
+                "NoElevation": "{name} is not higher than the target on this map. How far is the drop, in feet?",
+                "HeightLabel": "Drop height (ft)",
+                "NotAdjacent": "Land in a free square next to the target.",
+                "FallDice": "Fall damage"
+            },
+            "LandingOnACreature": {
+                "Summary": "Drop {height} ft — aim DC {dc}, rolled {aim}.",
+                "Undetected": "Undetected: no dodge.",
+                "Aware": "The target saw it coming.",
+                "DodgePrompt": "{faller} is dropping on you. Spend your reaction to dodge? Dexterity save, DC {dc}.",
+                "DodgeRoll": "Dodge: Dexterity save {total}.",
+                "NoReaction": "No reaction left to dodge with.",
+                "Hit": "Lands on {target}: {targetDamage} to the target, {fallerDamage} to the faller.",
+                "TargetProne": "The target is knocked Prone.",
+                "TooBig": "The target is too big to knock down.",
+                "Dodged": "{target} dodges: the faller lands Prone ({damage} damage).",
+                "Missed": "Misses {target}: the faller lands Prone ({damage} damage)."
             }
         },
         "ManualRolls": {
