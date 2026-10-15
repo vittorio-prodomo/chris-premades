@@ -1,6 +1,8 @@
 import {DialogApp} from '../../../applications/dialog.js';
 import {activityUtils, combatUtils, crosshairUtils, dialogUtils, effectUtils, genericUtils, itemUtils, workflowUtils} from '../../../utils.js';
 import {RUN_UP_FEET, jumpVerdict, planLongJump, runUpFeet} from '../../../lib/utilities/jumpRules.mjs';
+import {flyTo} from './jumpFlight.js';
+import {stampCard} from './dropShared.js';
 /*
  * ⚠️ FORK REWRITE (T223, 2026-09-05) of the long jump. Upstream rolled the distance, ran
  * the two checks, and TELEPORTED the token with Sequencer — no movement history, no
@@ -68,40 +70,6 @@ async function checkWithDC(workflow, identifier, dc) {
     genericUtils.setProperty(itemData, 'system.activities.' + activity.id + '.check.dc.formula', String(dc));
     let item = await itemUtils.syntheticItem(itemData, workflow.actor);
     return item.system.activities.get(activity.id);
-}
-/**
- * The real move: core's `jump` action, so movement history, dnd5e's ruler, the summon
- * leash and the opportunity-attack watchers all see it. Under the spell's discount the
- * jump segment is priced at {cost} instead of its distance, through the same seam
- * dnd5e prices difficult terrain with, so the recorded history stays the budget's truth.
- */
-async function moveByJump(token, destination, {distance, cost, animate}) {
-    // ⚠️ The seam is the PLACEABLE's `_getMovementCostFunction` (dnd5e overrides it there
-    // for occupied squares); the document has no such method — proven live 09-05 when a
-    // document-side override priced a 20-ft spell jump at 20.
-    let discounted = cost < distance && distance > 0;
-    let original = token._getMovementCostFunction;
-    if (discounted) {
-        let ratio = cost / distance;
-        token._getMovementCostFunction = function(options) {
-            let base = original.call(this, options);
-            return (from, to, stepDistance, segment) => {
-                let stepCost = base(from, to, stepDistance, segment);
-                return segment?.action === 'jump' ? stepCost * ratio : stepCost;
-            };
-        };
-    }
-    try {
-        return await token.document.move({x: destination.x, y: destination.y, action: 'jump'}, {method: 'api', showRuler: false, animate});
-    } finally {
-        if (discounted) delete token._getMovementCostFunction;
-    }
-}
-async function stampCard(workflow, lines) {
-    let message = await fromUuid(workflow.itemCardUuid);
-    if (!message) return;
-    let content = message.content + '<div class="chris-premades-jump-verdict" style="margin-top:4px;border-top:1px solid var(--color-border-light-2, #999);padding-top:4px;font-size:var(--font-size-12, 12px);">' + lines.map(line => '<div>' + line + '</div>').join('') + '</div>';
-    await genericUtils.update(message, {content});
 }
 async function longJump({trigger, workflow}) {
     let defaultLowDC = Number(itemUtils.getConfig(workflow.item, 'lowObstacleDC')) || 10;
@@ -211,75 +179,10 @@ async function longJump({trigger, workflow}) {
         if (!proceed) return;
     }
     let obstacleFailed = selection.lowObstacle ? await rollCheck('lowObstacle', lowDC) : false;
-    let moved;
-    if (playAnimation && !obstacleFailed) {
-        /* eslint-disable indent */
-        await new Sequence()
-            .sound()
-                .playIf(playRunUp)
-                .file(sounds.runUp)
-                .waitUntilFinished(-600)
-            .sound()
-                .playIf(!!sounds.takeoff)
-                .file(sounds.takeoff)
-            .animation()
-                .on(token)
-                .opacity(0)
-                .waitUntilFinished(-100)
-            .effect()
-                .file('animated-spell-effects-cartoon.air.portal')
-                .atLocation(token)
-                .scaleToObject(1.75)
-                .belowTokens()
-            .effect()
-                .copySprite(token)
-                .atLocation(token)
-                .opacity(1)
-                .duration(1000)
-                .anchor({ x: 0.5, y: 1 })
-                .loopProperty('sprite', 'position.y', {values: [50, 0, 50], duration: 500})
-                .moveTowards(position, {rotate: false})
-                .zIndex(2)
-            .effect()
-                .copySprite(token)
-                .atLocation(token)
-                .opacity(0.5)
-                .scale(0.9)
-                .belowTokens()
-                .duration(1000)
-                .anchor({x: 0.5, y: 0.5})
-                .filter('ColorMatrix', {brightness: -1})
-                .filter('Blur', {blurX: 5, blurY: 10})
-                .moveTowards(position, {rotate: false})
-                .zIndex(2)
-                .waitUntilFinished(-100)
-            .thenDo(async () => {
-                moved = await moveByJump(token, destination, {distance: feet, cost: verdict.cost, animate: false});
-            })
-            .sound()
-                .playIf(!!sounds.landing)
-                .file(sounds.landing)
-            .animation()
-                .on(token)
-                .opacity(1)
-            .effect()
-                .file('animated-spell-effects-cartoon.air.portal')
-                .atLocation(position)
-                .scaleToObject(1.75 * token.document.width)
-                .belowTokens()
-            .play();
-        /* eslint-enable indent */
-    } else if (!obstacleFailed) {
-        if (sounds.takeoff) await new Sequence().sound().file(sounds.takeoff).play();
-        moved = await moveByJump(token, destination, {distance: feet, cost: verdict.cost, animate: true});
-        if (moved) {
-            await token.movementAnimationPromise;
-            if (sounds.landing) await new Sequence().sound().file(sounds.landing).play();
-        }
-    }
     // Core may still clamp the path (the spot filled up while the dice were rolling):
     // `move` reports true for a partial move, so the landing is the position itself.
-    let landed = !!moved && token.document.x === destination.x && token.document.y === destination.y;
+    let landed = false;
+    if (!obstacleFailed) landed = await flyTo({token, position, destination, distance: feet, cost: verdict.cost, sounds, playRunUp, playAnimation});
     if (landed && verdict.spellUsed) await combatUtils.setTurnCheck(workflow.actor, SPELL_TURN_FLAG);
     let addProne = landed && selection.difficultTerrain ? await rollCheck('difficultTerrain', terrainDC) : false;
     if (addProne) await effectUtils.applyConditions(workflow.actor, ['prone']);
