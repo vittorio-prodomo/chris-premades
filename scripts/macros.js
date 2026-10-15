@@ -59,6 +59,8 @@ export {dash} from './macros/2024/actions/dash.js';
 export {hide, hideEffect} from './macros/2024/actions/hide.js';
 export {disengage} from './macros/2024/actions/disengage.js';
 export {jump} from './macros/2024/actions/jump.js';
+export {landingOnACreature} from './macros/2024/actions/landingOnACreature.js';
+export {plungingAttack} from './macros/2024/actions/plungingAttack.js';
 export {dodge} from './macros/2024/actions/dodge.js';
 export {help} from './macros/2024/actions/help.js';
 export {influence} from './macros/2024/actions/influence.js';
