@@ -54,3 +54,7 @@ export function isAdjacent(a, b) {
     let gapY = Math.max(b.y - (a.y + a.h), a.y - (b.y + b.h), 0);
     return gapX === 0 && gapY === 0;
 }
+/** Whether any of `others` (grid-cell rects) overlaps the landing square. */
+export function squareTaken(square, others) {
+    return (others ?? []).some(o => square.x < o.x + o.w && o.x < square.x + square.w && square.y < o.y + o.h && o.y < square.y + square.h);
+}

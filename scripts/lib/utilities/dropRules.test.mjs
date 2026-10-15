@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dropHeight, heightDC, fallDiceCount, landingSplit, landingMissDamage, plungeSplit, sizeIndex, aimMode, knockedProne, landingOutcome, isAdjacent } from './dropRules.mjs';
+import { dropHeight, heightDC, fallDiceCount, landingSplit, landingMissDamage, plungeSplit, sizeIndex, aimMode, knockedProne, landingOutcome, isAdjacent, squareTaken } from './dropRules.mjs';
 
 test('height is faller minus target; level or higher target is unknown', () => {
     assert.equal(dropHeight(25, 0), 25);
@@ -60,4 +60,14 @@ test('adjacency: touching (incl. diagonals) but never overlapping', () => {
     assert.equal(isAdjacent({x: 5, y: 5, w: 1, h: 1}, target), false);
     assert.equal(isAdjacent({x: 7, y: 5, w: 1, h: 1}, target), false);
     assert.equal(isAdjacent({x: 3, y: 5, w: 2, h: 2}, {x: 5, y: 5, w: 2, h: 2}), true);
+});
+
+// Review #2: the landing square must be FREE. The movement check cannot say so for a drop (dnd5e only sees
+// tokens in the mover's elevation band, and never treats allies/Tiny/two-sizes-apart as blocking).
+test('a landing square is taken when any other token rect overlaps it', () => {
+    let square = {x: 4, y: 5, w: 1, h: 1};
+    assert.equal(squareTaken(square, []), false);
+    assert.equal(squareTaken(square, [{x: 4, y: 5, w: 1, h: 1}]), true);
+    assert.equal(squareTaken(square, [{x: 3, y: 4, w: 2, h: 2}]), true);
+    assert.equal(squareTaken(square, [{x: 5, y: 5, w: 1, h: 1}, {x: 4, y: 6, w: 1, h: 1}]), false);
 });

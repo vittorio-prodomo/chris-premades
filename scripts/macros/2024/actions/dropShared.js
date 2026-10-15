@@ -5,7 +5,7 @@
  */
 import {combatUtils, crosshairUtils, dialogUtils, genericUtils, rollUtils} from '../../../utils.js';
 import {RUN_UP_FEET, jumpVerdict, planLongJump} from '../../../lib/utilities/jumpRules.mjs';
-import {dropHeight, fallDiceCount, isAdjacent} from '../../../lib/utilities/dropRules.mjs';
+import {dropHeight, fallDiceCount, isAdjacent, squareTaken} from '../../../lib/utilities/dropRules.mjs';
 
 export async function pickSingleTarget(token, label) {
     // Exactly one creature already targeted, and not the faller itself: use it. Anything else asks.
@@ -43,6 +43,18 @@ export async function chooseLandingSquare({token, target, item}) {
         let d = snap(center);
         return isAdjacent({...gridRect({x: d.x, y: d.y, width: token.document.width, height: token.document.height})}, targetRect);
     };
+    // ⚠️ The movement check below cannot see a FREE square on a drop: dnd5e only considers tokens in the
+    // mover's own elevation band (the faller is up on the roof), and never treats allies, Tiny creatures or
+    // creatures two sizes apart as blocking. So any other visible token at the landing elevation takes the
+    // square (review #2, 2026-10-15).
+    let landingElevation = target.document.elevation;
+    let others = canvas.tokens.placeables
+        .filter(t => t !== token && !t.document.hidden && Math.abs((t.document.elevation ?? 0) - landingElevation) < canvas.grid.distance)
+        .map(t => gridRect(t.document));
+    let free = center => {
+        let d = snap(center);
+        return !squareTaken(gridRect({x: d.x, y: d.y, width: token.document.width, height: token.document.height}), others);
+    };
     let landable = center => {
         let d = snap(center);
         let [, constrained] = token.constrainMovementPath([{x: token.document.x, y: token.document.y, action: 'jump'}, {x: d.x, y: d.y, action: 'jump'}], {});
@@ -50,7 +62,7 @@ export async function chooseLandingSquare({token, target, item}) {
     };
     let position = await crosshairUtils.aimCrosshair({
         token, maxRange: plan.distance, boundaryRange: plan.cap, centerpoint: token.center, drawBoundries: true, trackDistance: true,
-        validityFunctions: [adjacent, landable],
+        validityFunctions: [adjacent, free, landable],
         fudgeDistance: token.document.width * canvas.dimensions.distance / 2,
         crosshairsConfig: {size: token.document.parent.grid.distance * token.document.width / 2, icon: token.document.texture.src, resolution: (token.document.width % 2) ? 1 : -1}
     });
