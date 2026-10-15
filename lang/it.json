@@ -2330,6 +2330,14 @@
                 "TooBig": "Il bersaglio è troppo grande per essere abbattuto.",
                 "Dodged": "{target} schiva: chi cade atterra Prono ({damage} danni).",
                 "Missed": "Manca {target}: chi cade atterra Prono ({damage} danni)."
+            },
+            "PlungingAttack": {
+                "NoWeapon": "Un Attacco in Picchiata richiede un'arma da mischia.",
+                "PickWeapon": "Con quale arma colpire?",
+                "TooLow": "Un Attacco in Picchiata richiede una caduta di più di 10 ft — usa Atterrare su una Creatura o un attacco normale.",
+                "Summary": "Picchiata da {height} ft — dadi di caduta {dice}.",
+                "Hit": "Colpisce {target}: +{targetDamage} danni da caduta; {fallerDamage} all'attaccante.",
+                "Miss": "Manca: l'attaccante atterra Prono ({damage} danni)."
             }
         },
         "ManualRolls": {
