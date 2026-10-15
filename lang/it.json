@@ -2337,7 +2337,8 @@
                 "TooLow": "Un Attacco in Picchiata richiede una caduta di più di 10 ft — usa Atterrare su una Creatura o un attacco normale.",
                 "Summary": "Picchiata da {height} ft — dadi di caduta {dice}.",
                 "Hit": "Colpisce {target}: +{targetDamage} danni da caduta; {fallerDamage} all'attaccante.",
-                "Miss": "Manca: l'attaccante atterra Prono ({damage} danni)."
+                "Miss": "Manca: l'attaccante atterra Prono ({damage} danni).",
+                "Cancelled": "L'attacco non è stato effettuato: nessun danno da caduta applicato."
             }
         },
         "ManualRolls": {

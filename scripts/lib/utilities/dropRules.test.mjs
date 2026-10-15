@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dropHeight, heightDC, fallDiceCount, landingSplit, landingMissDamage, plungeSplit, sizeIndex, aimMode, knockedProne, landingOutcome, isAdjacent, squareTaken } from './dropRules.mjs';
+import { dropHeight, heightDC, fallDiceCount, landingSplit, landingMissDamage, plungeSplit, sizeIndex, aimMode, knockedProne, landingOutcome, isAdjacent, squareTaken, plungeOutcome } from './dropRules.mjs';
 
 test('height is faller minus target; level or higher target is unknown', () => {
     assert.equal(dropHeight(25, 0), 25);
@@ -70,4 +70,13 @@ test('a landing square is taken when any other token rect overlaps it', () => {
     assert.equal(squareTaken(square, [{x: 4, y: 5, w: 1, h: 1}]), true);
     assert.equal(squareTaken(square, [{x: 3, y: 4, w: 2, h: 2}]), true);
     assert.equal(squareTaken(square, [{x: 5, y: 5, w: 1, h: 1}, {x: 4, y: 6, w: 1, h: 1}]), false);
+});
+
+// Review #7 (re-graded Important): a cancelled or aborted weapon use is NOT a miss — no fall damage, no Prone.
+test('plunge outcome: hit / miss / cancelled', () => {
+    assert.equal(plungeOutcome(undefined), 'cancelled');
+    assert.equal(plungeOutcome(null), 'cancelled');
+    assert.equal(plungeOutcome({aborted: true, hitTargets: new Set(['t'])}), 'cancelled');
+    assert.equal(plungeOutcome({hitTargets: new Set(['t'])}), 'hit');
+    assert.equal(plungeOutcome({hitTargets: new Set()}), 'miss');
 });

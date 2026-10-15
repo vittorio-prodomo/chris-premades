@@ -3079,7 +3079,8 @@
                 "TooLow": "A Plunging Attack needs a drop of more than 10 ft — use Landing on a Creature or a normal attack.",
                 "Summary": "Plunge from {height} ft — fall dice {dice}.",
                 "Hit": "Hits {target}: +{targetDamage} fall damage; {fallerDamage} to the attacker.",
-                "Miss": "Misses: the attacker lands Prone ({damage} damage)."
+                "Miss": "Misses: the attacker lands Prone ({damage} damage).",
+                "Cancelled": "The attack was not made: no fall damage applied."
             }
         },
         "ManualRolls": {

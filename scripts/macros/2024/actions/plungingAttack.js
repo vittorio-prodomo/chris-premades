@@ -6,7 +6,7 @@
  * workflow.workflowOptions — both read in our midi source 2026-10-15.
  */
 import {dialogUtils, effectUtils, genericUtils, itemUtils, workflowUtils} from '../../../utils.js';
-import {plungeSplit} from '../../../lib/utilities/dropRules.mjs';
+import {plungeOutcome, plungeSplit} from '../../../lib/utilities/dropRules.mjs';
 import {chooseLandingSquare, pickSingleTarget, resolveDropHeight, rollFallDice, stampCard} from './dropShared.js';
 import {flyTo} from './jumpFlight.js';
 const P = 'CHRISPREMADES.Macros.PlungingAttack.';
@@ -57,7 +57,14 @@ async function use({trigger, workflow}) {
     } finally {
         Hooks.off('midi-qol.DamageRollComplete', hookId);
     }
-    let hit = !!attack?.hitTargets?.size;
+    let outcome = plungeOutcome(attack);
+    if (outcome === 'cancelled') {
+        // A closed dialog is not a miss: nothing is applied (review #7). The GM adjusts by hand if the drop
+        // really happened.
+        await stampCard(workflow, [genericUtils.format(P + 'Summary', {height, dice: fall.total}), genericUtils.translate(P + 'Cancelled')]);
+        return;
+    }
+    let hit = outcome === 'hit';
     let lines = [genericUtils.format(P + 'Summary', {height, dice: fall.total})];
     if (hit) {
         if (split.faller) await workflowUtils.applyDamage([token], split.faller, 'bludgeoning');

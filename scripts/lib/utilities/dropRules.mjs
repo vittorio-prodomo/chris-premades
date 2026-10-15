@@ -58,3 +58,8 @@ export function isAdjacent(a, b) {
 export function squareTaken(square, others) {
     return (others ?? []).some(o => square.x < o.x + o.w && o.x < square.x + square.w && square.y < o.y + o.h && o.y < square.y + square.h);
 }
+/** A Plunging Attack's weapon use: no workflow, or an aborted one, was CANCELLED — never a miss (review #7). */
+export function plungeOutcome(attackWorkflow) {
+    if (!attackWorkflow || attackWorkflow.aborted) return 'cancelled';
+    return attackWorkflow.hitTargets?.size ? 'hit' : 'miss';
+}
