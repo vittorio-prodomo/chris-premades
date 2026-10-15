@@ -33,7 +33,12 @@ async function use({trigger, workflow}) {
     }
     let outcome = landingOutcome({aimTotal, dc, undetected, dodgeSave: dodge.accepted ? dodge.total : null});
     let sounds = {runUp: null, takeoff: itemUtils.getConfig(workflow.item, 'takeoffSound'), landing: itemUtils.getConfig(workflow.item, 'landingSound')};
-    await flyTo({token, position: landing.position, destination: landing.destination, distance: landing.feet, cost: landing.verdict.cost, sounds, playRunUp: false, playAnimation: itemUtils.getConfig(workflow.item, 'playAnimation')});
+    let landed = await flyTo({token, position: landing.position, destination: landing.destination, distance: landing.feet, cost: landing.verdict.cost, sounds, playRunUp: false, playAnimation: itemUtils.getConfig(workflow.item, 'playAnimation')});
+    if (!landed) {
+        // Stopped mid-leap (the path changed after the square was chosen): no landing, so no damage.
+        await stampCard(workflow, [genericUtils.format(L + 'Summary', {height, dc, aim: aimTotal}), genericUtils.translate('CHRISPREMADES.Macros.Jump.LongJump.Blocked')]);
+        return;
+    }
     let fall = await rollFallDice(height, workflow.actor);
     let lines = [genericUtils.format(L + 'Summary', {height, dc, aim: aimTotal})];
     lines.push(genericUtils.translate(undetected ? L + 'Undetected' : L + 'Aware'));

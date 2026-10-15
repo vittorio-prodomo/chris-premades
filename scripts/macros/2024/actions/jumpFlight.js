@@ -30,7 +30,11 @@ export async function moveByJump(token, destination, {distance, cost, animate}) 
         // elevation in it makes core lay a 3D path whose vertical steps escape the cost wrap above (seen live
         // 2026-10-15: 27.9 ft charged for a 10-ft leap from a 30-ft roof). Core's `displace` action is a
         // zero-cost teleport, recorded in the history at cost 0.
-        if (moved && destination.elevation !== undefined && destination.elevation !== token.document.elevation) {
+        // Only drop where the jump really LANDED: `move` reports true for a clamped move, and `displace`
+        // ignores walls — displacing to the destination would teleport through whatever stopped the jump
+        // (review #3, live L10).
+        let atDestination = token.document.x === destination.x && token.document.y === destination.y;
+        if (moved && atDestination && destination.elevation !== undefined && destination.elevation !== token.document.elevation) {
             moved = await token.document.move({x: destination.x, y: destination.y, elevation: destination.elevation, action: 'displace'}, {method: 'api', showRuler: false, animate: false});
         }
         return moved;

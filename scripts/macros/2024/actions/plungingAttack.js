@@ -35,7 +35,12 @@ async function use({trigger, workflow}) {
     let landing = await chooseLandingSquare({token, target, item: workflow.item});
     if (!landing) return;
     let sounds = {runUp: null, takeoff: itemUtils.getConfig(workflow.item, 'takeoffSound'), landing: itemUtils.getConfig(workflow.item, 'landingSound')};
-    await flyTo({token, position: landing.position, destination: landing.destination, distance: landing.feet, cost: landing.verdict.cost, sounds, playRunUp: false, playAnimation: itemUtils.getConfig(workflow.item, 'playAnimation')});
+    let landed = await flyTo({token, position: landing.position, destination: landing.destination, distance: landing.feet, cost: landing.verdict.cost, sounds, playRunUp: false, playAnimation: itemUtils.getConfig(workflow.item, 'playAnimation')});
+    if (!landed) {
+        // Stopped mid-leap: no plunge, no attack, no fall damage.
+        await stampCard(workflow, [genericUtils.translate('CHRISPREMADES.Macros.Jump.LongJump.Blocked')]);
+        return;
+    }
     let fall = await rollFallDice(height, workflow.actor);
     let split = plungeSplit(height, fall.total);
     let damageType = [...(weapon.system.damage?.base?.types ?? [])][0] ?? 'bludgeoning';
